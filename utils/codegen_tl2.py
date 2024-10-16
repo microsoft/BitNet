@@ -5,6 +5,8 @@ from configparser import ConfigParser
 def gen_ctor_code():
     kernel_code = "\n\
 #include \"ggml-bitnet.h\"\n\
+#include <cstring>\n\
+#include <immintrin.h>\n\
 #define GGML_BITNET_MAX_NODES 8192\n\
 static bool initialized = false;\n\
 static bitnet_tensor_extra * bitnet_tensor_extras = nullptr;\n\

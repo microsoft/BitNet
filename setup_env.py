@@ -99,7 +99,7 @@ def prepare_model():
             f32_model = os.path.join(model_dir, "ggml-model-f32.gguf")
             i2s_model = os.path.join(model_dir, "ggml-model-i2_s.gguf")
             # quantize to i2s
-            if arch == "arm64":
+            if platform.system() != "Windows":
                 if quant_embd:
                     run_command(["./build/bin/llama-quantize", "--token-embedding-type", "f16", f32_model, i2s_model, "I2_S", "1", "1"], log_step="quantize_to_i2s")
                 else:
@@ -116,13 +116,7 @@ def prepare_model():
 
 def setup_gguf():
     # Install the pip package
-    # check if gguf pypi package is installed
-    gguf_exists = subprocess.run([sys.executable, "-m", "pip", "show", "gguf"], capture_output=True)
-    if gguf_exists.returncode == 0:
-        logging.info("GGUF package already installed.")
-    else:
-        logging.info("Installing gguf package.")
-        run_command([sys.executable, "-m", "pip", "install", "3rdparty/llama.cpp/gguf-py"], log_step="install_gguf")
+    run_command([sys.executable, "-m", "pip", "install", "3rdparty/llama.cpp/gguf-py"], log_step="install_gguf")
 
 def gen_code():
     _, arch = system_info()

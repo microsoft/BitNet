@@ -3,6 +3,9 @@
 
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
+#include <immintrin.h>
+#include <cmath>
+#include <cstring>
 
 #define QK_I2_S 128
 #define QK_I2 128
