@@ -1,4 +1,4 @@
 [submodule "3rdparty/llama.cpp"]
 	path = 3rdparty/llama.cpp
-	url = git@github.com:Eddie-Wang1120/llama.cpp.git
+	url = https://github.com/Eddie-Wang1120/llama.cpp.git
 	branch = merge-dev
