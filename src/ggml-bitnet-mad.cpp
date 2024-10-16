@@ -3,7 +3,6 @@
 
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
-#include <immintrin.h>
 #include <cmath>
 #include <cstring>
 
@@ -11,6 +10,7 @@
 #define QK_I2 128
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
+#include <immintrin.h>
 // horizontally add 8 int32_t
 static inline int hsum_i32_8(const __m256i a) {
     const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
