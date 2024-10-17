@@ -79,7 +79,7 @@ optional arguments:
 ### Basic usage
 ```bash
 # Run inference with the quantized model
-python run_inference.py -m models/bitnet_b1_58-large/ggml-model-i2_s.gguf -p "Microsoft Corporation is"
+python run_inference.py -m models/bitnet_b1_58-large/ggml-model-i2_s.gguf -p "Water is"
 ```
 <pre>
 usage: run_inference.py [-h] [-m MODEL] [-n N_PREDICT] -p PROMPT [-t THREADS] [-c CTX_SIZE]
@@ -101,8 +101,8 @@ optional arguments:
 </pre>
 
 Example output:  
->Microsoft Corporation is an American software company headquartered in Redmond, Washington, United States. The company is a subsidiary of Microsoft Corporation. Microsoft is an American software company that designs and develops computer software and services. The company was founded in 1975 by Bill Gates. Microsoft has its headquarters in Redmond, Washington, United States.
-Microsoft Corporation's business is mainly focused on software development and application development. The company is the largest software company in the world and a member of the Microsoft Group. The company was founded by Bill Gates, Paul Allen, and Steve Ballmer.
+> Water is one of the most crucial resources on the planet. When it comes to water, we need a lot. It's the most precious commodity we have, and we don't get enough. We need to do more to conserve water, and with the help of our water conservation experts, we can do it.
+A water conservation expert is a person who studies and analyzes water and water resources. They may be a scientist, an engineer, or an attorney. In most countries, the term "water conservation" is used to refer to a specific practice or technique, such as water conservation.
 
 
 
