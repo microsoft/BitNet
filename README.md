@@ -19,48 +19,64 @@ https://github.com/user-attachments/assets/cb809f9e-241a-40da-9d0c-9e2ca228e755
 
 bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://huggingface.co/)
 
+
 <table>
+    </tr>
     <tr>
         <th rowspan="2">Model</th>
         <th rowspan="2">Parameters</th>
-        <th colspan="2">CPU</th>
+        <th rowspan="2">CPU</th>
         <th colspan="3">Kernel</th>
     </tr>
     <tr>
-        <th>x86</th>
-        <th>ARM</th>
         <th>I2_S</th>
         <th>TL1</th>
         <th>TL2</th>
     </tr>
     <tr>
-        <td><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
-        <td>0.7B</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-    </tr>
-    <tr>
-        <td><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
-        <td>3.3B</td>
-        <td>&#10004;</td>
+        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
+        <td rowspan="2">0.7B</td>
+        <td>x86</td>
         <td>&#10004;</td>
         <td>&#10008;</td>
         <td>&#10004;</td>
+    </tr>
+    <tr>
+        <td>ARM</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10008;</td>
+    </tr>
+    <tr>
+        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
+        <td rowspan="2">3.3B</td>
+        <td>x86</td>
+        <td>&#10008;</td>
+        <td>&#10008;</td>
         <td>&#10004;</td>
     </tr>
     <tr>
-        <td><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
-        <td>8.0B</td>
+        <td>ARM</td>
+        <td>&#10008;</td>
         <td>&#10004;</td>
+        <td>&#10008;</td>
+    </tr>
+    <tr>
+        <td rowspan="2"><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
+        <td rowspan="2">8.0B</td>
+        <td>x86</td>
         <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
+        <td>&#10008;</td>
         <td>&#10004;</td>
     </tr>
+    <tr>
+        <td>ARM</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10008;</td>
+    </tr>
 </table>
+
 
 
 ## Installation
