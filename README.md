@@ -35,7 +35,7 @@ bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://h
 
 ### Build from source
 
-> if you are using Windows, please make sure you have installed Visual Studio with clang support, and run the following commands within the Developer PowerShell
+> If you are using Windows, please make sure you have installed Visual Studio with clang support, and run the following commands within the Developer PowerShell
 1. Clone the repo
 ```bash
 git clone --recursive https://github.com/microsoft/BitNet.git
