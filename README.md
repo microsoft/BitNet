@@ -112,27 +112,8 @@ Example output:
 A water conservation expert is a person who studies and analyzes water and water resources. They may be a scientist, an engineer, or an attorney. In most countries, the term "water conservation" is used to refer to a specific practice or technique, such as water conservation.
 
 
-
-
-
-
-### Advanced usage
-// TODO
-We provide a series of tools that allow you to manually tune the kernel for your own device.
-
-We also provide scipts to generate fake bitnet models with different sizes, making it easier to test the performance of the framework on your machine.
-
-```bash
-python utils/generate-fake-bitnet-model.py models/bitnet_b1_58-large --outfile models/fake-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
-
-# Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
-python utils/e2e_benchmark.py -m models/fake-bitnet-125m.tl1.gguf -p 512 -n 128
-```
-Example output:
-![alt text](media/benchmark.png)
-
-#### Benchmark
-This script is designed to set up the environment for running the inference benchmark.  
+### Benchmark
+We provide scripts to run the inference benchmark providing a model.
 
 ```  
 usage: e2e_benchmark.py -m MODEL [-n N_TOKEN] [-p N_PROMPT] [-t THREADS]  
@@ -170,3 +151,11 @@ python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4
    
 This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
 
+For the model layout that do not supported by any public model, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
+
+```bash
+python utils/generate-fake-bitnet-model.py models/bitnet_b1_58-large --outfile models/fake-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
+
+# Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
+python utils/e2e_benchmark.py -m models/fake-bitnet-125m.tl1.gguf -p 512 -n 128
+```
