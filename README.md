@@ -1,24 +1,28 @@
 # bitnet.cpp
 
 ## Introduction
-bitnet.cpp is the officially supported inference framework specifically designed for Bitnet ternary models, optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, I2_S, TL1 ( Ternary Lookup 1 ) and TL2 ( Ternary Lookup 2 ), that support lossless inference of BitNet b1.58 models across both x86 and
-ARM architectures. Below is a demo of bitnet.cpp runing 3.8B model on Apple M2. 
+
+bitnet.cpp is the officially supported inference framework specifically designed for Bitnet models (e.g., BitNet b1.58), optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, that support lossless inference of BitNet b1.58 models across both x86 and ARM architectures. 
+
+## Demo
+
+A demo of bitnet.cpp runing 3.8B model on Apple M2:
 
 https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
-
-
 ## Timeline
-- 10/17/2024 bitnet.cpp supports lossless inference on x86 and ARM CPUs.
+
+- 10/17/2024 bitnet.cpp is public.
 - 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
 - 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
 
 ## Acknowledgements
-This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community.
-We also thank [T-MAC]([https://github.com/ggerganov/llama.cpp](https://github.com/microsoft/T-MAC/) team for indroducing LUT method for low-bit LLM inference.
+
+This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. We also thank [T-MAC](https://github.com/microsoft/T-MAC/) team for the helpful discussion on the LUT method for low-bit LLM inference.
 
 ## Supported Models
-bitnet.cpp supports a list of models available on [Hugging Face](https://huggingface.co/)
+
+bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://huggingface.co/)
 
 |       Model                                                                                              | Parameters |   CPU    |              | Kernel       |              |              |
 | :----------------:                                                                                       | :-------:  | :------: | :----------: |:----------:  |:----------:  |:----------:  |
@@ -28,12 +32,14 @@ bitnet.cpp supports a list of models available on [Hugging Face](https://hugging
 | [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens)                |    8B      | &#10004; |   &#10004;   |   &#10004;   |   &#10004;   |   &#10004;   |
 
 ## Installation
+
 ### Requirements
 - conda
 - cmake>=3.22
-- clang(if using Windows, Visual Studio is needed for clang support)
+- clang (if using Windows, Visual Studio is needed for clang support)
 
 ### Build from source
+
 > if you are using Windows, please make sure you have installed Visual Studio with clang support, and run the following commands within the Developer PowerShell
 1. Clone the repo
 ```bash
