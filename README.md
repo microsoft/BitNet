@@ -4,7 +4,8 @@
 bitnet.cpp is the officially supported inference framework specifically designed for Bitnet ternary models, optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, I2_S, TL1 ( Ternary Lookup 1 ) and TL2 ( Ternary Lookup 2 ), that support lossless inference of BitNet b1.58 models across both x86 and
 ARM architectures. Below is a demo of bitnet.cpp runing 3.8B model on Apple M2. 
 
-https://github.com/user-attachments/assets/a4b389c1-1b26-441c-8049-f0357217c5cf
+https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
+
 
 
 ## Timeline
