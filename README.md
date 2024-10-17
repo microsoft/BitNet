@@ -124,3 +124,93 @@ python utils/e2e_benchmark.py -m models/fake-bitnet-125m.tl1.gguf -p 512 -n 128
 Example output:
 ![alt text](media/benchmark.png)
 
+#### Generate fake bitnet model
+This script is designed to generate a fake Bitnet model in GGUF format.
+   
+```  
+usage: generate-fake-bitnet-model.py [-h] [--vocab-only] [--outfile OUTFILE]  
+                                     [--outtype {f32,f16,tl1,tl2}] [--bigendian]  
+                                     [--use-temp-file] [--model-name MODEL_NAME]  
+                                     [--model-size MODEL_SIZE] [--verbose]  
+                                     model  
+   
+Generate a fake bitnet model with GGUF format  
+   
+positional arguments:  
+  model                 directory containing model file  
+   
+optional arguments:  
+  -h, --help            show this help message and exit  
+  --vocab-only          extract only the vocab  
+  --outfile OUTFILE     path to write to; default: based on input  
+  --outtype {f32,f16,tl1,tl2}  
+                        output format - use f32 for float32, f16 for float16  
+  --bigendian           model is executed on big endian machine  
+  --use-temp-file       use the tempfile library while processing (helpful when  
+                        running out of memory, process killed)  
+  --model-name MODEL_NAME  
+                        name of the model  
+  --model-size MODEL_SIZE  
+                        size of the model  
+  --verbose             increase output verbosity  
+```  
+   
+Here's a brief explanation of each argument:  
+   
+- `model`: The directory containing the model file. This is a required positional argument.  
+- `--vocab-only`: If specified, only the vocabulary will be extracted.  
+- `--outfile`: The path to the output file. If not specified, the default is based on the input.  
+- `--outtype`: The output format. Options are `f32` for float32, `f16` for float16, `tl1`, and `tl2`. The default is `f16`.  
+- `--bigendian`: If specified, indicates that the model is executed on a big-endian machine.  
+- `--use-temp-file`: If specified, the script will use the tempfile library while processing. This is helpful when running out of memory or if the process is killed.  
+- `--model-name`: The name of the model. This is optional.  
+- `--model-size`: The size of the model, such as "7B". The default is "7B".  
+- `--verbose`: If specified, increases the output verbosity for debugging purposes.  
+- `-h`, `--help`: Show the help message and exit.  
+   
+For example:  
+   
+```sh  
+python utils/generate-fake-bitnet-model.py --outfile /path/to/output.gguf --model-size 1B /path/to/model/dir  
+```  
+   
+This command would generate a fake Bitnet model with a size of 1B and write the output to `/path/to/output.gguf` using the model files located in `/path/to/model/dir`.
+#### Benchmark
+This script is designed to set up the environment for running the inference benchmark.  
+
+```  
+usage: e2e_benchmark.py -m MODEL [-n N_TOKEN] [-p N_PROMPT] [-t THREADS]  
+   
+Setup the environment for running the inference  
+   
+required arguments:  
+  -m MODEL, --model MODEL  
+                        Path to the model file. 
+   
+optional arguments:  
+  -h, --help  
+                        Show this help message and exit. 
+  -n N_TOKEN, --n-token N_TOKEN  
+                        Number of generated tokens. 
+  -p N_PROMPT, --n-prompt N_PROMPT  
+                        Prompt to generate text from. 
+  -t THREADS, --threads THREADS  
+                        Number of threads to use. 
+```  
+   
+Here's a brief explanation of each argument:  
+   
+- `-m`, `--model`: The path to the model file. This is a required argument that must be provided when running the script.  
+- `-n`, `--n-token`: The number of tokens to generate during the inference. It is an optional argument with a default value of 128.  
+- `-p`, `--n-prompt`: The number of prompt tokens to use for generating text. This is an optional argument with a default value of 512.  
+- `-t`, `--threads`: The number of threads to use for running the inference. It is an optional argument with a default value of 2.  
+- `-h`, `--help`: Show the help message and exit. Use this argument to display usage information.  
+   
+For example:  
+   
+```sh  
+python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4  
+```  
+   
+This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
+
