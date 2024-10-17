@@ -1,4 +1,5 @@
 # bitnet.cpp
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 bitnet.cpp is the official inference framework for BitNet models (e.g., BitNet b1.58), optimized for CPU devices. It offers a suite of optimized kernels, that support lossless inference of 1.58-bit models on both x86 and ARM architectures. 
 
@@ -6,7 +7,7 @@ bitnet.cpp is the official inference framework for BitNet models (e.g., BitNet b
 
 A demo of bitnet.cpp runing a BitNet b1.58 model on Apple M2:
 
-https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
+https://github.com/user-attachments/assets/cb809f9e-241a-40da-9d0c-9e2ca228e755
 
 ## Timeline
 
@@ -18,26 +19,61 @@ https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
 bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://huggingface.co/)
 
-|       Model                                                                               | Platform      | Parameters |      I2_S     |     TL1      |      TL2     |
-| :----------------:                                                                        | :-------:     | :------:   | :----------:  |:----------:  |:----------:  |
-| [bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large)                   |    x86        |    0.7B    |    &#10004;   |   &#10004;   |   &#10004;   |
-| [bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large)                   |    ARM        |    0.7B    |    &#10004;   |   &#10004;   |   &#10004;   |
-| [bitnet_b1_58-3B](https://huggingface.co/1bitLLM/bitnet_b1_58-3B)                         |    x86        |    3.3B    |    &#10004;   |   &#10008;   |   &#10004;   |
-| [bitnet_b1_58-3B](https://huggingface.co/1bitLLM/bitnet_b1_58-3B)                         |    ARM        |    3.3B    |    &#10004;   |   &#10004;   |   &#10008;   |
-| [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens) |    x86        |    8.0B    |    &#10004;   |   &#10004;   |   &#10004;   |
-| [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens) |    ARM        |    8.0B    |    &#10004;   |   &#10004;   |   &#10004;   |
+<table>
+    <tr>
+        <th rowspan="2">Model</th>
+        <th rowspan="2">Parameters</th>
+        <th colspan="2">CPU</th>
+        <th colspan="3">Kernel</th>
+    </tr>
+    <tr>
+        <th>x86</th>
+        <th>ARM</th>
+        <th>I2_S</th>
+        <th>TL1</th>
+        <th>TL2</th>
+    </tr>
+    <tr>
+        <td><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
+        <td>0.7B</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+    </tr>
+    <tr>
+        <td><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
+        <td>3.3B</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10008;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+    </tr>
+    <tr>
+        <td><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
+        <td>8.0B</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+        <td>&#10004;</td>
+    </tr>
+</table>
+
 
 ## Installation
 
 ### Requirements
 - python>=3.9
 - cmake>=3.22
-- clang (if using Windows, Visual Studio is needed for clang support)
+- clang (if using Windows, [Visual Studio](https://visualstudio.microsoft.com/) is needed for clang support, toggle on Desk development with C++ and C++ Clang tools for Windows during installation)
 - conda (highly recommend)
 
 ### Build from source
 
-> If you are using Windows, please make sure you have installed Visual Studio with clang support, and run the following commands within the Developer PowerShell
+> if you are using Windows, please make sure you have installed [Visual Studio](https://visualstudio.microsoft.com/) with clang support, and run the following commands within the Developer PowerShell For VS
 1. Clone the repo
 ```bash
 git clone --recursive https://github.com/microsoft/BitNet.git
