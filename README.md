@@ -28,9 +28,10 @@ bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://h
 ## Installation
 
 ### Requirements
-- conda
+- python>=3.9
 - cmake>=3.22
 - clang (if using Windows, Visual Studio is needed for clang support)
+- conda (highly recommend)
 
 ### Build from source
 
