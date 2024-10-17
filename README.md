@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
 ## Timeline
 
-- 10/17/2024 bitnet.cpp is public.
+- 10/17/2024 bitnet.cpp 1.0 released.
 - 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
 - 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
 
