@@ -2,7 +2,7 @@
 
 ## Introduction
 
-bitnet.cpp is the officially supported inference framework specifically designed for Bitnet models (e.g., BitNet b1.58), optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, that support lossless inference of BitNet b1.58 models across both x86 and ARM architectures. 
+bitnet.cpp is the officially supported inference framework specifically designed for BitNet models (e.g., BitNet b1.58), optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, that support lossless inference of BitNet b1.58 models across both x86 and ARM architectures. 
 
 ## Demo
 
