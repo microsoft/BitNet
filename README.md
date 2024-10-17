@@ -1,6 +1,6 @@
 # bitnet.cpp
 
-bitnet.cpp is the officially supported inference framework specifically designed for BitNet models (e.g., BitNet b1.58), optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, that support lossless inference of BitNet b1.58 models on both x86 and ARM architectures. 
+bitnet.cpp is the official inference framework for BitNet models (e.g., BitNet b1.58), optimized for CPU devices. It offers a suite of optimized kernels, that support lossless inference of 1.58-bit models on both x86 and ARM architectures. 
 
 ## Demo
 
@@ -13,10 +13,6 @@ https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 - 10/17/2024 bitnet.cpp 1.0 released.
 - 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
 - 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
-
-## Acknowledgements
-
-This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. We also thank [T-MAC](https://github.com/microsoft/T-MAC/) team for the helpful discussion on the LUT method for low-bit LLM inference.
 
 ## Supported Models
 
@@ -156,3 +152,7 @@ python utils/generate-fake-bitnet-model.py models/bitnet_b1_58-large --outfile m
 # Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
 python utils/e2e_benchmark.py -m models/fake-bitnet-125m.tl1.gguf -p 512 -n 128
 ```
+
+## Acknowledgements
+
+This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. We also thank [T-MAC](https://github.com/microsoft/T-MAC/) team for the helpful discussion on the LUT method for low-bit LLM inference.
