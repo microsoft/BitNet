@@ -4,7 +4,7 @@ bitnet.cpp is the officially supported inference framework specifically designed
 
 ## Demo
 
-A demo of bitnet.cpp runing 3.8B model on Apple M2:
+A demo of bitnet.cpp runing a BitNet b1.58 model on Apple M2:
 
 https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
