@@ -1,23 +1,28 @@
 # bitnet.cpp
 
 ## Introduction
-bitnet.cpp is the officially supported inference framework specifically designed for Bitnet ternary models, optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, I2_S, TL1 ( Ternary Lookup 1 ) and TL2 ( Ternary Lookup 2 ), that support lossless inference of BitNet b1.58 models across both x86 and
-ARM architectures. Below is a demo of bitnet.cpp runing 3.8B model on Apple M2. 
 
-https://github.com/user-attachments/assets/a4b389c1-1b26-441c-8049-f0357217c5cf
+bitnet.cpp is the officially supported inference framework specifically designed for Bitnet models (e.g., BitNet b1.58), optimized for efficient CPU-based inference. bitnet.cpp offers a suite of optimized kernels, that support lossless inference of BitNet b1.58 models across both x86 and ARM architectures. 
 
+## Demo
+
+A demo of bitnet.cpp runing 3.8B model on Apple M2:
+
+https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
 ## Timeline
-- 10/17/2024 bitnet.cpp supports lossless inference on x86 and ARM CPUs.
+
+- 10/17/2024 bitnet.cpp is public.
 - 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
 - 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
 
 ## Acknowledgements
-This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community.
-We also thank [T-MAC]([https://github.com/ggerganov/llama.cpp](https://github.com/microsoft/T-MAC/) team for indroducing LUT method for low-bit LLM inference.
+
+This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. We also thank [T-MAC](https://github.com/microsoft/T-MAC/) team for the helpful discussion on the LUT method for low-bit LLM inference.
 
 ## Supported Models
-bitnet.cpp supports a list of models available on [Hugging Face](https://huggingface.co/)
+
+bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://huggingface.co/)
 
 |       Model                                                                                              | Parameters |   CPU    |              | Kernel       |              |              |
 | :----------------:                                                                                       | :-------:  | :------: | :----------: |:----------:  |:----------:  |:----------:  |
@@ -27,12 +32,14 @@ bitnet.cpp supports a list of models available on [Hugging Face](https://hugging
 | [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens)                |    8B      | &#10004; |   &#10004;   |   &#10004;   |   &#10004;   |   &#10004;   |
 
 ## Installation
+
 ### Requirements
 - conda
 - cmake>=3.22
-- clang(if using Windows, Visual Studio is needed for clang support)
+- clang (if using Windows, Visual Studio is needed for clang support)
 
 ### Build from source
+
 > if you are using Windows, please make sure you have installed Visual Studio with clang support, and run the following commands within the Developer PowerShell
 1. Clone the repo
 ```bash
@@ -124,57 +131,6 @@ python utils/e2e_benchmark.py -m models/fake-bitnet-125m.tl1.gguf -p 512 -n 128
 Example output:
 ![alt text](media/benchmark.png)
 
-#### Generate fake bitnet model
-This script is designed to generate a fake Bitnet model in GGUF format.
-   
-```  
-usage: generate-fake-bitnet-model.py [-h] [--vocab-only] [--outfile OUTFILE]  
-                                     [--outtype {f32,f16,tl1,tl2}] [--bigendian]  
-                                     [--use-temp-file] [--model-name MODEL_NAME]  
-                                     [--model-size MODEL_SIZE] [--verbose]  
-                                     model  
-   
-Generate a fake bitnet model with GGUF format  
-   
-positional arguments:  
-  model                 directory containing model file  
-   
-optional arguments:  
-  -h, --help            show this help message and exit  
-  --vocab-only          extract only the vocab  
-  --outfile OUTFILE     path to write to; default: based on input  
-  --outtype {f32,f16,tl1,tl2}  
-                        output format - use f32 for float32, f16 for float16  
-  --bigendian           model is executed on big endian machine  
-  --use-temp-file       use the tempfile library while processing (helpful when  
-                        running out of memory, process killed)  
-  --model-name MODEL_NAME  
-                        name of the model  
-  --model-size MODEL_SIZE  
-                        size of the model  
-  --verbose             increase output verbosity  
-```  
-   
-Here's a brief explanation of each argument:  
-   
-- `model`: The directory containing the model file. This is a required positional argument.  
-- `--vocab-only`: If specified, only the vocabulary will be extracted.  
-- `--outfile`: The path to the output file. If not specified, the default is based on the input.  
-- `--outtype`: The output format. Options are `f32` for float32, `f16` for float16, `tl1`, and `tl2`. The default is `f16`.  
-- `--bigendian`: If specified, indicates that the model is executed on a big-endian machine.  
-- `--use-temp-file`: If specified, the script will use the tempfile library while processing. This is helpful when running out of memory or if the process is killed.  
-- `--model-name`: The name of the model. This is optional.  
-- `--model-size`: The size of the model, such as "7B". The default is "7B".  
-- `--verbose`: If specified, increases the output verbosity for debugging purposes.  
-- `-h`, `--help`: Show the help message and exit.  
-   
-For example:  
-   
-```sh  
-python utils/generate-fake-bitnet-model.py --outfile /path/to/output.gguf --model-size 1B /path/to/model/dir  
-```  
-   
-This command would generate a fake Bitnet model with a size of 1B and write the output to `/path/to/output.gguf` using the model files located in `/path/to/model/dir`.
 #### Benchmark
 This script is designed to set up the environment for running the inference benchmark.  
 
