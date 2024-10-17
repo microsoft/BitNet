@@ -18,12 +18,14 @@ https://github.com/user-attachments/assets/96bfd877-73a4-4471-8af6-25af7da39ab7
 
 bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://huggingface.co/)
 
-|       Model                                                                                              | Parameters |   CPU    |              | Kernel       |              |              |
-| :----------------:                                                                                       | :-------:  | :------: | :----------: |:----------:  |:----------:  |:----------:  |
-|                                                                                                          |            |   x86    |     ARM      |     I2_S     |     TL1      |      TL2     |
-| [bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large)                                  |    0.7B    | &#10004; |   &#10004;   |   &#10004;   |   &#10004;   |   &#10004;   |
-| [bitnet_b1_58-3B](https://huggingface.co/1bitLLM/bitnet_b1_58-3B)                                        |    3.3B   | &#10004; |   &#10004;   |   &#10008;   |   &#10004;   |   &#10004;   |
-| [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens)                |    8.0B      | &#10004; |   &#10004;   |   &#10004;   |   &#10004;   |   &#10004;   |
+|       Model                                                                               | Platform      | Parameters |      I2_S     |     TL1      |      TL2     |
+| :----------------:                                                                        | :-------:     | :------:   | :----------:  |:----------:  |:----------:  |
+| [bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large)                   |    x86        |    0.7B    |    &#10004;   |   &#10004;   |   &#10004;   |
+| [bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large)                   |    ARM        |    0.7B    |    &#10004;   |   &#10004;   |   &#10004;   |
+| [bitnet_b1_58-3B](https://huggingface.co/1bitLLM/bitnet_b1_58-3B)                         |    x86        |    3.3B    |    &#10004;   |   &#10008;   |   &#10004;   |
+| [bitnet_b1_58-3B](https://huggingface.co/1bitLLM/bitnet_b1_58-3B)                         |    ARM        |    3.3B    |    &#10004;   |   &#10004;   |   &#10008;   |
+| [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens) |    x86        |    8.0B    |    &#10004;   |   &#10004;   |   &#10004;   |
+| [Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens) |    ARM        |    8.0B    |    &#10004;   |   &#10004;   |   &#10004;   |
 
 ## Installation
 
