@@ -109,7 +109,6 @@ optional arguments:
 
 Example output:  
 > Water is one of the most crucial resources on the planet. When it comes to water, we need a lot. It's the most precious commodity we have, and we don't get enough. We need to do more to conserve water, and with the help of our water conservation experts, we can do it.
-A water conservation expert is a person who studies and analyzes water and water resources. They may be a scientist, an engineer, or an attorney. In most countries, the term "water conservation" is used to refer to a specific practice or technique, such as water conservation.
 
 
 ### Benchmark
