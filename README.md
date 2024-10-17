@@ -1,5 +1,6 @@
 # bitnet.cpp
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![version](https://img.shields.io/badge/version-1.0-blue)
 
 bitnet.cpp is the official inference framework for BitNet models (e.g., BitNet b1.58), optimized for CPU devices. It offers a suite of optimized kernels, that support lossless inference of 1.58-bit models on both x86 and ARM architectures. 
 
@@ -89,7 +90,7 @@ bitnet.cpp supports a list of 1-bit models available on [Hugging Face](https://h
 
 ### Build from source
 
-> if you are using Windows, please make sure you have installed [Visual Studio](https://visualstudio.microsoft.com/) with clang support, and run the following commands within the Developer PowerShell For VS
+> If you are using Windows, please make sure you have installed [Visual Studio](https://visualstudio.microsoft.com/) with clang support, and run the following commands within the Developer PowerShell For VS
 1. Clone the repo
 ```bash
 git clone --recursive https://github.com/microsoft/BitNet.git
