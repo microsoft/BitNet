@@ -82,6 +82,10 @@ optional arguments:
 ```bash
 # Run inference with the quantized model
 python run_inference.py -m models/bitnet_b1_58-large/ggml-model-i2_s.gguf -p "Water is"
+
+# Output:
+# Water is one of the most crucial resources on the planet. When it comes to water, we need a lot. It's the most precious commodity we have, and we don't get enough. We need to do more to conserve water, and with the help of our water conservation experts, we can do it.
+
 ```
 <pre>
 usage: run_inference.py [-h] [-m MODEL] [-n N_PREDICT] -p PROMPT [-t THREADS] [-c CTX_SIZE]
@@ -101,10 +105,6 @@ optional arguments:
   -c CTX_SIZE, --ctx-size CTX_SIZE
                         Size of the prompt context
 </pre>
-
-Example output:  
-> Water is one of the most crucial resources on the planet. When it comes to water, we need a lot. It's the most precious commodity we have, and we don't get enough. We need to do more to conserve water, and with the help of our water conservation experts, we can do it.
-
 
 ### Benchmark
 We provide scripts to run the inference benchmark providing a model.
