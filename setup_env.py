@@ -81,7 +81,7 @@ def prepare_model():
         # download the model
         model_dir = os.path.join(model_dir, SUPPORTED_HF_MODELS[hf_url]["model_name"])
         Path(model_dir).mkdir(parents=True, exist_ok=True)
-        logging.info(f"Downloading model {hf_url} from HuggingFace to {model_dir}...")
+        logging.info(f"Downloading model {hf_url} from Hugging Face to {model_dir}...")
         run_command(["huggingface-cli", "download", hf_url, "--local-dir", model_dir], log_step="download_model")
     elif not os.path.exists(model_dir):
         logging.error(f"Model directory {model_dir} does not exist.")
