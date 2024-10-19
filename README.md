@@ -124,11 +124,11 @@ pip install -r requirements.txt
 3. Build the project
 ```bash
 # Download the model from Hugging Face, convert it to quantized gguf format, and build the project
-python setup_env.py --hf-repo HF1BitLLM/Llama3-8B-1.58-100B-tokens -q i2_s
+python setup_env.py --hf-repo HF1BitLLM/Llama3-8B-1.58-100B-tokens -q tl2
 
 # Or you can manually download the model and run with local path
 huggingface-cli download HF1BitLLM/Llama3-8B-1.58-100B-tokens --local-dir models/Llama3-8B-1.58-100B-tokens
-python setup_env.py -md models/Llama3-8B-1.58-100B-tokens -q i2_s
+python setup_env.py -md models/Llama3-8B-1.58-100B-tokens -q tl2
 ```
 <pre>
 usage: setup_env.py [-h] [--hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens}] [--model-dir MODEL_DIR] [--log-dir LOG_DIR] [--quant-type {i2_s,tl1}] [--quant-embd]
@@ -153,7 +153,7 @@ optional arguments:
 ### Basic usage
 ```bash
 # Run inference with the quantized model
-python run_inference.py -m models/Llama3-8B-1.58-100B-tokens/ggml-model-i2_s.gguf -p "Daniel went back to the the the garden. Mary travelled to the kitchen. Sandra journeyed to the kitchen. Sandra went to the hallway. John went to the bedroom. Mary went back to the garden. Where is Mary?\nAnswer:" -n 6 -temp 0
+python run_inference.py -m models/Llama3-8B-1.58-100B-tokens/ggml-model-tl2.gguf -p "Daniel went back to the the the garden. Mary travelled to the kitchen. Sandra journeyed to the kitchen. Sandra went to the hallway. John went to the bedroom. Mary went back to the garden. Where is Mary?\nAnswer:" -n 6 -temp 0
 
 # Output:
 # Daniel went back to the the the garden. Mary travelled to the kitchen. Sandra journeyed to the kitchen. Sandra went to the hallway. John went to the bedroom. Mary went back to the garden. Where is Mary?
