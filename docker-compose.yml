@@ -1,0 +1,9 @@
+services:
+  bitnet:
+    build: .
+    container_name: bitnet_cpp_container
+    volumes:
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    tty: true
