@@ -85,6 +85,8 @@ size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_
     float* scale_ptr = (float*)((char*)i2_weight + n / 4);
     scale_ptr[0] = i2_scale;
 
+    free(q8);
+
     // 32B for alignment
     return nrow * row_size / 4 + 32;
 }
