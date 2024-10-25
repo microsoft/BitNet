@@ -5,33 +5,35 @@ from configparser import ConfigParser
 from jinja2 import Environment, FileSystemLoader
 
 def gen_ctor_code():
-    return "\n" + (Path(__file__).parent / "templates" / "tl2_ctor.h").read_text(encoding='utf-8')
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
+    template = env.get_template("tl2_ctor.h")
+    return "\n" + template.render()
 
 def gen_tbl_impl(pre, BM, BK, bm, k_list):
     env = Environment(
-                loader=FileSystemLoader(Path(__file__).parent / "templates"),
-            )
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
     template = env.get_template("tl2_table_impl.h")
     return "\n" + template.render(pre=pre, BM=BM, BK=BK, bm=bm, k_list=k_list)
 
 def gen_top_api(kernel_shapes, k_list):
     env = Environment(
-                loader=FileSystemLoader(Path(__file__).parent / "templates"),
-            )
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
 
     template = env.get_template("tl2_top_api.h")
-    kernel_code = "\n" + template.render(kernel_shapes=kernel_shapes, k_list=k_list) + "\n"
-    return kernel_code
+    return "\n" + template.render(kernel_shapes=kernel_shapes, k_list=k_list) + "\n"
 
 def gen_transform_code(kernel_shapes):
     env = Environment(
-                loader=FileSystemLoader(Path(__file__).parent / "templates"),
-            )
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
 
     template = env.get_template("tl2_gen_transform.h")
-    kernel_code = "\n" + template.render(kernel_shapes=kernel_shapes) + "\n"
+    return "\n" + template.render(kernel_shapes=kernel_shapes) + "\n"
 
-    return kernel_code
 
 def get_three_k_two_k(K, bk):
     bk_num = K // bk
