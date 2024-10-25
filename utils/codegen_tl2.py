@@ -1,39 +1,7 @@
 import argparse
-import os
 from pathlib import Path
 from configparser import ConfigParser
 from jinja2 import Environment, FileSystemLoader
-
-def gen_ctor_code():
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-    template = env.get_template("tl2_ctor.h")
-    return "\n" + template.render()
-
-def gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-    template = env.get_template("tl2_table_impl.h")
-    return "\n" + template.render(kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, bm_list=bm_list, k_list=k_list)
-
-def gen_top_api(kernel_shapes, k_list):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    template = env.get_template("tl2_top_api.h")
-    return "\n" + template.render(kernel_shapes=kernel_shapes, k_list=k_list) + "\n"
-
-def gen_transform_code(kernel_shapes):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    template = env.get_template("tl2_gen_transform.h")
-    return "\n" + template.render(kernel_shapes=kernel_shapes) + "\n"
-
 
 def get_three_k_two_k(K, bk):
     bk_num = K // bk
@@ -84,20 +52,22 @@ if __name__ == "__main__":
         assert (kernel_shapes[i][1] % BK_list[i]) % 32 == 0, "K %% BK %% 32 should be 0"
         assert bm_list[i] in [32], "choose bm from [32]"
 
-    ctor_code = gen_ctor_code()
-    api_code = gen_top_api(kernel_shapes, k_list)
-    trans_code = gen_transform_code(kernel_shapes)
-    tbl_impl_code = gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list)
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
+    template = env.get_template("tl2.h")
+    contents = template.render(
+        kernel_shapes=kernel_shapes,
+        k_list=k_list,
+        BM_list=BM_list,
+        BK_list=BK_list,
+        bm_list=bm_list,
+    )
 
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "include")
+    output_dir = Path(__file__).resolve().parent.parent / "include"
 
-    with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
-        f.write(''.join("#if defined(GGML_BITNET_X86_TL2)"))
-        f.write(''.join(ctor_code))
-        f.write(''.join(tbl_impl_code))
-        f.write(''.join(api_code))
-        f.write(''.join(trans_code))
-        f.write(''.join("#endif"))
+    header_file = output_dir / "bitnet-lut-kernels.h"
+    header_file.write_text(contents, encoding='utf-8')
 
     config = ConfigParser()
 
@@ -109,5 +79,6 @@ if __name__ == "__main__":
         config.set('Kernels_{}'.format(i), 'BK'.format(i), str(BK_list[i]))
         config.set('Kernels_{}'.format(i), 'bmm'.format(i), str(bm_list[i]))
 
-    with open(''.join([output_dir, "/kernel_config.ini"]), 'w') as configfile:
+    config_file = output_dir / "kernel_config.ini"
+    with open(config_file, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
