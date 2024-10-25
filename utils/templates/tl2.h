@@ -552,34 +552,22 @@ void ggml_qgemm_lut(int bs, int m, int k, int BK, void* A, void* sign, void* LUT
 {% for kernel_shape in kernel_shapes %}
     {% if loop.index0 > 0 %}else {% endif %}if (m == {{ kernel_shapes[loop.index0][0] }} && k == {{ kernel_shapes[loop.index0][1] }}) {
         if (BK == {{ k_list[loop.index0][0] }}) {
-            if (bs == 1) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<1>(A, LUT, Scales, LUT_Scales, C);
-            } else if (bs == 8) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<8>(A, LUT, Scales, LUT_Scales, C);
-            } else if (bs == 32) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<32>(A, LUT, Scales, LUT_Scales, C);
-            } else if (bs == 128) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<128>(A, LUT, Scales, LUT_Scales, C);
-            } else if (bs == 256) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<256>(A, LUT, Scales, LUT_Scales, C);
-            } else if (bs == 512) {
-                two_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<512>(A, LUT, Scales, LUT_Scales, C);
+            {% set block_sizes = [1, 8, 32, 128, 256, 512] %}
+			{% set outer_loop = loop %}
+            {% for bs in block_sizes %}
+            {% if loop.index0 > 0 %}else {% endif %}if (bs == {{ bs }}) {
+                two_qgemm_lut_{{ kernel_shapes[outer_loop.index0][0] }}_{{ kernel_shapes[outer_loop.index0][1] }}<{{ bs }}>(A, LUT, Scales, LUT_Scales, C);
             }
+            {% endfor %}
         }
         else if (BK == {{ k_list[loop.index0][1] }}) {
-            if (bs == 1) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<1>(A, sign, LUT, Scales, LUT_Scales, C);
-            }else if (bs == 8) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<8>(A, sign, LUT, Scales, LUT_Scales, C);
-            }else if (bs == 32) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<32>(A, sign, LUT, Scales, LUT_Scales, C);
-            }else if (bs == 128) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<128>(A, sign, LUT, Scales, LUT_Scales, C);
-            }else if (bs == 256) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<256>(A, sign, LUT, Scales, LUT_Scales, C);
-            }else if (bs == 512) {
-                three_qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}<512>(A, sign, LUT, Scales, LUT_Scales, C);
+            {% set block_sizes = [1, 8, 32, 128, 256, 512] %}
+			{% set outer_loop = loop %}
+            {% for bs in block_sizes %}
+            {% if loop.index0 > 0 %}else {% endif %}if (bs == {{ bs }}) {
+                three_qgemm_lut_{{ kernel_shapes[outer_loop.index0][0] }}_{{ kernel_shapes[outer_loop.index0][1] }}<{{ bs }}>(A, sign, LUT, Scales, LUT_Scales, C);
             }
+            {% endfor %}
         }
     }
 {% endfor %}
