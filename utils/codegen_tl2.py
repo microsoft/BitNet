@@ -15,97 +15,12 @@ def gen_tbl_impl(pre, BM, BK, bm, k_list):
     return "\n" + template.render(pre=pre, BM=BM, BK=BK, bm=bm, k_list=k_list)
 
 def gen_top_api(kernel_shapes, k_list):
+    env = Environment(
+                loader=FileSystemLoader(Path(__file__).parent / "templates"),
+            )
 
-    kernel_code = "void ggml_preprocessor(int bs, int m, int three_k, int two_k, void* B, void* LUT_Scales, void* Three_QLUT, void* Two_QLUT) {{\n\
-    partial_max_reset(bs, (&(((float*)LUT_Scales)[0])));\n\
-    if (m == {0} && two_k == {1} && three_k == {2}) {{\n\
-        for (int32_t b = 0; b < bs; b++) {{\n\
-            per_tensor_quant(two_k + three_k, (&(((float*)LUT_Scales)[b])), (&(((float*)B)[b * (two_k + three_k)])));\n\
-            three_lut_ctor<{2}>((&(((int8_t*)Three_QLUT)[b * three_k / 3 * 32])), (&(((float*)B)[b * (three_k + two_k)])), (&(((float*)LUT_Scales)[b])));\n\
-            two_lut_ctor<{1}>((&(((int8_t*)Two_QLUT)[b * two_k / 2 * 32])), (&(((float*)B)[b * (three_k + two_k) + {2}])), (&(((float*)LUT_Scales)[b])));\n\
-        }}\n\
-    }}\n\
-".format(kernel_shapes[0][0], k_list[0][0], k_list[0][1])
-    for i in range(1, len(kernel_shapes)):
-        kernel_code = "".join([kernel_code, "    else if (m == {0} && two_k == {1} && three_k == {2}) {{\n\
-        for (int32_t b = 0; b < bs; b++) {{\n\
-            per_tensor_quant(two_k + three_k, (&(((float*)LUT_Scales)[b])), (&(((float*)B)[b * (two_k + three_k)])));\n\
-            three_lut_ctor<{2}>((&(((int8_t*)Three_QLUT)[b * three_k / 3 * 32])), (&(((float*)B)[b * (three_k + two_k)])), (&(((float*)LUT_Scales)[b])));\n\
-            two_lut_ctor<{1}>((&(((int8_t*)Two_QLUT)[b * two_k / 2 * 32])), (&(((float*)B)[b * (three_k + two_k) + {2}])), (&(((float*)LUT_Scales)[b])));\n\
-        }}\n\
-    }}\n".format(kernel_shapes[i][0], k_list[i][0], k_list[i][1])])
-    kernel_code = "".join([kernel_code, "}\n"])
-
-
-    kernel_code = "".join([kernel_code, "void ggml_qgemm_lut(int bs, int m, int k, int BK, void* A, void* sign, void* LUT, void* Scales, void* LUT_Scales, void* C) {{\n\
-    if (m == {0} && k == {1}) {{\n\
-        if (BK == {2}) {{\n\
-            if (bs == 1) {{\n\
-                two_qgemm_lut_{4}<1>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 8) {{\n\
-                two_qgemm_lut_{4}<8>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 32) {{\n\
-                two_qgemm_lut_{4}<32>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 128) {{\n\
-                two_qgemm_lut_{4}<128>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 256) {{\n\
-                two_qgemm_lut_{4}<256>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 512) {{\n\
-                two_qgemm_lut_{4}<512>(A, LUT, Scales, LUT_Scales, C);\n\
-            }}\n\
-        }}\n\
-        else if (BK == {3}) {{\n\
-            if (bs == 1) {{\n\
-                three_qgemm_lut_{4}<1>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 8) {{\n\
-                three_qgemm_lut_{4}<8>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 32) {{\n\
-                three_qgemm_lut_{4}<32>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 128) {{\n\
-                three_qgemm_lut_{4}<128>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 256) {{\n\
-                three_qgemm_lut_{4}<256>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 512) {{\n\
-                three_qgemm_lut_{4}<512>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}\n\
-        }}\n\
-    }}\n\
-".format(kernel_shapes[0][0], kernel_shapes[0][1], k_list[0][0], k_list[0][1], "{}_{}".format(kernel_shapes[0][0], kernel_shapes[0][1]))])
-    for i in range(1, len(kernel_shapes)):
-        kernel_code = "".join([kernel_code, "    else if (m == {0} && k == {1}) {{\n\
-        if (BK == {2}) {{\n\
-            if (bs == 1) {{\n\
-                two_qgemm_lut_{4}<1>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 8) {{\n\
-                two_qgemm_lut_{4}<8>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 32) {{\n\
-                two_qgemm_lut_{4}<32>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 128) {{\n\
-                two_qgemm_lut_{4}<128>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 256) {{\n\
-                two_qgemm_lut_{4}<256>(A, LUT, Scales, LUT_Scales, C);\n\
-            }} else if (bs == 512) {{\n\
-                two_qgemm_lut_{4}<512>(A, LUT, Scales, LUT_Scales, C);\n\
-            }}\n\
-        }}\n\
-        else if (BK == {3}) {{\n\
-            if (bs == 1) {{\n\
-                three_qgemm_lut_{4}<1>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 8) {{\n\
-                three_qgemm_lut_{4}<8>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 32) {{\n\
-                three_qgemm_lut_{4}<32>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 128) {{\n\
-                three_qgemm_lut_{4}<128>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 256) {{\n\
-                three_qgemm_lut_{4}<256>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}else if (bs == 512) {{\n\
-                three_qgemm_lut_{4}<512>(A, sign, LUT, Scales, LUT_Scales, C);\n\
-            }}\n\
-        }}\n\
-    }}\n\
-".format(kernel_shapes[i][0], kernel_shapes[i][1], k_list[i][0], k_list[i][1], "{}_{}".format(kernel_shapes[i][0], kernel_shapes[i][1]))])
-    kernel_code = "".join([kernel_code, "}\n"])
+    template = env.get_template("tl2_top_api.h")
+    kernel_code = "\n" + template.render(kernel_shapes=kernel_shapes, k_list=k_list) + "\n"
     return kernel_code
 
 def gen_transform_code(kernel_shapes):
