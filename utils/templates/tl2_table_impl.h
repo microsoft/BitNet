@@ -1,11 +1,15 @@
-#include <immintrin.h>
+{% for kernel_shape in kernel_shapes %}
+{% set pre = kernel_shape[0] ~ "_" ~ kernel_shape[1] %}
+{% set BM = BM_list[loop.index0] %}
+{% set BK = BK_list[loop.index0] %}
+{% set bm = bm_list[loop.index0] %}
+{% set k_list = k_list[loop.index0] %}
 
-#define BM{{ pre }} {{ BM }}
-#define BBK{{ pre }} {{ BK }}
+static constexpr auto BM{{ pre }} = {{ BM }};
+static constexpr auto BBK{{ pre }} = {{ BK }};
+
 template<int batch_size, int K3>
 inline void three_tbl_impl_{{ pre }}(int32_t* c, int8_t* lut, uint8_t* a, uint8_t* sign) {
-
-
 #ifdef __AVX2__
     const __m256i vec_mask = _mm256_set1_epi8(0x0f);
     const __m256i vec_sign_mask  = _mm256_set1_epi16(0x8000);
@@ -243,3 +247,4 @@ int32_t two_qgemm_lut_{{ pre }}(void* A, void* LUT, void* Scales, void* LUT_Scal
     }
   return 0;
 }
+{% endfor %}

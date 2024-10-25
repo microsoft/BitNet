@@ -11,12 +11,12 @@ def gen_ctor_code():
     template = env.get_template("tl2_ctor.h")
     return "\n" + template.render()
 
-def gen_tbl_impl(pre, BM, BK, bm, k_list):
+def gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list):
     env = Environment(
         loader=FileSystemLoader(Path(__file__).parent / "templates"),
     )
     template = env.get_template("tl2_table_impl.h")
-    return "\n" + template.render(pre=pre, BM=BM, BK=BK, bm=bm, k_list=k_list)
+    return "\n" + template.render(kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, bm_list=bm_list, k_list=k_list)
 
 def gen_top_api(kernel_shapes, k_list):
     env = Environment(
@@ -72,16 +72,10 @@ if __name__ == "__main__":
     BK_list = [int(item) for item in args.BK.split(',')]
     bm_list = [int(item) for item in args.bm.split(',')]
 
-    tbl_impl_code = []
     k_list = []
 
     for i in range(len(kernel_shapes)):
         k_list.append(get_three_k_two_k(kernel_shapes[i][1], BK_list[i]))
-
-    for i in range(len(kernel_shapes)):
-        tbl_impl_code.append(
-            gen_tbl_impl("{}_{}".format(kernel_shapes[i][0], kernel_shapes[i][1]), BM_list[i], BK_list[i], bm_list[i], k_list[i])
-        )
 
     assert(len(BM_list) == len(BK_list) == len(bm_list) == len(kernel_shapes)), "number of BM / BK / bm shoud be {}".format(len(kernel_shapes))
     
@@ -93,14 +87,14 @@ if __name__ == "__main__":
     ctor_code = gen_ctor_code()
     api_code = gen_top_api(kernel_shapes, k_list)
     trans_code = gen_transform_code(kernel_shapes)
+    tbl_impl_code = gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list)
 
     output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "include")
 
     with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
         f.write(''.join("#if defined(GGML_BITNET_X86_TL2)"))
         f.write(''.join(ctor_code))
-        for code in tbl_impl_code:
-            f.write(''.join(code))
+        f.write(''.join(tbl_impl_code))
         f.write(''.join(api_code))
         f.write(''.join(trans_code))
         f.write(''.join("#endif"))
