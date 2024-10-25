@@ -2,7 +2,7 @@
 #include "ggml-bitnet.h"
 #include <cstring>
 #include <immintrin.h>
-#define GGML_BITNET_MAX_NODES 8192
+static constexpr auto GGML_BITNET_MAX_NODES = 8192;
 static bool initialized = false;
 static bitnet_tensor_extra * bitnet_tensor_extras = nullptr;
 static size_t bitnet_tensor_extras_index = 0;
