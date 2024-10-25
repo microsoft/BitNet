@@ -3,7 +3,7 @@
 {% set BM = BM_list[loop.index0] %}
 {% set BK = BK_list[loop.index0] %}
 {% set bm = bm_list[loop.index0] %}
-{% set k_list = k_list[loop.index0] %}
+{% set k_list_indexed = k_list[loop.index0] %}
 
 static constexpr auto BM{{ pre }} = {{ BM }};
 static constexpr auto BBK{{ pre }} = {{ BK }};
@@ -216,8 +216,8 @@ int32_t three_qgemm_lut_{{ pre }}(void* A, void* sign, void* LUT, void* Scales, 
     alignas(32) uint32_t CBits[BATCH_SIZE * BM{{ pre }}];
     memset(&(CBits[0]), 0, BATCH_SIZE * BM{{ pre }} * sizeof(int32_t));
 #pragma unroll
-    for (int32_t k_outer = 0; k_outer < {{ k_list[1] }} / BBK{{ pre }}; ++k_outer) {
-        three_tbl_impl_{{ pre }}<BATCH_SIZE, {{ k_list[1] }}>((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BBK{{ pre }} / 3 * 32)])), (&(((uint8_t*)A)[(k_outer * BBK{{ pre }} / 3 / 2 * BM{{ pre }})])), (&(((uint8_t*)sign)[(k_outer * BBK{{ pre }} / 3 / 8 * BM{{ pre }})])));
+    for (int32_t k_outer = 0; k_outer < {{ k_list_indexed[1] }} / BBK{{ pre }}; ++k_outer) {
+        three_tbl_impl_{{ pre }}<BATCH_SIZE, {{ k_list_indexed[1] }}>((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BBK{{ pre }} / 3 * 32)])), (&(((uint8_t*)A)[(k_outer * BBK{{ pre }} / 3 / 2 * BM{{ pre }})])), (&(((uint8_t*)sign)[(k_outer * BBK{{ pre }} / 3 / 8 * BM{{ pre }})])));
     }
 #pragma unroll
     for (int bs = 0; bs < BATCH_SIZE; bs++) {
@@ -234,8 +234,8 @@ int32_t two_qgemm_lut_{{ pre }}(void* A, void* LUT, void* Scales, void* LUT_Scal
     alignas(32) uint32_t CBits[BATCH_SIZE * BM{{ pre }}];
     memset(&(CBits[0]), 0, BATCH_SIZE * BM{{ pre }} * sizeof(int32_t));
 #pragma unroll
-    for (int32_t k_outer = 0; k_outer < {{ k_list[0] }} / 32; ++k_outer) {
-        two_tbl_impl{{ pre }}<BATCH_SIZE, {{ k_list[0] }}>((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BK2 / 2 * 32)])), (&(((uint8_t*)A)[(k_outer * BK2 / 2 / 2 * BM{{ pre }})])));
+    for (int32_t k_outer = 0; k_outer < {{ k_list_indexed[0] }} / 32; ++k_outer) {
+        two_tbl_impl{{ pre }}<BATCH_SIZE, {{ k_list_indexed[0] }}>((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BK2 / 2 * 32)])), (&(((uint8_t*)A)[(k_outer * BK2 / 2 / 2 * BM{{ pre }})])));
     }
 #pragma unroll
     for (int bs = 0; bs < BATCH_SIZE; bs++) {
