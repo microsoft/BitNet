@@ -24,52 +24,12 @@ def gen_top_api(kernel_shapes, k_list):
     return kernel_code
 
 def gen_transform_code(kernel_shapes):
-    kernel_code = "\n\
-void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {\n\
-    if (!(is_type_supported(tensor->type) && tensor->backend == GGML_BACKEND_TYPE_CPU && tensor->extra == nullptr)) {\n\
-        return;\n\
-    }\n\
-\n\
-    int k = tensor->ne[0];\n\
-    int m = tensor->ne[1];\n\
-    const int lut_scales_size = 1;\n\
-    int bk = 0;\n\
-    int bm = 0;\n"
+    env = Environment(
+                loader=FileSystemLoader(Path(__file__).parent / "templates"),
+            )
 
-    kernel_code = "".join([kernel_code, "\n\
-    if (m == {0} && k == {1}) {{\n\
-        bm = BM{0}_{1};\n\
-        bk = BBK{0}_{1};\n\
-    }}\n".format(kernel_shapes[0][0], kernel_shapes[0][1])])
-
-    for i in range(1, len(kernel_shapes)):
-        kernel_code = "".join([kernel_code, "else if (m == {0} && k == {1}) {{\n\
-        bm = BM{0}_{1};\n\
-        bk = BBK{0}_{1};\n\
-    }}\n".format(kernel_shapes[i][0], kernel_shapes[i][1])])
-
-    kernel_code = "".join([kernel_code, "\n\
-    const int n_tile_num = m / bm;\n\
-    const int BK = bk;\n\
-    uint8_t * qweights;\n\
-    bitnet_float_type * scales;\n\
-\n\
-    scales = (bitnet_float_type *) aligned_malloc(sizeof(bitnet_float_type));\n\
-    qweights = (uint8_t *) tensor->data;\n\
-    int nbytes = (k - 256) * m / 3 * 5 / 8 + 256 * m / 2 * 4 / 8;\n\
-    if (nbytes % 32 != 0) nbytes = 32 - nbytes % 32 + nbytes;\n\
-    float * i2_scales = (float * )(qweights + nbytes);\n\
-    scales[0] = (bitnet_float_type) i2_scales[0];\n\
-\n\
-    tensor->extra = bitnet_tensor_extras + bitnet_tensor_extras_index;\n\
-    bitnet_tensor_extras[bitnet_tensor_extras_index++] = {\n\
-        /* .lut_scales_size = */ lut_scales_size,\n\
-        /* .BK              = */ BK,\n\
-        /* .n_tile_num      = */ n_tile_num,\n\
-        /* .qweights        = */ qweights,\n\
-        /* .scales          = */ scales\n\
-    };\n\
-}\n"])
+    template = env.get_template("tl2_gen_transform.h")
+    kernel_code = "\n" + template.render(kernel_shapes=kernel_shapes) + "\n"
 
     return kernel_code
 
