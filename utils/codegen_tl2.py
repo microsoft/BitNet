@@ -4,7 +4,7 @@ from pathlib import Path
 from configparser import ConfigParser
 
 def gen_ctor_code():
-    return "\n" + (Path(__file__).parent / "tl2_ctor.h").read_text(encoding='utf-8')
+    return "\n" + (Path(__file__).parent / "templates" / "tl2_ctor.h").read_text(encoding='utf-8')
 
 def gen_tbl_impl(pre, BM, BK, bm, k_list):
 
