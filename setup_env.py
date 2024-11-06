@@ -34,7 +34,6 @@ COMPILER_EXTRA_ARGS = {
 
 OS_EXTRA_ARGS = {
     "Windows":["-T", "ClangCL"],
-    "Linux": ["-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"]
 }
 
 ARCH_ALIAS = {

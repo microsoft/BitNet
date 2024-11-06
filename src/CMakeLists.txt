@@ -4,13 +4,14 @@ set(GGML_SOURCES_BITNET ggml-bitnet-lut.cpp)
 
 include_directories(3rdparty/llama.cpp/ggml/include)
 
+
 if(CMAKE_VERSION VERSION_LESS "3.22")
     message(FATAL_ERROR "CMake version 3.22 or higher is required for Bitnet.cpp compilation")
 endif()
 
-if ((NOT ${CMAKE_C_COMPILER_ID} MATCHES "Clang") OR
-(NOT ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
-    message(FATAL_ERROR "Clang is required for Bitnet.cpp compilation")
+if (NOT (CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
+    NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+    message(FATAL_ERROR "Clang or GCC is required for Bitnet.cpp compilation")
 else()
     # Check for minimum Clang version: 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
@@ -27,3 +28,4 @@ else()
         endif()
     endif()
 endif()
+
