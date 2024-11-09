@@ -150,7 +150,7 @@ optional arguments:
                         Directory to save/load the model
   --log-dir LOG_DIR, -ld LOG_DIR
                         Directory to save the logging info
-  --quant-type {i2_s,tl1}, -q {i2_s,tl1}
+  --quant-type {i2_s,tl1,tl2}, -q {i2_s,tl1,tl2}
                         Quantization type
   --quant-embd          Quantize the embeddings to f16
   --use-pretuned, -p    Use the pretuned kernel parameters
