@@ -96,22 +96,23 @@ if __name__ == "__main__":
         assert kernel_shapes[i][1] % BK_list[i] == 0, "K %% BK should be 0"
         assert bm_list[i] in [32, 64], "choose bm from [32, 64]"
 
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
+    template = env.get_template("tl1.h")
+    contents = template.render(
+        kernel_shapes=kernel_shapes,
+        k_list=[item[1] for item in kernel_shapes],
+        BM_list=BM_list,
+        BK_list=BK_list,
+        bm_list=bm_list,
+        min=min,
+        range=range,
+    )
+    output_dir = Path(__file__).parent.parent / "include"
 
-    tbl_impl_code = gen_tbl_impl(kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, bm_list=bm_list, k_list=[item[1] for item in kernel_shapes])
-    api_code = gen_top_api(kernel_shapes)
-    pre_code = gen_preprocess_code()
-    ctor_code = gen_ctor_code()
-    trans_code = gen_transform_code(kernel_shapes)
-
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "include")
-
-    with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
-        f.write(''.join(ctor_code))
-        f.write(''.join(tbl_impl_code))
-        f.write(''.join(pre_code))
-        f.write(''.join(api_code))
-        f.write(''.join(trans_code))
-        f.write(''.join("#endif"))
+    with open(str(output_dir / "bitnet-lut-kernels.h"), 'w') as f:
+        f.write(contents)
 
     config = ConfigParser()
 
@@ -123,5 +124,5 @@ if __name__ == "__main__":
         config.set('Kernels_{}'.format(i), 'BK'.format(i), str(BK_list[i]))
         config.set('Kernels_{}'.format(i), 'bmm'.format(i), str(bm_list[i]))
 
-    with open(''.join([output_dir, "/kernel_config.ini"]), 'w') as configfile:
+    with open(str(output_dir / "kernel_config.ini"), 'w') as configfile:
         config.write(configfile)

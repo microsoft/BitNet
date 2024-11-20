@@ -1,4 +1,5 @@
 #if defined(GGML_BITNET_ARM_TL1)
+#include <arm_neon.h>
 #include "ggml-bitnet.h"
 #define GGML_BITNET_MAX_NODES 8192
 static bool initialized = false;
@@ -179,3 +180,137 @@ static bool is_type_supported(enum ggml_type type) {
         return false;
     }
 }
+
+{%- for kernel_shape in kernel_shapes -%}
+{%- set pre = kernel_shape[0] ~ "_" ~ kernel_shape[1] -%}
+{%- set BM = BM_list[loop.index0] -%}
+{%- set BK = BK_list[loop.index0] -%}
+{%- set bm = bm_list[loop.index0] -%}
+{%- set by = 256 // bm -%}
+{%- set k_list_indexed = k_list[loop.index0] -%}
+{%- set length = 4 -%}
+
+#define BM{{ pre }} {{ BM }}
+#define BBK{{ pre }} {{ BK }}
+inline void tbl_impl_{{ pre }}(int32_t* c, int8_t* lut, uint8_t* a) {
+#ifdef __ARM_NEON
+    const int KK = BBK{{ pre }} / 2;
+    const uint8x16_t vec_mask = vdupq_n_u8(0x0f);
+    const int8x16_t vec_zero = vdupq_n_s16(0x0000);
+    int8x16_t vec_lut[2 * KK];
+    int16x8_t vec_c[{{ bm // 8 }}];
+    #pragma unroll
+    for (int k = 0; k < 2 * KK; k++) {
+        vec_lut[k] = vld1q_s8(lut + k * 16);
+    }
+
+    #pragma unroll
+    for (int i = 0; i < BM{{ pre }}; i += {{ bm }}) {
+        #pragma unroll
+        for (int i=0; i<{{ bm // 8 }}; i++) {
+            vec_c[i] = vandq_s16(vec_c[i], vec_zero);
+        }
+
+        #pragma unroll
+        for (int k = 0; k < KK / {{ 256 // bm // 2 }}; k++) {
+{% for index in range(length) %}
+            uint8x16_t vec_a_{{ index }} = vld1q_u8(a + i * KK / 2 + k * 32 * 2 + {{ index }} * 16);
+            uint8x16_t vec_a{{ index }}_top = vshrq_n_u8(vec_a_{{ index }}, 4);
+            uint8x16_t vec_a{{ index }}_bot = vandq_u8(vec_a_{{ index }}, vec_mask);
+            int8x16_t  vec_v_{{ index }}_left_tmp0 = vqtbl1q_s8(vec_lut[{{ 2 * by // 2 }} * k + {{ (4 * index) % (2 * by // 2) }}], vec_a{{ index }}_top);
+            int8x16_t  vec_v_{{ index }}_left_tmp1 = vqtbl1q_s8(vec_lut[{{ 2 * by // 2 }} * k + {{ (4 * index + 1) % (2 * by // 2) }}], vec_a{{ index }}_top);
+            int8x16_t  vec_v_{{ index }}_right_tmp0 = vqtbl1q_s8(vec_lut[{{ 2 * by // 2 }} * k + {{ (4 * index + 2) % (2 * by // 2) }}], vec_a{{ index }}_bot);
+            int8x16_t  vec_v_{{ index }}_right_tmp1 = vqtbl1q_s8(vec_lut[{{ 2 * by // 2 }} * k + {{ (4 * index + 3) % (2 * by // 2) }}], vec_a{{ index }}_bot);
+            int8x16x2_t  vec_v_left_{{ index }} = vzipq_s8(vec_v_{{ index }}_left_tmp1, vec_v_{{ index }}_left_tmp0);
+            int8x16x2_t  vec_v_right_{{ index }} = vzipq_s8(vec_v_{{ index }}_right_tmp1, vec_v_{{ index }}_right_tmp0);
+            vec_c[{{ (index * 2) // (by // 2) * 2 + 0 }}] += vec_v_left_{{ index }}.val[0];
+            vec_c[{{ (index * 2) // (by // 2) * 2 + 0 }}] += vec_v_right_{{ index }}.val[0];
+            vec_c[{{ (index * 2) // (by // 2) * 2 + 1 }}] += vec_v_left_{{ index }}.val[1];
+            vec_c[{{ (index * 2) // (by // 2) * 2 + 1 }}] += vec_v_right_{{ index }}.val[1];
+{% endfor %}
+        }
+{% for index in range(bm // 8) %}
+        int32x4_t vec_v_bot_low_low_{{ index }} = vmovl_s16(vget_low_s16(vec_c[{{ index }}]));
+        int32x4_t vec_v_bot_low_high_{{ index }} = vmovl_high_s16(vec_c[{{ index }}]);
+        vst1q_s32(c + i + {{ index * 8 }}, vld1q_s32(c + i + {{ index * 8 }}) + vec_v_bot_low_low_{{ index }});
+        vst1q_s32(c + i + {{ index * 8 + 4 }}, vld1q_s32(c + i + {{ index * 8 + 4 }}) + vec_v_bot_low_high_{{ index }});
+{% endfor %}
+    }
+#endif
+}
+
+int32_t qgemm_lut_{{ pre }}(void* A, void* LUT, void* Scales, void* LUT_Scales, void* C) {
+    alignas({{ min(32, BK) }}) uint32_t CBits[BM{{ pre }}];
+    memset(&(CBits[0]), 0, BM{{ pre }} * sizeof(int32_t));
+    #pragma unroll
+    for (int32_t k_outer = 0; k_outer < {{ k_list_indexed }} / BBK{{ pre }}; ++k_outer) {
+        tbl_impl_{{ pre }}((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BBK{{ pre }} / 2 * 32)])), (&(((uint8_t*)A)[(k_outer * BBK{{ pre }} / 2 / 2 * BM{{ pre }})])));
+    }
+    #pragma unroll
+    for (int i = 0; i < BM{{ pre }}; i++) {
+        ((bitnet_float_type*)C)[i] = (((int32_t*)CBits)[i]) / ((bitnet_float_type*)LUT_Scales)[0] * ((bitnet_float_type*)Scales)[0];
+    }
+  return 0;
+};
+{% endfor %}
+
+template<int K>
+void preprocessor_k(void* B, void* LUT_Scales, void* QLUT) {
+  partial_max_reset((&(((bitnet_float_type*)LUT_Scales)[0])));
+  per_tensor_quant(K, (&(((bitnet_float_type*)LUT_Scales)[0])), (&(((bitnet_float_type*)B)[0])));
+  
+  lut_ctor<K>((&(((int8_t*)QLUT)[0])), (&(((bitnet_float_type*)B)[0])), (&(((bitnet_float_type*)LUT_Scales)[0])));
+}
+
+void ggml_preprocessor(int m, int k, void* B, void* LUT_Scales, void* QLUT) {
+{% for kernel_shape in kernel_shapes %}
+    {% if loop.index0 > 0 %}else {% endif %}if (m == {{ kernel_shapes[loop.index0][0] }} && k == {{ kernel_shapes[loop.index0][1] }}) {
+        preprocessor_k<{{ kernel_shapes[loop.index0][1] }}>(B, LUT_Scales, QLUT);
+    }
+{% endfor %}
+}
+void ggml_qgemm_lut(int m, int k, void* A, void* LUT, void* Scales, void* LUT_Scales, void* C) {
+{% for kernel_shape in kernel_shapes %}
+    {% if loop.index0 > 0 %}else {% endif %}if (m == {{ kernel_shapes[loop.index0][0] }} && k == {{ kernel_shapes[loop.index0][1] }}) {
+        qgemm_lut_{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }}(A, LUT, Scales, LUT_Scales, C);
+    }
+{% endfor %}
+}
+
+void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
+    if (!(is_type_supported(tensor->type) && tensor->backend == GGML_BACKEND_TYPE_CPU && tensor->extra == nullptr)) {
+        return;
+    }
+
+    int k = tensor->ne[0];
+    int m = tensor->ne[1];
+    const int lut_scales_size = 1;
+    const int scales_size = 1;
+    int bk = 0;
+    int bm = 0;
+{% for kernel_shape in kernel_shapes %}
+    {% if loop.index0 > 0 %}else {% endif %}if (m == {{ kernel_shapes[loop.index0][0] }} && k == {{ kernel_shapes[loop.index0][1] }}) {
+        bm = BM{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }};
+        bk = BBK{{ kernel_shapes[loop.index0][0] }}_{{ kernel_shapes[loop.index0][1] }};
+    }
+{% endfor %}
+    const int n_tile_num = m / bm;
+    const int BK = bk;
+    uint8_t * qweights;
+    bitnet_float_type * scales;
+
+    scales = (bitnet_float_type *) aligned_malloc(sizeof(bitnet_float_type));
+    qweights = (uint8_t *) tensor->data;
+    float * i2_scales = (float * )(qweights + k * m / 4);
+    scales[0] = (bitnet_float_type) i2_scales[0];
+
+    tensor->extra = bitnet_tensor_extras + bitnet_tensor_extras_index;
+    bitnet_tensor_extras[bitnet_tensor_extras_index++] = {
+        /* .lut_scales_size = */ lut_scales_size,
+        /* .BK              = */ BK,
+        /* .n_tile_num      = */ n_tile_num,
+        /* .qweights        = */ qweights,
+        /* .scales          = */ scales
+    };
+}
+#endif
