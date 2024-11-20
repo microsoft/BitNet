@@ -28,38 +28,9 @@ def gen_tbl_impl(pre, BM, BK, bm, k):
         loader=FileSystemLoader(Path(__file__).parent / "templates"),
     )
 
-    template1 = env.get_template("tl1_table1.h")
+    kernel_template = env.get_template("tl1_table.h")
 
-    kernel_code = template1.render(pre=pre, BM=BM, BK=BK, bm=bm)
-
-    template2 = env.get_template("tl1_table2.h")
-
-    pre_core_code = template2.render(pre=pre, bm=bm)
-
-    template3 = env.get_template("tl1_table3.h")
-
-    body_core_pre_code = template3.render(bm=bm)
-
-    template4 = env.get_template("tl1_table4.h")
-
-    body_core_post_code = template4.render()
-
-    kernel_code = "".join([kernel_code, pre_core_code, body_core_pre_code, gen_body_core_code(bm, 256 // bm), body_core_post_code])
-
-    kernel_code = "".join([kernel_code, "\n\
-int32_t qgemm_lut_{0}(void* A, void* LUT, void* Scales, void* LUT_Scales, void* C) {{\n\
-    alignas({1}) uint32_t CBits[BM{0}];\n\
-    memset(&(CBits[0]), 0, BM{0} * sizeof(int32_t));\n\
-#pragma unroll\n\
-    for (int32_t k_outer = 0; k_outer < {2} / BBK{0}; ++k_outer) {{\n\
-        tbl_impl_{0}((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BBK{0} / 2 * 32)])), (&(((uint8_t*)A)[(k_outer * BBK{0} / 2 / 2 * BM{0})])));\n\
-    }}\n\
-#pragma unroll\n\
-    for (int i = 0; i < BM{0}; i++) {{\n\
-        ((bitnet_float_type*)C)[i] = (((int32_t*)CBits)[i]) / ((bitnet_float_type*)LUT_Scales)[0] * ((bitnet_float_type*)Scales)[0];\n\
-    }}\n\
-  return 0;\n\
-}};\n".format(pre, min(32, BK), k)])
+    kernel_code = kernel_template.render(bm=bm, pre=pre, BM=BM, BK=BK, range=range, length=4, by=256 // bm, k=k, min=min)
 
     return kernel_code
 
