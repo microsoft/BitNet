@@ -14,14 +14,14 @@ def gen_ctor_code():
     return f"\n{kernel_code}\n"
 
 
-def gen_tbl_impl(pre, BM, BK, bm, k):
+def gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list):
     env = Environment(
         loader=FileSystemLoader(Path(__file__).parent / "templates"),
     )
 
     kernel_template = env.get_template("tl1_table.h")
 
-    kernel_code = kernel_template.render(bm=bm, pre=pre, BM=BM, BK=BK, range=range, length=4, by=256 // bm, k=k, min=min)
+    kernel_code = kernel_template.render(bm_list=bm_list, kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, range=range, length=4, k_list=k_list, min=min)
 
     return kernel_code
 
@@ -96,12 +96,8 @@ if __name__ == "__main__":
         assert kernel_shapes[i][1] % BK_list[i] == 0, "K %% BK should be 0"
         assert bm_list[i] in [32, 64], "choose bm from [32, 64]"
 
-    tbl_impl_code = []
 
-    for i in range(len(kernel_shapes)):
-        tbl_impl_code.append(
-            gen_tbl_impl("{}_{}".format(kernel_shapes[i][0], kernel_shapes[i][1]), BM_list[i], BK_list[i], bm_list[i], kernel_shapes[i][1])
-        )
+    tbl_impl_code = gen_tbl_impl(kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, bm_list=bm_list, k_list=[item[1] for item in kernel_shapes])
     api_code = gen_top_api(kernel_shapes)
     pre_code = gen_preprocess_code()
     ctor_code = gen_ctor_code()
@@ -111,8 +107,7 @@ if __name__ == "__main__":
 
     with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
         f.write(''.join(ctor_code))
-        for code in tbl_impl_code:
-            f.write(''.join(code))
+        f.write(''.join(tbl_impl_code))
         f.write(''.join(pre_code))
         f.write(''.join(api_code))
         f.write(''.join(trans_code))

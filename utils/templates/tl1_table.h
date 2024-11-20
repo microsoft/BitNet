@@ -1,5 +1,13 @@
 #include <arm_neon.h>
 
+{% for kernel_shape in kernel_shapes %}
+{% set pre = kernel_shape[0] ~ "_" ~ kernel_shape[1] %}
+{% set BM = BM_list[loop.index0] %}
+{% set BK = BK_list[loop.index0] %}
+{% set bm = bm_list[loop.index0] %}
+{% set by = 256 // bm %}
+{% set k_list_indexed = k_list[loop.index0] %}
+
 #define BM{{ pre }} {{ BM }}
 #define BBK{{ pre }} {{ BK }}
 inline void tbl_impl_{{ pre }}(int32_t* c, int8_t* lut, uint8_t* a) {
@@ -53,7 +61,7 @@ int32_t qgemm_lut_{{ pre }}(void* A, void* LUT, void* Scales, void* LUT_Scales, 
     alignas({{ min(32, BK) }}) uint32_t CBits[BM{{ pre }}];
     memset(&(CBits[0]), 0, BM{{ pre }} * sizeof(int32_t));
     #pragma unroll
-    for (int32_t k_outer = 0; k_outer < {{ k }} / BBK{{ pre }}; ++k_outer) {
+    for (int32_t k_outer = 0; k_outer < {{ k_list_indexed }} / BBK{{ pre }}; ++k_outer) {
         tbl_impl_{{ pre }}((&(((int32_t*)CBits)[0])), (&(((int8_t*)LUT)[(k_outer * BBK{{ pre }} / 2 * 32)])), (&(((uint8_t*)A)[(k_outer * BBK{{ pre }} / 2 / 2 * BM{{ pre }})])));
     }
     #pragma unroll
@@ -62,4 +70,4 @@ int32_t qgemm_lut_{{ pre }}(void* A, void* LUT, void* Scales, void* LUT_Scales, 
     }
   return 0;
 };
-
+{% endfor %}
