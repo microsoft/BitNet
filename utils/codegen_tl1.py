@@ -26,28 +26,14 @@ def gen_tbl_impl(pre, BM, BK, bm, k):
     return kernel_code
 
 def gen_top_api(kernel_shapes):
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
 
-    kernel_code = "void ggml_preprocessor(int m, int k, void* B, void* LUT_Scales, void* QLUT) {{\n\
-    if (m == {0} && k == {1}) {{\n\
-        preprocessor_k<{1}>(B, LUT_Scales, QLUT);\n\
-    }}\n\
-".format(kernel_shapes[0][0], kernel_shapes[0][1])
-    for i in range(1, len(kernel_shapes)):
-        kernel_code = "".join([kernel_code, "    else if (m == {0} && k == {1}) {{\n\
-        preprocessor_k<{1}>(B, LUT_Scales, QLUT);\n\
-    }}\n".format(kernel_shapes[i][0], kernel_shapes[i][1])])
-    kernel_code = "".join([kernel_code, "}\n"])
-    kernel_code = "".join([kernel_code, "void ggml_qgemm_lut(int m, int k, void* A, void* LUT, void* Scales, void* LUT_Scales, void* C) {{\n\
-    if (m == {0} && k == {1}) {{\n\
-        qgemm_lut_{0}_{1}(A, LUT, Scales, LUT_Scales, C);\n\
-    }}\n\
-".format(kernel_shapes[0][0], kernel_shapes[0][1])])
-    for i in range(1, len(kernel_shapes)):
-        kernel_code = "".join([kernel_code, "    else if (m == {0} && k == {1}) {{\n\
-        qgemm_lut_{0}_{1}(A, LUT, Scales, LUT_Scales, C);\n\
-    }}\n\
-".format(kernel_shapes[i][0], kernel_shapes[i][1])])
-    kernel_code = "".join([kernel_code, "}\n"])
+    kernel_template = env.get_template("tl1_top_api.h")
+
+    kernel_code = kernel_template.render(kernel_shapes=kernel_shapes)
+
     return kernel_code
 
 def gen_preprocess_code():
