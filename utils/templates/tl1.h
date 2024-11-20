@@ -192,8 +192,8 @@ static bool is_type_supported(enum ggml_type type) {
 {%- set k_list_indexed = k_list[loop.index0] -%}
 {%- set length = 4 -%}
 
-#define BM{{ pre }} {{ BM }}
-#define BBK{{ pre }} {{ BK }}
+static constexpr auto BM{{ pre }} = {{ BM }};
+static constexpr auto BBK{{ pre }} = {{ BK }};
 inline void tbl_impl_{{ pre }}(int32_t* c, int8_t* lut, uint8_t* a) {
 #ifdef __ARM_NEON
     const int KK = BBK{{ pre }} / 2;
