@@ -16,23 +16,14 @@ def gen_ctor_code():
 def gen_body_core_code(bm, by):
     length = 4
     all_code = ""
-    for i in range(length):
-        core_code = "\n\
-            uint8x16_t vec_a_{0} = vld1q_u8(a + i * KK / 2 + k * 32 * 2 + {0} * 16);\n\
-            uint8x16_t vec_a{0}_top = vshrq_n_u8(vec_a_{0}, 4);\n\
-            uint8x16_t vec_a{0}_bot = vandq_u8(vec_a_{0}, vec_mask);\n\
-            int8x16_t  vec_v_{0}_left_tmp0 = vqtbl1q_s8(vec_lut[{1} * k + {2}], vec_a{0}_top);\n\
-            int8x16_t  vec_v_{0}_left_tmp1 = vqtbl1q_s8(vec_lut[{1} * k + {3}], vec_a{0}_top);\n\
-            int8x16_t  vec_v_{0}_right_tmp0 = vqtbl1q_s8(vec_lut[{1} * k + {4}], vec_a{0}_bot);\n\
-            int8x16_t  vec_v_{0}_right_tmp1 = vqtbl1q_s8(vec_lut[{1} * k + {5}], vec_a{0}_bot);\n\
-            int8x16x2_t  vec_v_left_{0} = vzipq_s8(vec_v_{0}_left_tmp1, vec_v_{0}_left_tmp0);\n\
-            int8x16x2_t  vec_v_right_{0} = vzipq_s8(vec_v_{0}_right_tmp1, vec_v_{0}_right_tmp0);\n\
-            vec_c[{6}] += vec_v_left_{0}.val[0];\n\
-            vec_c[{6}] += vec_v_right_{0}.val[0];\n\
-            vec_c[{7}] += vec_v_left_{0}.val[1];\n\
-            vec_c[{7}] += vec_v_right_{0}.val[1];\n\
-        ".format(i, 2 * by // 2, (4 * i) % (2 * by // 2), (4 * i + 1) % (2 * by // 2), (4 * i + 2) % (2 * by // 2), (4 * i + 3) % (2 * by // 2), (i * 2) // (by // 2) * 2 + 0, (i * 2) // (by // 2) * 2 + 1)
-        
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
+
+    template_core1 = env.get_template("tl1_core1.h")
+
+    for index in range(length):
+        core_code = "\n" + template_core1.render(index=index, by=by, bm=bm) + "\n"
         all_code = "".join([all_code, core_code])
 
     all_code = "".join([all_code, "\n       }\n\n"])
