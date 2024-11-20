@@ -24,27 +24,13 @@ def gen_body_core_code(bm, by):
     return template.render(bm=bm, by=by, range=range, length=length)
 
 def gen_tbl_impl(pre, BM, BK, bm, k):
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
 
-    kernel_code = "\
-#include <arm_neon.h>\n\
-\n\
-#define BM{0} {1}\n\
-#define BBK{0} {2}\n\
-inline void tbl_impl_{0}(int32_t* c, int8_t* lut, uint8_t* a) {{\n\
-#ifdef __ARM_NEON\n\
-    const int KK = BBK{0} / 2;\n\
-    const uint8x16_t vec_mask = vdupq_n_u8(0x0f);\n\
-    const int8x16_t vec_zero = vdupq_n_s16(0x0000);\n\
-    int8x16_t vec_lut[2 * KK];\n\
-".format(pre, BM, BK)
-    
-    kernel_code = "".join([kernel_code, "    int16x8_t vec_c[{}];".format(bm // 8)])
+    template1 = env.get_template("tl1_table1.h")
 
-    kernel_code = "".join([kernel_code, "\n\
-#pragma unroll\n\
-    for (int k = 0; k < 2 * KK; k++) {\n\
-        vec_lut[k] = vld1q_s8(lut + k * 16);\n\
-    }\n"])
+    kernel_code = template1.render(pre=pre, BM=BM, BK=BK, bm=bm)
 
     pre_core_code = "\n\
 #pragma unroll\n\
