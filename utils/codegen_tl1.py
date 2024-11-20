@@ -15,26 +15,13 @@ def gen_ctor_code():
 
 def gen_body_core_code(bm, by):
     length = 4
-    all_code = ""
     env = Environment(
         loader=FileSystemLoader(Path(__file__).parent / "templates"),
     )
 
-    template_core1 = env.get_template("tl1_core1.h")
+    template = env.get_template("tl1_core.h")
 
-    for index in range(length):
-        core_code = "\n" + template_core1.render(index=index, by=by, bm=bm) + "\n"
-        all_code = "".join([all_code, core_code])
-
-    all_code = "".join([all_code, "\n       }\n\n"])
-
-    template_core2 = env.get_template("tl1_core2.h")
-
-    for i in range(bm // 8):
-        core_code = "\n" + template_core2.render(index=i) + "\n"
-        all_code = "".join([all_code, core_code])
-
-    return all_code
+    return template.render(bm=bm, by=by, range=range, length=length)
 
 def gen_tbl_impl(pre, BM, BK, bm, k):
 
