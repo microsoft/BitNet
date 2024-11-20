@@ -1,3 +1,4 @@
+#if defined(GGML_BITNET_ARM_TL1)
 #include "ggml-bitnet.h"
 #define GGML_BITNET_MAX_NODES 8192
 static bool initialized = false;

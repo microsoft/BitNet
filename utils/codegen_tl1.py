@@ -110,7 +110,6 @@ if __name__ == "__main__":
     output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "include")
 
     with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
-        f.write(''.join("#if defined(GGML_BITNET_ARM_TL1)"))
         f.write(''.join(ctor_code))
         for code in tbl_impl_code:
             f.write(''.join(code))
