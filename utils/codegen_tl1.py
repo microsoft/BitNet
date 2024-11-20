@@ -40,11 +40,9 @@ def gen_tbl_impl(pre, BM, BK, bm, k):
 
     body_core_pre_code = template3.render(bm=bm)
 
-    body_core_post_code = "\n\
-    }\n\
-\
-#endif\n\
-}\n"
+    template4 = env.get_template("tl1_table4.h")
+
+    body_core_post_code = template4.render()
 
     kernel_code = "".join([kernel_code, pre_core_code, body_core_pre_code, gen_body_core_code(bm, 256 // bm), body_core_post_code])
 
