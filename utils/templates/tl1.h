@@ -100,25 +100,25 @@ inline void lut_ctor(int8_t* qlut, bitnet_float_type* b, bitnet_float_type* lut_
 #ifdef __ARM_NEON
     int16x8_t vec_lut[16];
     float32_t scales = *lut_scales;
-        uint8_t tbl_mask[16];
-        tbl_mask[0] = 0;
-        tbl_mask[1] = 2;
-        tbl_mask[2] = 4;
-        tbl_mask[3] = 6;
-        tbl_mask[4] = 8;
-        tbl_mask[5] = 10;
-        tbl_mask[6] = 12;
-        tbl_mask[7] = 14;
-        tbl_mask[8] = 1;
-        tbl_mask[9] = 3;
-        tbl_mask[10] = 5;
-        tbl_mask[11] = 7;
-        tbl_mask[12] = 9;
-        tbl_mask[13] = 11;
-        tbl_mask[14] = 13;
-        tbl_mask[15] = 15;
-        uint8x16_t tbl_mask_q = vld1q_u8(tbl_mask);
-#pragma unroll
+    uint8_t tbl_mask[16];
+    tbl_mask[0] = 0;
+    tbl_mask[1] = 2;
+    tbl_mask[2] = 4;
+    tbl_mask[3] = 6;
+    tbl_mask[4] = 8;
+    tbl_mask[5] = 10;
+    tbl_mask[6] = 12;
+    tbl_mask[7] = 14;
+    tbl_mask[8] = 1;
+    tbl_mask[9] = 3;
+    tbl_mask[10] = 5;
+    tbl_mask[11] = 7;
+    tbl_mask[12] = 9;
+    tbl_mask[13] = 11;
+    tbl_mask[14] = 13;
+    tbl_mask[15] = 15;
+    uint8x16_t tbl_mask_q = vld1q_u8(tbl_mask);
+    #pragma unroll
     for (int k = 0; k < act_k / 16; ++k) {
         float32x4x2_t vec_bs_x0 = vld2q_f32(b + k * 16);
         float32x4x2_t vec_bs_x1 = vld2q_f32(b + k * 16 + 8);
@@ -157,7 +157,7 @@ inline void lut_ctor(int8_t* qlut, bitnet_float_type* b, bitnet_float_type* lut_
                       &(vec_lut[4]), &(vec_lut[5]), &(vec_lut[6]), &(vec_lut[7]));
         Transpose_8_8(&(vec_lut[8]), &(vec_lut[9]), &(vec_lut[10]), &(vec_lut[11]),
                       &(vec_lut[12]), &(vec_lut[13]), &(vec_lut[14]), &(vec_lut[15]));
-#pragma unroll
+        #pragma unroll
         for (int idx = 0; idx < 8; idx++) {
             int8x16_t q0_s = vqtbl1q_s8(vreinterpretq_s8_s16(vec_lut[idx]), tbl_mask_q);
             int8x8_t q0_low = vget_low_s8(q0_s);
