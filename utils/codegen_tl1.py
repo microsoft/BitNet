@@ -28,12 +28,10 @@ def gen_body_core_code(bm, by):
 
     all_code = "".join([all_code, "\n       }\n\n"])
 
+    template_core2 = env.get_template("tl1_core2.h")
+
     for i in range(bm // 8):
-        core_code = "\
-        int32x4_t vec_v_bot_low_low_{0} = vmovl_s16(vget_low_s16(vec_c[{0}]));\n\
-        int32x4_t vec_v_bot_low_high_{0} = vmovl_high_s16(vec_c[{0}]);\n\
-        vst1q_s32(c + i + {1}, vld1q_s32(c + i + {1}) + vec_v_bot_low_low_{0});\n\
-        vst1q_s32(c + i + {2}, vld1q_s32(c + i + {2}) + vec_v_bot_low_high_{0});\n".format(i, i * 8, i * 8 + 4)
+        core_code = "\n" + template_core2.render(index=i) + "\n"
         all_code = "".join([all_code, core_code])
 
     return all_code
