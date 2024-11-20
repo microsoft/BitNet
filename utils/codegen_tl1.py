@@ -37,15 +37,15 @@ def gen_top_api(kernel_shapes):
     return kernel_code
 
 def gen_preprocess_code():
-    kernel_code = "\n\
-template<int K>\n\
-void preprocessor_k(void* B, void* LUT_Scales, void* QLUT) {{\n\
-  partial_max_reset((&(((bitnet_float_type*)LUT_Scales)[0])));\n\
-  per_tensor_quant(K, (&(((bitnet_float_type*)LUT_Scales)[0])), (&(((bitnet_float_type*)B)[0])));\n\
-  \n\
-  lut_ctor<K>((&(((int8_t*)QLUT)[0])), (&(((bitnet_float_type*)B)[0])), (&(((bitnet_float_type*)LUT_Scales)[0])));\n\
-}}\n"
-    return kernel_code
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    )
+
+    kernel_template = env.get_template("tl1_preprocess.h")
+
+    kernel_code = kernel_template.render()
+
+    return f"\n{kernel_code}\n"
 
 def gen_transform_code(kernel_shape):
     kernel_code = "\n\
