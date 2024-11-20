@@ -36,10 +36,9 @@ def gen_tbl_impl(pre, BM, BK, bm, k):
 
     pre_core_code = template2.render(pre=pre, bm=bm)
 
-    body_core_pre_code = "\n\
-#pragma unroll\n\
-        for (int k = 0; k < KK / {}; k++) {{\n\
-            ".format(256 // bm // 2)
+    template3 = env.get_template("tl1_table3.h")
+
+    body_core_pre_code = template3.render(bm=bm)
 
     body_core_post_code = "\n\
     }\n\
