@@ -32,13 +32,9 @@ def gen_tbl_impl(pre, BM, BK, bm, k):
 
     kernel_code = template1.render(pre=pre, BM=BM, BK=BK, bm=bm)
 
-    pre_core_code = "\n\
-#pragma unroll\n\
-    for (int i = 0; i < BM{}; i += {}) {{\n\
-        #pragma unroll\n\
-        for (int i=0; i<{}; i++) {{\n\
-            vec_c[i] = vandq_s16(vec_c[i], vec_zero);\n\
-        }}\n".format(pre, bm, bm // 8)
+    template2 = env.get_template("tl1_table2.h")
+
+    pre_core_code = template2.render(pre=pre, bm=bm)
 
     body_core_pre_code = "\n\
 #pragma unroll\n\
