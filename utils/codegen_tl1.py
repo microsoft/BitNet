@@ -4,60 +4,6 @@ from configparser import ConfigParser
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
-def gen_ctor_code():
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-    template = env.get_template("tl1_ctor.h")
-    kernel_code = template.render()
-
-    return f"\n{kernel_code}\n"
-
-
-def gen_tbl_impl(kernel_shapes, BM_list, BK_list, bm_list, k_list):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    kernel_template = env.get_template("tl1_table.h")
-
-    kernel_code = kernel_template.render(bm_list=bm_list, kernel_shapes=kernel_shapes, BM_list=BM_list, BK_list=BK_list, range=range, length=4, k_list=k_list, min=min)
-
-    return kernel_code
-
-def gen_top_api(kernel_shapes):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    kernel_template = env.get_template("tl1_top_api.h")
-
-    kernel_code = kernel_template.render(kernel_shapes=kernel_shapes)
-
-    return kernel_code
-
-def gen_preprocess_code():
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    kernel_template = env.get_template("tl1_preprocess.h")
-
-    kernel_code = kernel_template.render()
-
-    return f"\n{kernel_code}\n"
-
-def gen_transform_code(kernel_shapes):
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    kernel_template = env.get_template("tl1_transform.h")
-
-    kernel_code = kernel_template.render(kernel_shapes=kernel_shapes)
-
-    return f"\n{kernel_code}\n"
-
 if __name__ == "__main__":
     ModelShapeDict = {
         "bitnet_b1_58-large"                : [[1536, 4096],
