@@ -1,5 +1,6 @@
 #if defined(GGML_BITNET_ARM_TL1)
 #include <arm_neon.h>
+#include <stdlib.h>
 #include "ggml-bitnet.h"
 #define GGML_BITNET_MAX_NODES 8192
 static bool initialized = false;
@@ -181,7 +182,7 @@ static bool is_type_supported(enum ggml_type type) {
     }
 }
 
-{%- for kernel_shape in kernel_shapes -%}
+{% for kernel_shape in kernel_shapes -%}
 {%- set pre = kernel_shape[0] ~ "_" ~ kernel_shape[1] -%}
 {%- set BM = BM_list[loop.index0] -%}
 {%- set BK = BK_list[loop.index0] -%}
