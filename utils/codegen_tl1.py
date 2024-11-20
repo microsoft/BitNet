@@ -13,15 +13,6 @@ def gen_ctor_code():
 
     return f"\n{kernel_code}\n"
 
-def gen_body_core_code(bm, by):
-    length = 4
-    env = Environment(
-        loader=FileSystemLoader(Path(__file__).parent / "templates"),
-    )
-
-    template = env.get_template("tl1_core.h")
-
-    return template.render(bm=bm, by=by, range=range, length=length)
 
 def gen_tbl_impl(pre, BM, BK, bm, k):
     env = Environment(
