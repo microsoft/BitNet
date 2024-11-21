@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import argparse
+import platform
 import subprocess
 
 def run_command(command, shell=False, log_step=None):
@@ -22,7 +23,13 @@ def run_command(command, shell=False, log_step=None):
         sys.exit(1)
 
 def run_benchmark():
-    bench_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build/bin/llama-bench")
+    build_dir =  os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build")
+    if platform.system() == "Windows":
+        bench_path = os.path.join(build_dir, "bin", "Release", "llama-bench.exe")
+        if not os.path.exists(bench_path):
+            bench_path = os.path.join(build_dir, "bin", "llama-bench")
+    else:
+        bench_path = os.path.join(build_dir, "bin", "llama-bench")
     if not os.path.exists(bench_path):
         logging.error(f"Benchmark binary not found, please build first.")
         sys.exit(1)

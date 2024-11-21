@@ -105,7 +105,7 @@ inline int32_t partial_max_reset(int32_t bs, void* lut_scales_) {\n\
 template<int act_k>\n\
 inline int32_t three_lut_ctor(int8_t* qlut, bitnet_float_type* b, bitnet_float_type* lut_scales) {\n\
 #if defined __AVX2__\n\
-    __m256 vec_lut[16];\n\
+    __m256i vec_lut[16];\n\
     const __m256i vec_bi = _mm256_set_epi32(84, 72, 60, 48, 36, 24, 12, 0);\n\
     float scales = *lut_scales;\n\
     __m256i shuffle_mask = _mm256_set_epi8(\n\
@@ -191,7 +191,7 @@ inline int32_t three_lut_ctor(int8_t* qlut, bitnet_float_type* b, bitnet_float_t
 template<int act_k>\n\
 inline int32_t two_lut_ctor(int8_t* qlut, bitnet_float_type* b, bitnet_float_type* lut_scales) {\n\
 #if defined __AVX2__\n\
-    __m256 vec_lut[16];\n\
+    __m256i vec_lut[16];\n\
     const __m256i vec_bi = _mm256_set_epi32(56, 48, 40, 32, 24, 16, 8, 0);\n\
     float scales = *lut_scales;\n\
     __m256i shuffle_mask = _mm256_set_epi8(\n\

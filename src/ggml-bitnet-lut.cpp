@@ -1,6 +1,10 @@
 #include <vector>
 #include <type_traits>
 
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
 #include "bitnet-lut-kernels.h"
