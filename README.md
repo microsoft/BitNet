@@ -185,6 +185,8 @@ optional arguments:
                         Size of the prompt context
   -temp TEMPERATURE, --temperature TEMPERATURE
                         Temperature, a hyperparameter that controls the randomness of the generated text
+  -b BACKEND, --backend {cpu,metal}
+                        Choose the backend from [cpu, metal]
 </pre>
 
 ### Benchmark

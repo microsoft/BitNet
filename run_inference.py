@@ -21,13 +21,14 @@ def run_inference():
             main_path = os.path.join(build_dir, "bin", "llama-cli")
     else:
         main_path = os.path.join(build_dir, "bin", "llama-cli")
+    backend = '0' if args.backend == 'cpu' else '99'
     command = [
         f'{main_path}',
         '-m', args.model,
         '-n', str(args.n_predict),
         '-t', str(args.threads),
         '-p', args.prompt,
-        '-ngl', '0',
+        '-ngl', backend,
         '-c', str(args.ctx_size),
         '--temp', str(args.temperature),
         "-b", "1"
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--threads", type=int, help="Number of threads to use", required=False, default=2)
     parser.add_argument("-c", "--ctx-size", type=int, help="Size of the prompt context", required=False, default=2048)
     parser.add_argument("-temp", "--temperature", type=float, help="Temperature, a hyperparameter that controls the randomness of the generated text", required=False, default=0.8)
+    parser.add_argument("-b", "--backend", type=str, choices=['cpu', 'metal'], required=True, help="Choose the backend from [cpu, metal]")
 
     args = parser.parse_args()
     run_inference()
