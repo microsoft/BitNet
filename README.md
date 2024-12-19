@@ -50,43 +50,43 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
         <td rowspan="2">0.7B</td>
         <td>x86</td>
-        <td>&#10004;</td>
-        <td>&#10008;</td>
-        <td>&#10004;</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
+        <td>&#9989;</td>
     </tr>
     <tr>
         <td>ARM</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10008;</td>
+        <td>&#9989;</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
     </tr>
     <tr>
         <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
         <td rowspan="2">3.3B</td>
         <td>x86</td>
-        <td>&#10008;</td>
-        <td>&#10008;</td>
-        <td>&#10004;</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
+        <td>&#9989;</td>
     </tr>
     <tr>
         <td>ARM</td>
-        <td>&#10008;</td>
-        <td>&#10004;</td>
-        <td>&#10008;</td>
+        <td>&#10060;</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
     </tr>
     <tr>
         <td rowspan="2"><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
         <td rowspan="2">8.0B</td>
         <td>x86</td>
-        <td>&#10004;</td>
-        <td>&#10008;</td>
-        <td>&#10004;</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
+        <td>&#9989;</td>
     </tr>
     <tr>
         <td>ARM</td>
-        <td>&#10004;</td>
-        <td>&#10004;</td>
-        <td>&#10008;</td>
+        <td>&#9989;</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
     </tr>
 </table>
 
