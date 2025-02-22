@@ -6,8 +6,8 @@
 #include <cmath>
 #include <cstring>
 
-#define QK_I2_S 128
-#define QK_I2 128
+static constexpr auto QK_I2_S = 128;
+static constexpr auto QK_I2 = 128;
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
 #include <immintrin.h>
