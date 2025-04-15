@@ -41,6 +41,9 @@ SUPPORTED_HF_MODELS = {
     "tiiuae/Falcon3-1B-Instruct-1.58bit": {
         "model_name": "Falcon3-1B-Instruct-1.58bit",
     },
+    "microsoft/BitNet-b1.58-2B": {
+        "model_name": "BitNet-b1.58-2B",
+    },
 }
 
 SUPPORTED_QUANT_TYPES = {
@@ -161,6 +164,8 @@ def gen_code():
             run_command([sys.executable, "utils/codegen_tl1.py", "--model", "Llama3-8B-1.58-100B-tokens", "--BM", "256,128,256,128", "--BK", "128,64,128,64", "--bm", "32,64,32,64"], log_step="codegen")
         elif get_model_name() == "bitnet_b1_58-3B":
             run_command([sys.executable, "utils/codegen_tl1.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "64,128,64", "--bm", "32,64,32"], log_step="codegen")
+        elif get_model_name() == "BitNet-b1.58-2B":
+            run_command([sys.executable, "utils/codegen_tl1.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "64,128,64", "--bm", "32,64,32"], log_step="codegen")
         else:
             raise NotImplementedError()
     else:
@@ -177,6 +182,8 @@ def gen_code():
             run_command([sys.executable, "utils/codegen_tl2.py", "--model", "Llama3-8B-1.58-100B-tokens", "--BM", "256,128,256,128", "--BK", "96,96,96,96", "--bm", "32,32,32,32"], log_step="codegen")
         elif get_model_name() == "bitnet_b1_58-3B":
             run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "96,96,96", "--bm", "32,32,32"], log_step="codegen")
+        elif get_model_name() == "BitNet-b1.58-2B":
+            run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "96,96,96", "--bm", "32,32,32"], log_step="codegen")    
         else:
             raise NotImplementedError()
 
