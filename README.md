@@ -20,7 +20,7 @@ A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
 https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
 
 ## What's New:
-- 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B) ![NEW](https://img.shields.io/badge/NEW-red)
+- 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T) ![NEW](https://img.shields.io/badge/NEW-red)
 - 02/18/2025 [Bitnet.cpp: Efficient Edge Inference for Ternary LLMs](https://arxiv.org/abs/2502.11880)
 - 11/08/2024 [BitNet a4.8: 4-bit Activations for 1-bit LLMs](https://arxiv.org/abs/2411.04965)
 - 10/21/2024 [1-bit AI Infra: Part 1.1, Fast and Lossless BitNet b1.58 Inference on CPUs](https://arxiv.org/abs/2410.16144)
@@ -47,7 +47,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <th>TL2</th>
     </tr>
     <tr>
-        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-b1.58-2B">BitNet-b1.58-2B</a></td>
+        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-b1.58-2B-4T">BitNet-b1.58-2B-4T</a></td>
         <td rowspan="2">2.4B</td>
         <td>x86</td>
         <td>&#9989;</td>
@@ -176,8 +176,8 @@ pip install -r requirements.txt
 3. Build the project
 ```bash
 # Manually download the model and run with local path
-huggingface-cli download microsoft/BitNet-b1.58-2B --local-dir models/BitNet-b1.58-2B
-python setup_env.py -md models/BitNet-b1.58-2B -q i2_s
+huggingface-cli download microsoft/BitNet-b1.58-2B-4T --local-dir models/BitNet-b1.58-2B-4T
+python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 # Or you can download a model from Hugging Face, convert it to quantized gguf format, and build the project
 python setup_env.py --hf-repo tiiuae/Falcon3-7B-Instruct-1.58bit -q i2_s
@@ -206,7 +206,7 @@ optional arguments:
 ### Basic usage
 ```bash
 # Run inference with the quantized model
-python run_inference.py -m models/BitNet-b1.58-2B/ggml-model-i2_s.gguf -p "You are a helpful assistant" -cnv
+python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "You are a helpful assistant" -cnv
 ```
 <pre>
 usage: run_inference.py [-h] [-m MODEL] [-n N_PREDICT] -p PROMPT [-t THREADS] [-c CTX_SIZE] [-temp TEMPERATURE] [-cnv]
