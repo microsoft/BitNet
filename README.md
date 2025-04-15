@@ -2,7 +2,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![version](https://img.shields.io/badge/version-1.0-blue)
 
-<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>
+[<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
 
 bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU (with NPU and GPU support coming next).
 
@@ -158,7 +158,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
 ### Build from source
 
 > [!IMPORTANT]
-> If you are using Windows, please remember to always use a Developer Command Prompt / PowerShell for VS2022 for the following commands
+> If you are using Windows, please remember to always use a Developer Command Prompt / PowerShell for VS2022 for the following commands. Please refer to the FAQs below if you see any issues.
 
 1. Clone the repo
 ```bash
@@ -278,4 +278,36 @@ python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile 
 # Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
 python utils/e2e_benchmark.py -m models/dummy-bitnet-125m.tl1.gguf -p 512 -n 128
 ```
+### FAQ (Frequently Asked Questions)📌 
 
+#### Q1: The build dies with errors building llama.cpp due to issues with std::chrono in log.cpp?
+
+**A:**
+This is an issue introduced in recent version of llama.cpp. Please refer to this [commit](https://github.com/tinglou/llama.cpp/commit/4e3db1e3d78cc1bcd22bcb3af54bd2a4628dd323) in the [discussion](https://github.com/abetlen/llama-cpp-python/issues/1942) to fix this issue.
+
+#### Q2: How to build with clang in conda environment on windows?
+
+**A:** 
+Before building the project, verify your clang installation and access to Visual Studio tools by running:
+```
+clang -v
+```
+
+This command checks that you are using the correct version of clang and that the Visual Studio tools are available. If you see an error message such as:
+```
+'clang' is not recognized as an internal or external command, operable program or batch file.
+```
+
+It indicates that your command line window is not properly initialized for Visual Studio tools.
+
+• If you are using Command Prompt, run:
+```
+"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsDevCmd.bat" -startdir=none -arch=x64 -host_arch=x64
+```
+
+• If you are using Windows PowerShell, run the following commands:
+```
+Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\Microsoft.VisualStudio.DevShell.dll" Enter-VsDevShell 3f0e31ad -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
+```
+
+These steps will initialize your environment and allow you to use the correct Visual Studio tools.
