@@ -173,6 +173,17 @@ cd BitNet
 conda create -n bitnet-cpp python=3.9
 conda activate bitnet-cpp
 
+```
+
+or Python's venv module
+
+```bash
+python3 -m venv bitnet-cpp
+source bitnet-cpp/bin/activate
+```
+and install requirements
+
+```bash
 pip install -r requirements.txt
 ```
 3. Build the project
