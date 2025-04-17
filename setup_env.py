@@ -56,6 +56,11 @@ COMPILER_EXTRA_ARGS = {
     "x86_64": ["-DBITNET_X86_TL2=ON"]
 }
 
+COMPILER_EXTRA_DEBUG_ARGS = {
+    "arm64": ["-DBITNET_ARM_TL1=ON", "-DCMAKE_BUILD_TYPE=Debug"],
+    "x86_64": ["-DBITNET_X86_TL2=ON", "-DCMAKE_BUILD_TYPE=Debug"]
+}
+
 OS_EXTRA_ARGS = {
     "Windows":["-T", "ClangCL"],
 }
@@ -199,9 +204,13 @@ def compile():
         logging.error(f"Arch {arch} is not supported yet")
         exit(0)
     logging.info("Compiling the code using CMake.")
-    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), [])], log_step="generate_build_files")
-    # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
-    run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
+    if args.build-mode == "Rerealse":
+        run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), [])], log_step="generate_build_files")
+        # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
+        run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
+    else:
+        run_command(["cmake", "-B", "build", *COMPILER_EXTRA_DEBUG_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), [])], log_step="generate_build_files")
+        run_command(["cmake", "--build", "build", "--config", "Debug"], log_step="compile")
 
 def main():
     setup_gguf()
@@ -218,6 +227,7 @@ def parse_args():
     parser.add_argument("--quant-type", "-q", type=str, help="Quantization type", choices=SUPPORTED_QUANT_TYPES[arch], default="i2_s")
     parser.add_argument("--quant-embd", action="store_true", help="Quantize the embeddings to f16")
     parser.add_argument("--use-pretuned", "-p", action="store_true", help="Use the pretuned kernel parameters")
+    parser.add_argument("--build-mode", type=str, choices=["Release", "Debug"], help="Build mode of sources", default="Debug")
     return parser.parse_args()
 
 def signal_handler(sig, frame):
