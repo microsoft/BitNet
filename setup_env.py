@@ -203,7 +203,15 @@ def compile():
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
+def check_python_version():
+    python_version = sys.version_info
+    if python_version < (3, 9):
+        logging.error("Python 3.9 or higher is required for Bitnet.cpp.")
+        sys.exit(1)
+    logging.info(f"Python version: {python_version.major}.{python_version.minor}.{python_version.micro}")
+
 def main():
+    check_python_version()
     setup_gguf()
     gen_code()
     compile()
