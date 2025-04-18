@@ -269,7 +269,7 @@ python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4
    
 This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
 
-For the model layout that do not supported by any public model, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
+For the model layouts that are not supported by any public models, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
 
 ```bash
 python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile models/dummy-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
