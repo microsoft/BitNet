@@ -44,3 +44,5 @@ poetry.toml
 
 build/
 logs/
+include/bitnet-lut-kernels.h
+include/kernel_config.ini
