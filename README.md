@@ -1,312 +1,148 @@
-# bitnet.cpp
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![version](https://img.shields.io/badge/version-1.0-blue)
+# MakineAI.cpp
+---
+license: mit
+license_link: https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE
+language:
+- en
+- tr
+pipeline_tag: text-generation
+tags:
+- chat
+- MakineAI
+- text-generation
+- large-language-model
+library_name: transformers
+base_model:
+- microsoft/bitnet-b1.58-2B-4T
+---
 
-[<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
+# MakineAI b1.58 2B4T - Scaling Native 1-bit LLM
 
-Try it out via this [demo](https://bitnet-demo.azurewebsites.net/), or [build and run](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) it on your own CPU.
+This repository contains the weights for **MakineAI b1.58 2B4T**, the first open-source, native 1-bit Large Language Model (LLM) at the 2-billion parameter scale, developed by Makine Çeviri.
 
-bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU (with NPU and GPU support coming next).
+Trained on a corpus of 4 trillion tokens, this model demonstrates that native 1-bit LLMs can achieve performance comparable to leading open-weight, full-precision models of similar size, while offering substantial advantages in computational efficiency (memory, energy, latency).
 
-The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger models experiencing greater performance gains. Additionally, it reduces energy consumption by **55.4%** to **70.0%**, further boosting overall efficiency. On x86 CPUs, speedups range from **2.37x** to **6.17x** with energy reductions between **71.9%** to **82.2%**. Furthermore, bitnet.cpp can run a 100B BitNet b1.58 model on a single CPU, achieving speeds comparable to human reading (5-7 tokens per second), significantly enhancing the potential for running LLMs on local devices. Please refer to the [technical report](https://arxiv.org/abs/2410.16144) for more details.
+➡️ **Technical Report:** [MakineAI b1.58 2B4T Technical Report](https://arxiv.org/abs/2504.12285)
 
-<img src="./assets/m2_performance.jpg" alt="m2_performance" width="800"/>
-<img src="./assets/intel_performance.jpg" alt="m2_performance" width="800"/>
+➡️ **Official Inference Code:** [Makine Çeviri/MakineAI (makineai.cpp)](https://github.com/MakineCeviri/MakineAI)
 
->The tested models are dummy setups used in a research context to demonstrate the inference performance of bitnet.cpp.
+## Model Variants
 
-## Demo
+Several versions of the model weights are available on Hugging Face:
 
-A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
+* [**MakineCeviri/MakineAI-b1.58-2B-4T**](https://huggingface.co/MakineCeviri/MakineAI-b1.58-2B-4T) (This repository): Contains the packed 1.58-bit weights optimized for efficient inference. **Use this for deployment.**
 
-https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
+* [**MakineCeviri/MakineAI-b1.58-2B-4T-bf16**](https://huggingface.co/MakineCeviri/MakineAI-b1.58-2B-4T-bf16): Contains the master weights in BF16 format. **Use this only for training or fine-tuning purposes.**
 
-## What's New:
-- 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T) ![NEW](https://img.shields.io/badge/NEW-red)
-- 02/18/2025 [Bitnet.cpp: Efficient Edge Inference for Ternary LLMs](https://arxiv.org/abs/2502.11880)
-- 11/08/2024 [BitNet a4.8: 4-bit Activations for 1-bit LLMs](https://arxiv.org/abs/2411.04965)
-- 10/21/2024 [1-bit AI Infra: Part 1.1, Fast and Lossless BitNet b1.58 Inference on CPUs](https://arxiv.org/abs/2410.16144)
-- 10/17/2024 bitnet.cpp 1.0 released.
-- 03/21/2024 [The-Era-of-1-bit-LLMs__Training_Tips_Code_FAQ](https://github.com/microsoft/unilm/blob/master/bitnet/The-Era-of-1-bit-LLMs__Training_Tips_Code_FAQ.pdf)
-- 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
-- 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
+* [**MakineCeviri/MakineAI-b1.58-2B-4T-gguf**](https://huggingface.co/MakineCeviri/MakineAI-b1.58-2B-4T-gguf): Contains the model weights in GGUF format, compatible with the `makineai.cpp` library for CPU inference.
 
-## Acknowledgements
+## Model Details
 
-This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. Also, bitnet.cpp's kernels are built on top of the Lookup Table methodologies pioneered in [T-MAC](https://github.com/microsoft/T-MAC/). For inference of general low-bit LLMs beyond ternary models, we recommend using T-MAC.
-## Official Models
-<table>
-    </tr>
-    <tr>
-        <th rowspan="2">Model</th>
-        <th rowspan="2">Parameters</th>
-        <th rowspan="2">CPU</th>
-        <th colspan="3">Kernel</th>
-    </tr>
-    <tr>
-        <th>I2_S</th>
-        <th>TL1</th>
-        <th>TL2</th>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-b1.58-2B-4T">BitNet-b1.58-2B-4T</a></td>
-        <td rowspan="2">2.4B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-</table>
+* **Architecture:** Transformer-based, modified with MakineAILinear layers (MakineAI framework).
+    * Uses Rotary Position Embeddings (RoPE).
+    * Uses squared ReLU (ReLU²) activation in FFN layers.
+    * Employs [subln](https://proceedings.mlr.press/v202/wang23u.html) normalization.
+    * No bias terms in linear or normalization layers.
+* **Quantization:** Native 1.58-bit weights and 8-bit activations (W1.58A8).
+    * Weights are quantized to ternary values {-1, 0, +1} using absmean quantization during the forward pass.
+    * Activations are quantized to 8-bit integers using absmax quantization (per-token).
+    * **Crucially, the model was *trained from scratch* with this quantization scheme, not post-training quantized.**
+* **Parameters:** ~2 Billion
+* **Training Tokens:** 4 Trillion
+* **Context Length:** Maximum sequence length of **4096 tokens**.
+    * *Recommendation:* For optimal performance on tasks requiring very long contexts (beyond the pre-training length or for specialized long-reasoning tasks), we recommend performing intermediate long-sequence adaptation/training before the final fine-tuning stage.
+* **Training Stages:**
+    1. **Pre-training:** Large-scale training on public text/code and synthetic math data using a two-stage learning rate and weight decay schedule.
+    2. **Supervised Fine-tuning (SFT):** Fine-tuned on instruction-following and conversational datasets using sum loss aggregation and specific hyperparameter tuning.
+    3. **Direct Preference Optimization (DPO):** Aligned with human preferences using preference pairs.
+* **Tokenizer:** LLaMA 3 Tokenizer (vocab size: 128,256).
 
-## Supported Models
-❗️**We use existing 1-bit LLMs available on [Hugging Face](https://huggingface.co/) to demonstrate the inference capabilities of bitnet.cpp. We hope the release of bitnet.cpp will inspire the development of 1-bit LLMs in large-scale settings in terms of model size and training tokens.**
+## How to Use (with transformers)
 
-<table>
-    </tr>
-    <tr>
-        <th rowspan="2">Model</th>
-        <th rowspan="2">Parameters</th>
-        <th rowspan="2">CPU</th>
-        <th colspan="3">Kernel</th>
-    </tr>
-    <tr>
-        <th>I2_S</th>
-        <th>TL1</th>
-        <th>TL2</th>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
-        <td rowspan="2">0.7B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
-        <td rowspan="2">3.3B</td>
-        <td>x86</td>
-        <td>&#10060;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
-        <td rowspan="2">8.0B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/collections/tiiuae/falcon3-67605ae03578be86e4e87026">Falcon3 Family</a></td>
-        <td rowspan="2">1B-10B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-</table>
+**VERY IMPORTANT NOTE ON EFFICIENCY**
 
-
-
-## Installation
+> Please do NOT expect performance efficiency gains (in terms of speed, latency, or energy consumption) when using this model with the standard transformers library, even with the required fork.
+>
+> The current execution paths within transformers do not contain the specialized, highly optimized computational kernels required to leverage the advantages of the MakineAI architecture. Running the model via transformers will likely result in inference speeds and energy usage comparable to, or potentially worse than, standard full-precision models within this framework on both CPU and GPU.
+>
+> While you might observe reduced memory usage due to the quantized weights, the primary computational efficiency benefits are not accessible through this standard transformers usage path.
+>
+> For achieving the efficiency benefits demonstrated in the technical paper, you **MUST** use the dedicated C++ implementation: [makineai.cpp](https://github.com/MakineCeviri/MakineAI).
 
 ### Requirements
-- python>=3.9
-- cmake>=3.22
-- clang>=18
-    - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options(this also automatically installs the required additional tools like CMake):
-        -  Desktop-development with C++
-        -  C++-CMake Tools for Windows
-        -  Git for Windows
-        -  C++-Clang Compiler for Windows
-        -  MS-Build Support for LLVM-Toolset (clang)
-    - For Debian/Ubuntu users, you can download with [Automatic installation script](https://apt.llvm.org/)
-
-        `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`
-- conda (highly recommend)
-
-### Build from source
-
-> [!IMPORTANT]
-> If you are using Windows, please remember to always use a Developer Command Prompt / PowerShell for VS2022 for the following commands. Please refer to the FAQs below if you see any issues.
-
-1. Clone the repo
-```bash
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-```
-2. Install the dependencies
-```bash
-# (Recommended) Create a new conda environment
-conda create -n bitnet-cpp python=3.9
-conda activate bitnet-cpp
-
-pip install -r requirements.txt
-```
-3. Build the project
-```bash
-# Manually download the model and run with local path
-huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
-python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
-
-```
-<pre>
-usage: setup_env.py [-h] [--hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}] [--model-dir MODEL_DIR] [--log-dir LOG_DIR] [--quant-type {i2_s,tl1}] [--quant-embd]
-                    [--use-pretuned]
-
-Setup the environment for running inference
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}, -hr {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}
-                        Model used for inference
-  --model-dir MODEL_DIR, -md MODEL_DIR
-                        Directory to save/load the model
-  --log-dir LOG_DIR, -ld LOG_DIR
-                        Directory to save the logging info
-  --quant-type {i2_s,tl1}, -q {i2_s,tl1}
-                        Quantization type
-  --quant-embd          Quantize the embeddings to f16
-  --use-pretuned, -p    Use the pretuned kernel parameters
-</pre>
-## Usage
-### Basic usage
-```bash
-# Run inference with the quantized model
-python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "You are a helpful assistant" -cnv
-```
-<pre>
-usage: run_inference.py [-h] [-m MODEL] [-n N_PREDICT] -p PROMPT [-t THREADS] [-c CTX_SIZE] [-temp TEMPERATURE] [-cnv]
-
-Run inference
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -m MODEL, --model MODEL
-                        Path to model file
-  -n N_PREDICT, --n-predict N_PREDICT
-                        Number of tokens to predict when generating text
-  -p PROMPT, --prompt PROMPT
-                        Prompt to generate text from
-  -t THREADS, --threads THREADS
-                        Number of threads to use
-  -c CTX_SIZE, --ctx-size CTX_SIZE
-                        Size of the prompt context
-  -temp TEMPERATURE, --temperature TEMPERATURE
-                        Temperature, a hyperparameter that controls the randomness of the generated text
-  -cnv, --conversation  Whether to enable chat mode or not (for instruct models.)
-                        (When this option is turned on, the prompt specified by -p will be used as the system prompt.)
-</pre>
-
-### Benchmark
-We provide scripts to run the inference benchmark providing a model.
-
-```  
-usage: e2e_benchmark.py -m MODEL [-n N_TOKEN] [-p N_PROMPT] [-t THREADS]  
-   
-Setup the environment for running the inference  
-   
-required arguments:  
-  -m MODEL, --model MODEL  
-                        Path to the model file. 
-   
-optional arguments:  
-  -h, --help  
-                        Show this help message and exit. 
-  -n N_TOKEN, --n-token N_TOKEN  
-                        Number of generated tokens. 
-  -p N_PROMPT, --n-prompt N_PROMPT  
-                        Prompt to generate text from. 
-  -t THREADS, --threads THREADS  
-                        Number of threads to use. 
-```  
-   
-Here's a brief explanation of each argument:  
-   
-- `-m`, `--model`: The path to the model file. This is a required argument that must be provided when running the script.  
-- `-n`, `--n-token`: The number of tokens to generate during the inference. It is an optional argument with a default value of 128.  
-- `-p`, `--n-prompt`: The number of prompt tokens to use for generating text. This is an optional argument with a default value of 512.  
-- `-t`, `--threads`: The number of threads to use for running the inference. It is an optional argument with a default value of 2.  
-- `-h`, `--help`: Show the help message and exit. Use this argument to display usage information.  
-   
-For example:  
-   
-```sh  
-python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4  
-```  
-   
-This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
-
-For the model layout that do not supported by any public model, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
 
 ```bash
-python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile models/dummy-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
-
-# Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
-python utils/e2e_benchmark.py -m models/dummy-bitnet-125m.tl1.gguf -p 512 -n 128
+pip install git+https://github.com/shumingma/transformers.git
 ```
-### FAQ (Frequently Asked Questions)📌 
+We are actively working with the Hugging Face team to integrate the necessary code into the main `transformers` library. This installation method may change in the future.
 
-#### Q1: The build dies with errors building llama.cpp due to issues with std::chrono in log.cpp?
+### Example
 
-**A:**
-This is an issue introduced in recent version of llama.cpp. Please refer to this [commit](https://github.com/tinglou/llama.cpp/commit/4e3db1e3d78cc1bcd22bcb3af54bd2a4628dd323) in the [discussion](https://github.com/abetlen/llama-cpp-python/issues/1942) to fix this issue.
+```python
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-#### Q2: How to build with clang in conda environment on windows?
+model_id = "MakineCeviri/MakineAI"
 
-**A:** 
-Before building the project, verify your clang installation and access to Visual Studio tools by running:
-```
-clang -v
-```
+# Load tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16
+)
 
-This command checks that you are using the correct version of clang and that the Visual Studio tools are available. If you see an error message such as:
-```
-'clang' is not recognized as an internal or external command, operable program or batch file.
-```
+# Apply the chat template
+messages = [
+    {"role": "system", "content": "You are a helpful AI assistant."},
+    {"role": "user", "content": "How are you?"},
+]
+prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+chat_input = tokenizer(prompt, return_tensors="pt").to(model.device)
 
-It indicates that your command line window is not properly initialized for Visual Studio tools.
-
-• If you are using Command Prompt, run:
-```
-"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsDevCmd.bat" -startdir=none -arch=x64 -host_arch=x64
-```
-
-• If you are using Windows PowerShell, run the following commands:
-```
-Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\Microsoft.VisualStudio.DevShell.dll" Enter-VsDevShell 3f0e31ad -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
+# Generate response
+chat_outputs = model.generate(**chat_input, max_new_tokens=50)
+response = tokenizer.decode(chat_outputs[0][chat_input['input_ids'].shape[-1]:], skip_special_tokens=True) # Decode only the response part
+print("\nAssistant Response:", response)
 ```
 
-These steps will initialize your environment and allow you to use the correct Visual Studio tools.
+## How to Use (with `makineai.cpp`)
+
+Please refer to the [MakineAI.cpp](https://github.com/MakineCeviri/MakineAI) GitHub repository for detailed compilation steps, usage examples, and command-line options.
+
+## Evaluation
+
+MakineAI b1.58 2B4T was evaluated against leading open-weight full-precision LLMs of similar size. Below are the key results (all models are instruction-tuned versions):
+
+| Benchmark             | LLaMA 3.2 1B | Gemma-3 1B | Qwen2.5 1.5B | SmolLM2 1.7B | MiniCPM 2B | **MakineAI** |
+|--------------------------------|--------------|------------|--------------|--------------|------------|---------------------|
+| **Memory (Non-emb)** | 2GB          | 1.4GB      | 2.6GB        | 3.2GB        | 4.8GB      | **0.4GB** |
+| **Latency (CPU Decoding)** | 48ms         | 41ms       | 65ms         | 67ms         | 124ms      | **29ms** |
+| **Energy (Estimated)** | 0.258J       | 0.186J     | 0.347J       | 0.425J       | 0.649J     | **0.028J** |
+| **Training Tokens (Pre-train)**| 9T* | 2T** | 18T          | 11T          | 1.1T       | 4T                  |
+| ARC-Challenge   | 37.80        | 38.40      | 46.67        | 43.52        | 44.80      | **49.91** |
+| ARC-Easy        | 63.17        | 63.13      | **76.01** | 62.92        | 72.14      | 74.79               |
+| OpenbookQA      | 34.80        | 38.80      | 40.80        | **46.00** | 40.20      | 41.60               |
+| BoolQ                | 64.65        | 74.22      | 78.04        | 75.78        | **80.67** | 80.18               |
+| HellaSwag       | 60.80        | 57.69      | 68.28        | **71.71** | 70.81      | 68.44               |
+| PIQA            | 74.21        | 71.93      | 76.12        | 76.12        | 76.66      | **77.09** |
+| WinoGrande           | 59.51        | 58.48      | 62.83        | 68.98        | 61.80      | **71.90** |
+| CommonsenseQA       | 58.48        | 42.10      | **76.41** | 63.55        | 71.74      | 71.58               |
+| TruthfulQA          | 43.80        | 38.66      | **46.67** | 39.90        | 41.41      | 45.31               |
+| TriviaQA              | 37.60        | 23.49      | 38.37        | **45.97** | 34.13      | 33.57               |
+| MMLU                 | 45.58        | 39.91      | **60.25** | 49.24        | 51.82      | 53.17               |
+| HumanEval+        | 31.10        | 37.20      | **50.60** | 28.00        | 43.90      | 38.40               |
+| GSM8K                 | 38.21        | 31.16      | 56.79        | 45.11        | 4.40       | **58.38** |
+| MATH-500              | 23.00        | 42.00      | **53.00** | 17.60        | 14.80      | 43.40               |
+| IFEval   | 62.71        | **66.67** | 50.12        | 57.91        | 36.81      | 53.48               |
+| MT-bench         | 5.43         | 6.40       | 6.12         | 5.50         | **6.57** | 5.85                |
+| **Average** | 44.90        | 43.74      | **55.23** | 48.70        | 42.05      | 54.19               |
+
+*LLaMA 3.2 1B uses pruning & distillation.
+
+**Gemma-3 1B uses distillation.
+
+## License
+The model weights and code are released under the [MIT License](https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE).
+
+## Disclaimer
+This model is intended for research and development purposes. While efforts have been made to align it using SFT and DPO, it may still produce outputs that are unexpected, biased, or inaccurate. Please use responsibly.
