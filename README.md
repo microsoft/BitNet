@@ -5,7 +5,8 @@ license_link: https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE
 language:
 - en
 - tr
-pipeline_tag: text-generation
+---
+# text-generation
 tags:
 - chat
 - MakineAI
@@ -137,12 +138,12 @@ MakineAI b1.58 2B4T was evaluated against leading open-weight full-precision LLM
 | MT-bench         | 5.43         | 6.40       | 6.12         | 5.50         | **6.57** | 5.85                |
 | **Average** | 44.90        | 43.74      | **55.23** | 48.70        | 42.05      | 54.19               |
 
-*LLaMA 3.2 1B uses pruning & distillation.
+**LLaMA** 3.2 1B uses pruning & distillation.
 
-**Gemma-3 1B uses distillation.
+**Gemma-3** 1B uses distillation.
 
 ## License
-The model weights and code are released under the [MIT License](https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE).
+The model weights and code are released under the [MIT License](https://github.com/MakineCeviri/MakineAI/blob/main/LICENSE).
 
 ## Disclaimer
 This model is intended for research and development purposes. While efforts have been made to align it using SFT and DPO, it may still produce outputs that are unexpected, biased, or inaccurate. Please use responsibly.
