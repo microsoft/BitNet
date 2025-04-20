@@ -1,21 +1,24 @@
 # MakineAI.cpp
+
+This repository contains the dedicated C++ inference engine for the MakineAI project, providing highly optimized performance for deploying the MakineAI model.
+
 ---
-license: mit
-license_link: https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE
-language:
-- en
-- tr
----
-# text-generation
-tags:
-- chat
-- MakineAI
-- text-generation
+
+**License:** [MIT License](https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE)
+
+**Supported Languages:**  
+- English  
+- Türkçe
+
+**Tags:**  
+- chat  
+- MakineAI  
+- text-generation  
 - large-language-model
-library_name: transformers
-base_model:
-- microsoft/bitnet-b1.58-2B-4T
----
+
+**Library:** transformers
+
+**Base Model:** [MakineCeviri/MakineAI-b1.58-2B-4T](https://huggingface.co/MakineCeviri/MakineAI-b1.58-2B-4T)
 
 # MakineAI b1.58 2B4T - Scaling Native 1-bit LLM
 
