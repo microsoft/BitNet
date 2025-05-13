@@ -8,15 +8,31 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    name: Ex15 (os=${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-24.04-arm"]
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Clang
-      uses: egor-tensin/setup-clang@v1
-      with:
-        version: latest
-        platform: x64
-    - name: build
-      run: make
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: setup-miniconda
+        continue-on-error: true
+        with:
+          miniforge-version: latest
+      - name: Check ARM
+        shell: bash -el {0}
+        run: |
+          conda install -y python
+          python -c "import platform; assert platform.machine() == 'aarch64', platform.machine()"
+      
+      - name: build
+        run: |
+          # (Recommended) Create a new conda environment
+          conda create -n bitnet-cpp python=3.9
+          conda activate bitnet-cpp
+          pip install -r requirements.txt
+          # Manually download the model and run with local path
+          huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
+          python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
