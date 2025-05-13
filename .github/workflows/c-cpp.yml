@@ -26,11 +26,9 @@ jobs:
       - name: Conda list
         shell: pwsh
         run: conda list
-      - name: Check ARM
+      - name: install all
         shell: bash
         run: |
-          conda install -y python
-          python -c "import platform; assert platform.machine() == 'aarch64', platform.machine()"
           # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
           conda init
