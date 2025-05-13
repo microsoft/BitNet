@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Test installation instructions
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    name: Ex15 (os=${{ matrix.os }})
+  install:
+    name: install on (os=${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,13 +22,16 @@ jobs:
         with:
           auto-update-conda: true
           python-version: 3.9
-      - name: install all
+      - name: conda setup
         shell: bash -el {0}
         run: |
           conda create -n bitnet-cpp python=3.9
           conda activate bitnet-cpp
+      - name: setup env
+        run: |
           pip install -r requirements.txt
           huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
           python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
-      - name: test
-        run: python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "you are a science educator. what is the sun?"
+      
+      - name: run
+        run: python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "you are a helpful assistant. what is the sun?"
