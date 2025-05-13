@@ -21,7 +21,7 @@ jobs:
           auto-update-conda: true
           python-version: 3.9
       - name: install all
-        shell: bash
+        shell: bash -el {0}
         run: |
           conda init
           conda deactivate
