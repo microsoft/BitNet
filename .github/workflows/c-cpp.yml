@@ -15,9 +15,9 @@ jobs:
       matrix:
         os: ["ubuntu-24.04-arm", "ubuntu-latest","windows-latest"]
     steps:
-      - run: |
-          git clone --recursive https://github.com/microsoft/BitNet.git
-          cd BitNet
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
