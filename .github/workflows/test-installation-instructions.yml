@@ -28,10 +28,12 @@ jobs:
           conda create -n bitnet-cpp python=3.9
           conda activate bitnet-cpp
       - name: setup env
+        shell: bash -el {0}
         run: |
           pip install -r requirements.txt
           huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
           python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
       
       - name: run
+        shell: bash -el {0}
         run: python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "you are a helpful assistant. what is the sun?"
