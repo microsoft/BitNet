@@ -20,18 +20,12 @@ jobs:
         with:
           auto-update-conda: true
           python-version: 3.9
-      - name: Conda info
-        shell: bash
-        run: conda info
-      - name: Conda list
-        shell: pwsh
-        run: conda list
       - name: install all
         shell: bash
         run: |
+          conda deactivate
           # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
-          conda init
           conda activate bitnet-cpp
           pip install -r requirements.txt
           # Manually download the model and run with local path
