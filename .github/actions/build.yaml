@@ -1,0 +1,114 @@
+name: Build C++ for Android ARM64
+
+on:
+  push:
+    branches: [ main, master, develop ] # Adjust to your main branches
+  pull_request:
+    branches: [ main, master, develop ] # Adjust to your main branches
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+env:
+  # Define NDK version to use. Check for the latest recommended LTS or stable version.
+  # As of late 2024/early 2025, r26c (26.2.x or 26.3.x) is a good choice.
+  NDK_VERSION: "26.3.11579264"
+  # Minimum Android API level for your application.
+  # API level 21 (Android 5.0) is the first to support 64-bit (arm64-v8a).
+  ANDROID_API_LEVEL: "21"
+  # Build type
+  BUILD_TYPE: "Release"
+
+jobs:
+  build_android_arm64:
+    name: Build for Android arm64-v8a
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive' # Important if your project uses submodules
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin' # Or 'adopt', 'zulu', etc.
+          java-version: '17'     # NDK r25+ generally works well with JDK 17
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Or your desired Python version
+
+      - name: Install CMake and Ninja (for faster builds)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cmake ninja-build
+        shell: bash
+
+      - name: Download and Set up Android NDK
+        run: |
+          # Ensure NDK_VERSION is set from env
+          echo "Using NDK Version: ${{ env.NDK_VERSION }}"
+          # Download NDK
+          wget -q https://dl.google.com/android/repository/android-ndk-r${{ env.NDK_VERSION }}-linux.zip -O android-ndk.zip
+          # Extract NDK
+          unzip -q android-ndk.zip -d $HOME
+          # Set ANDROID_NDK_HOME environment variable for subsequent steps
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk-r${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          # Optionally, add NDK tools to PATH (CMake toolchain file often handles this)
+          # echo "$HOME/android-ndk-r${{ env.NDK_VERSION }}" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Verify NDK Setup
+        run: |
+          echo "ANDROID_NDK_HOME is set to: $ANDROID_NDK_HOME"
+          ls -la $ANDROID_NDK_HOME
+          # A simple check to see if a common NDK tool is executable
+          $ANDROID_NDK_HOME/ndk-stack --version
+        shell: bash
+
+      # --- CMake Project Specific Steps ---
+      # Adjust these steps if you are not using CMake
+
+      - name: Configure CMake
+        # This step assumes your CMakeLists.txt is in the root of your repository.
+        # The -B flag creates a 'build' directory for out-of-source builds.
+        # The -S flag specifies the source directory.
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_NDK=$ANDROID_NDK_HOME \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
+            -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
+            -DCMAKE_ANDROID_STL=c++_shared \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_MAKE_PROGRAM=ninja \
+            -G Ninja
+            # Add any of your project-specific CMake defines here, e.g., -DMY_CUSTOM_OPTION=ON
+        shell: bash
+
+      - name: Build with CMake
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel $(nproc)
+        shell: bash
+
+      - name: List build artifacts (example)
+        # This is just to show what's in the build directory.
+        # You'll need to adjust the path for `upload-artifact` based on your project's output.
+        run: |
+          echo "Listing contents of build directory:"
+          ls -R build/
+          echo "Listing shared libraries specifically (if any):"
+          find build/ -name "*.so" -print
+        shell: bash
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-v8a-build-${{ github.sha }}
+          path: | # Adjust these paths to match your actual output files
+            build/**/*.so       # Example: shared libraries
+            build/**/*.a        # Example: static libraries
+            # build/your_executable_name # Example: if you build an executable
+          if-no-files-found: error # Optional: 'warn' or 'ignore' if files might not exist
+
