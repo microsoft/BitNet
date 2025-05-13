@@ -33,6 +33,7 @@ jobs:
           python -c "import platform; assert platform.machine() == 'aarch64', platform.machine()"
           # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
+          conda init
           conda activate bitnet-cpp
           pip install -r requirements.txt
           # Manually download the model and run with local path
