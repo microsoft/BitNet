@@ -16,11 +16,16 @@ jobs:
         os: ["ubuntu-24.04-arm"]
     steps:
       - uses: actions/checkout@v4
-      - uses: ./
-        id: setup-miniconda
-        continue-on-error: true
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-version: latest
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+      - name: Conda info
+        shell: bash
+        run: conda info
+      - name: Conda list
+        shell: pwsh
+        run: conda list
       - name: Check ARM
         shell: bash
         run: |
