@@ -13,13 +13,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-24.04-arm"]
+        os: ["ubuntu-24.04-arm", "ubuntu-latest","windows-latest"]
     steps:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: 3.11
+          python-version: 3.9
       - name: Conda info
         shell: bash
         run: conda info
