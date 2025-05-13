@@ -23,12 +23,8 @@ jobs:
       - name: install all
         shell: bash -el {0}
         run: |
-          conda init
-          conda deactivate
-          # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
           conda activate bitnet-cpp
           pip install -r requirements.txt
-          # Manually download the model and run with local path
           huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
           python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
