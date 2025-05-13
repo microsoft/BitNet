@@ -19,7 +19,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.11
       - name: Conda info
         shell: bash
         run: conda info
