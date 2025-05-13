@@ -23,6 +23,7 @@ jobs:
       - name: install all
         shell: bash
         run: |
+          conda init
           conda deactivate
           # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
