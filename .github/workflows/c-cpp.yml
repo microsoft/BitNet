@@ -30,3 +30,5 @@ jobs:
           pip install -r requirements.txt
           huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
           python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
+      - name: test
+        run: python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "you are a science educator. what is the sun?"
