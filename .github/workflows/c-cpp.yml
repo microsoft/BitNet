@@ -22,13 +22,10 @@ jobs:
         with:
           miniforge-version: latest
       - name: Check ARM
-        shell: bash -el {0}
+        shell: bash
         run: |
           conda install -y python
           python -c "import platform; assert platform.machine() == 'aarch64', platform.machine()"
-      
-      - name: build
-        run: |
           # (Recommended) Create a new conda environment
           conda create -n bitnet-cpp python=3.9
           conda activate bitnet-cpp
