@@ -16,6 +16,10 @@ jobs:
         os: ["ubuntu-24.04-arm", "ubuntu-latest","windows-latest"]
     steps:
       - uses: actions/checkout@v4
+      - run: |
+          cd ..
+          git clone --recursive https://github.com/microsoft/BitNet.git
+          cd BitNet
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
