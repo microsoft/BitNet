@@ -34,6 +34,7 @@ nppBackup
 
 # Models
 models/*
+gpu/checkpoints/*
 
 # Python
 
