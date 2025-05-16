@@ -1,7 +1,8 @@
 #pragma once
 
-#include "ggml.h"
 #include "ggml-backend.h"
+#include "ggml-alloc.h"
+#include "ggml.h"
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>

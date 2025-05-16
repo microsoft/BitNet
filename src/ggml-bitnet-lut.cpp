@@ -1,3 +1,4 @@
+#include "ggml-backend.h"
 #include <vector>
 #include <type_traits>
 
@@ -59,7 +60,7 @@ bool ggml_bitnet_can_mul_mat(const struct ggml_tensor * src0, const struct ggml_
     if ((is_type_supported(src0->type)) &&
         src1->type == GGML_TYPE_F32 &&
         dst->type == GGML_TYPE_F32 &&
-        src0->backend == GGML_BACKEND_TYPE_CPU) {
+        (!src0->buffer || ggml_backend_buft_is_host(ggml_backend_buffer_get_type(src0->buffer)))) {
         if (src1->ne[1] <= 1) {
             return true;
         }
@@ -134,7 +135,7 @@ bool ggml_bitnet_can_mul_mat(const struct ggml_tensor * src0, const struct ggml_
     if ((is_type_supported(src0->type)) &&
         src1->type == GGML_TYPE_F32 &&
         dst->type == GGML_TYPE_F32 &&
-        src0->backend == GGML_BACKEND_TYPE_CPU) {
+        (!src0->buffer || ggml_backend_buft_is_host(ggml_backend_buffer_get_type(src0->buffer)))) {
         return true;
     }
     return false;

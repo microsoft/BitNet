@@ -1,312 +1,94 @@
-# bitnet.cpp
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![version](https://img.shields.io/badge/version-1.0-blue)
+# BitNet-WASM: WebAssembly Package for BitNet Operations
 
-[<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
+This project provides a build process to compile parts of the BitNet-wasm C++ code into a WebAssembly (WASM) package.
+The build uses Docker and the Emscripten SDK.
 
-Try it out via this [demo](https://bitnet-demo.azurewebsites.net/), or [build and run](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) it on your own CPU.
+## Build Process
 
-bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU (with NPU and GPU support coming next).
+The build is orchestrated by the `build.sh` script.
 
-The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger models experiencing greater performance gains. Additionally, it reduces energy consumption by **55.4%** to **70.0%**, further boosting overall efficiency. On x86 CPUs, speedups range from **2.37x** to **6.17x** with energy reductions between **71.9%** to **82.2%**. Furthermore, bitnet.cpp can run a 100B BitNet b1.58 model on a single CPU, achieving speeds comparable to human reading (5-7 tokens per second), significantly enhancing the potential for running LLMs on local devices. Please refer to the [technical report](https://arxiv.org/abs/2410.16144) for more details.
+### Prerequisites
 
-<img src="./assets/m2_performance.jpg" alt="m2_performance" width="800"/>
-<img src="./assets/intel_performance.jpg" alt="m2_performance" width="800"/>
+*   Docker
+*   A Linux-like environment with bash (the script uses `sudo dockerd` if Docker is not running, which might require passwordless sudo or manual Docker daemon startup).
 
->The tested models are dummy setups used in a research context to demonstrate the inference performance of bitnet.cpp.
+### Steps
 
-## Demo
+1.  **Clone the Repository (if not already done for this session):**
+    ```bash
+    # git clone https://github.com/jerfletcher/BitNet-wasm.git
+    # cd BitNet-wasm
+    # git submodule update --init --recursive 3rdparty/llama.cpp
+    # (Note: The build script currently uses llama.cpp commit 5eb47b72 from the submodule)
+    ```
 
-A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
+2.  **Run the Build Script:**
+    From the root of the `BitNet-wasm` directory:
+    ```bash
+    ./build.sh
+    ```
+    This script performs the following actions:
+    *   Sets up the Emscripten Docker environment (`emscripten/emsdk:4.0.8`).
+    *   Copies necessary kernel header files.
+    *   Compiles the C/C++ sources (`src/*.cpp`, `3rdparty/llama.cpp/ggml/src/*.c`, `3rdparty/llama.cpp/ggml/src/*.cpp`) using `emcc`.
+    *   Generates `bitnet.wasm` (the WASM module) and `bitnet.js` (the JavaScript loader/glue code) in the root directory.
+    *   Logs stdout and stderr from `emcc` to `emcc_stdout.log` and `emcc_stderr.log` respectively.
 
-https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
+## WASM Module Interface
 
-## What's New:
-- 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T) ![NEW](https://img.shields.io/badge/NEW-red)
-- 02/18/2025 [Bitnet.cpp: Efficient Edge Inference for Ternary LLMs](https://arxiv.org/abs/2502.11880)
-- 11/08/2024 [BitNet a4.8: 4-bit Activations for 1-bit LLMs](https://arxiv.org/abs/2411.04965)
-- 10/21/2024 [1-bit AI Infra: Part 1.1, Fast and Lossless BitNet b1.58 Inference on CPUs](https://arxiv.org/abs/2410.16144)
-- 10/17/2024 bitnet.cpp 1.0 released.
-- 03/21/2024 [The-Era-of-1-bit-LLMs__Training_Tips_Code_FAQ](https://github.com/microsoft/unilm/blob/master/bitnet/The-Era-of-1-bit-LLMs__Training_Tips_Code_FAQ.pdf)
-- 02/27/2024 [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/abs/2402.17764)
-- 10/17/2023 [BitNet: Scaling 1-bit Transformers for Large Language Models](https://arxiv.org/abs/2310.11453)
+The compiled WASM module (`bitnet.wasm` loaded via `bitnet.js`) exports the following C functions.
+You can call these from JavaScript using `Module.ccall` or `Module.cwrap` after the module is loaded. Remember to prefix C function names with an underscore when using `EXPORTED_FUNCTIONS` or directly accessing them on the `Module` object (e.g., `Module._ggml_init`).
 
-## Acknowledgements
+### Exported Functions
 
-This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. Also, bitnet.cpp's kernels are built on top of the Lookup Table methodologies pioneered in [T-MAC](https://github.com/microsoft/T-MAC/). For inference of general low-bit LLMs beyond ternary models, we recommend using T-MAC.
-## Official Models
-<table>
-    </tr>
-    <tr>
-        <th rowspan="2">Model</th>
-        <th rowspan="2">Parameters</th>
-        <th rowspan="2">CPU</th>
-        <th colspan="3">Kernel</th>
-    </tr>
-    <tr>
-        <th>I2_S</th>
-        <th>TL1</th>
-        <th>TL2</th>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-b1.58-2B-4T">BitNet-b1.58-2B-4T</a></td>
-        <td rowspan="2">2.4B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-</table>
+*   `void ggml_init(struct ggml_init_params params)`
+    *   **C Signature:** `void ggml_init(struct ggml_init_params params);` (from `ggml.h`)
+    *   **JS Access Example:** `Module._ggml_init(0);` (passing NULL for params)
+    *   **Note:** `struct ggml_init_params` would need to be created in WASM memory if non-default initialization is needed. `params_ptr` would be a pointer to this structure.
+    *   **Status:** Available.
 
-## Supported Models
-❗️**We use existing 1-bit LLMs available on [Hugging Face](https://huggingface.co/) to demonstrate the inference capabilities of bitnet.cpp. We hope the release of bitnet.cpp will inspire the development of 1-bit LLMs in large-scale settings in terms of model size and training tokens.**
+*   `int64_t ggml_nelements(const struct ggml_tensor * tensor)`
+    *   **C Signature:** `int64_t ggml_nelements(const struct ggml_tensor * tensor);` (from `ggml.h`)
+    *   **JS Access Example:** `Module._ggml_nelements(tensor_ptr)`
+    *   **Note:** Requires a valid `ggml_tensor` pointer. Creating and managing tensors is currently problematic (see "Limitations").
+    *   **Status:** Available (but of limited use without tensor creation).
 
-<table>
-    </tr>
-    <tr>
-        <th rowspan="2">Model</th>
-        <th rowspan="2">Parameters</th>
-        <th rowspan="2">CPU</th>
-        <th colspan="3">Kernel</th>
-    </tr>
-    <tr>
-        <th>I2_S</th>
-        <th>TL1</th>
-        <th>TL2</th>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></td>
-        <td rowspan="2">0.7B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></td>
-        <td rowspan="2">3.3B</td>
-        <td>x86</td>
-        <td>&#10060;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens">Llama3-8B-1.58-100B-tokens</a></td>
-        <td rowspan="2">8.0B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-    <tr>
-        <td rowspan="2"><a href="https://huggingface.co/collections/tiiuae/falcon3-67605ae03578be86e4e87026">Falcon3 Family</a></td>
-        <td rowspan="2">1B-10B</td>
-        <td>x86</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-        <td>&#9989;</td>
-    </tr>
-    <tr>
-        <td>ARM</td>
-        <td>&#9989;</td>
-        <td>&#9989;</td>
-        <td>&#10060;</td>
-    </tr>
-</table>
+*   `void ggml_bitnet_init(void)`
+    *   **C Signature:** `void ggml_bitnet_init(void);` (from `ggml-bitnet.h`, defined in `ggml-bitnet-lut.cpp`)
+    *   **JS Access Example:** `Module._ggml_bitnet_init()`
+    *   **Status:** Available. Initializes BitNet specific internal states (related to LUT kernels).
 
+*   `void ggml_bitnet_free(void)`
+    *   **C Signature:** `void ggml_bitnet_free(void);` (from `ggml-bitnet.h`, defined in `ggml-bitnet-lut.cpp`)
+    *   **JS Access Example:** `Module._ggml_bitnet_free()`
+    *   **Status:** Available. Frees resources allocated by `ggml_bitnet_init`.
 
+### Limitations and Missing Functions
 
-## Installation
+The current WASM build has significant limitations due to issues within the `BitNet-wasm` source code and its `llama.cpp` submodule (commit `5eb47b72`) when targeting WebAssembly:
 
-### Requirements
-- python>=3.9
-- cmake>=3.22
-- clang>=18
-    - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options(this also automatically installs the required additional tools like CMake):
-        -  Desktop-development with C++
-        -  C++-CMake Tools for Windows
-        -  Git for Windows
-        -  C++-Clang Compiler for Windows
-        -  MS-Build Support for LLVM-Toolset (clang)
-    - For Debian/Ubuntu users, you can download with [Automatic installation script](https://apt.llvm.org/)
+1.  **Core BitNet Functionality Missing:**
+    *   `ggml_bitnet_mul_mat`: This crucial function for BitNet matrix multiplication is **declared but not defined** in the provided C++ sources. It cannot be exported or used.
+    *   `ggml_bitnet_transform_tensor`: This function, also declared in `ggml-bitnet.h`, is **not defined** in the provided sources and cannot be used.
 
-        `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`
-- conda (highly recommend)
+2.  **General `ggml` Functionality Issues:**
+    *   Many standard `ggml` functions essential for practical use (e.g., `ggml_new_context`, `ggml_free` (for context), `ggml_new_tensor_1d/2d/3d`, `ggml_get_data`, `ggml_set_f32_flat`) fail to link when included in `EXPORTED_FUNCTIONS`.
+    *   These failures appear to be due to two main reasons:
+        *   Linker errors: "symbol exported via --export not found" for the functions themselves, suggesting they are not being correctly picked up from the compiled `ggml.c` object file or are being optimized out before the final link stage for WASM under the current flags.
+        *   Linker errors: "undefined symbol" for various architecture-specific quantization kernels (e.g., `quantize_mat_q8_0`, `ggml_gemv_q4_0_4x4_q8_0`). These are pulled in as dependencies by the more complex `ggml` functions. The `llama.cpp` commit `5eb47b72` does not seem to provide or enable generic C fallbacks for these kernels when compiling for the WASM target with the current build configuration.
 
-### Build from source
+**As a result, the current WASM package can only offer very basic initialization and de-initialization functions. It cannot create or manage tensors, nor can it perform BitNet computations.**
 
-> [!IMPORTANT]
-> If you are using Windows, please remember to always use a Developer Command Prompt / PowerShell for VS2022 for the following commands. Please refer to the FAQs below if you see any issues.
+To achieve a functional WASM package for `BitNet-wasm`, the underlying C++ source code would need to be addressed:
+*   Provide complete definitions for `ggml_bitnet_mul_mat` and `ggml_bitnet_transform_tensor` within the `BitNet-wasm/src` files.
+*   Resolve the linking issues for standard `ggml` functions. This might involve:
+    *   Investigating symbol visibility and linkage of functions in `ggml.c` when compiled to WASM.
+    *   Modifying `ggml` (e.g., `ggml-quants.c`) to include or enable generic C implementations for the missing quantization kernels, or stubbing them if they are not strictly necessary for the desired BitNet operations on WASM.
 
-1. Clone the repo
-```bash
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-```
-2. Install the dependencies
-```bash
-# (Recommended) Create a new conda environment
-conda create -n bitnet-cpp python=3.9
-conda activate bitnet-cpp
+## Example Usage
 
-pip install -r requirements.txt
-```
-3. Build the project
-```bash
-# Manually download the model and run with local path
-huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
-python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
+An example demonstrating how to load the module and call the few available functions is provided in the `example/` directory:
+*   `example/index.html`
+*   `example/main.js`
 
-```
-<pre>
-usage: setup_env.py [-h] [--hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}] [--model-dir MODEL_DIR] [--log-dir LOG_DIR] [--quant-type {i2_s,tl1}] [--quant-embd]
-                    [--use-pretuned]
-
-Setup the environment for running inference
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}, -hr {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}
-                        Model used for inference
-  --model-dir MODEL_DIR, -md MODEL_DIR
-                        Directory to save/load the model
-  --log-dir LOG_DIR, -ld LOG_DIR
-                        Directory to save the logging info
-  --quant-type {i2_s,tl1}, -q {i2_s,tl1}
-                        Quantization type
-  --quant-embd          Quantize the embeddings to f16
-  --use-pretuned, -p    Use the pretuned kernel parameters
-</pre>
-## Usage
-### Basic usage
-```bash
-# Run inference with the quantized model
-python run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -p "You are a helpful assistant" -cnv
-```
-<pre>
-usage: run_inference.py [-h] [-m MODEL] [-n N_PREDICT] -p PROMPT [-t THREADS] [-c CTX_SIZE] [-temp TEMPERATURE] [-cnv]
-
-Run inference
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -m MODEL, --model MODEL
-                        Path to model file
-  -n N_PREDICT, --n-predict N_PREDICT
-                        Number of tokens to predict when generating text
-  -p PROMPT, --prompt PROMPT
-                        Prompt to generate text from
-  -t THREADS, --threads THREADS
-                        Number of threads to use
-  -c CTX_SIZE, --ctx-size CTX_SIZE
-                        Size of the prompt context
-  -temp TEMPERATURE, --temperature TEMPERATURE
-                        Temperature, a hyperparameter that controls the randomness of the generated text
-  -cnv, --conversation  Whether to enable chat mode or not (for instruct models.)
-                        (When this option is turned on, the prompt specified by -p will be used as the system prompt.)
-</pre>
-
-### Benchmark
-We provide scripts to run the inference benchmark providing a model.
-
-```  
-usage: e2e_benchmark.py -m MODEL [-n N_TOKEN] [-p N_PROMPT] [-t THREADS]  
-   
-Setup the environment for running the inference  
-   
-required arguments:  
-  -m MODEL, --model MODEL  
-                        Path to the model file. 
-   
-optional arguments:  
-  -h, --help  
-                        Show this help message and exit. 
-  -n N_TOKEN, --n-token N_TOKEN  
-                        Number of generated tokens. 
-  -p N_PROMPT, --n-prompt N_PROMPT  
-                        Prompt to generate text from. 
-  -t THREADS, --threads THREADS  
-                        Number of threads to use. 
-```  
-   
-Here's a brief explanation of each argument:  
-   
-- `-m`, `--model`: The path to the model file. This is a required argument that must be provided when running the script.  
-- `-n`, `--n-token`: The number of tokens to generate during the inference. It is an optional argument with a default value of 128.  
-- `-p`, `--n-prompt`: The number of prompt tokens to use for generating text. This is an optional argument with a default value of 512.  
-- `-t`, `--threads`: The number of threads to use for running the inference. It is an optional argument with a default value of 2.  
-- `-h`, `--help`: Show the help message and exit. Use this argument to display usage information.  
-   
-For example:  
-   
-```sh  
-python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4  
-```  
-   
-This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
-
-For the model layout that do not supported by any public model, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
-
-```bash
-python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile models/dummy-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
-
-# Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
-python utils/e2e_benchmark.py -m models/dummy-bitnet-125m.tl1.gguf -p 512 -n 128
-```
-### FAQ (Frequently Asked Questions)📌 
-
-#### Q1: The build dies with errors building llama.cpp due to issues with std::chrono in log.cpp?
-
-**A:**
-This is an issue introduced in recent version of llama.cpp. Please refer to this [commit](https://github.com/tinglou/llama.cpp/commit/4e3db1e3d78cc1bcd22bcb3af54bd2a4628dd323) in the [discussion](https://github.com/abetlen/llama-cpp-python/issues/1942) to fix this issue.
-
-#### Q2: How to build with clang in conda environment on windows?
-
-**A:** 
-Before building the project, verify your clang installation and access to Visual Studio tools by running:
-```
-clang -v
-```
-
-This command checks that you are using the correct version of clang and that the Visual Studio tools are available. If you see an error message such as:
-```
-'clang' is not recognized as an internal or external command, operable program or batch file.
-```
-
-It indicates that your command line window is not properly initialized for Visual Studio tools.
-
-• If you are using Command Prompt, run:
-```
-"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsDevCmd.bat" -startdir=none -arch=x64 -host_arch=x64
-```
-
-• If you are using Windows PowerShell, run the following commands:
-```
-Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\Microsoft.VisualStudio.DevShell.dll" Enter-VsDevShell 3f0e31ad -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
-```
-
-These steps will initialize your environment and allow you to use the correct Visual Studio tools.
+Due to the limitations mentioned above, this example is minimal and primarily shows successful module loading and calls to init/free functions.

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitNet-WASM Example</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        #output { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #fff; white-space: pre-wrap; }
+        .status { font-weight: bold; }
+        .success { color: green; }
+        .error { color: red; }
+        .note { color: #555; font-style: italic;}
+    </style>
+</head>
+<body>
+    <h1>BitNet-WASM Example</h1>
+    <p>This example demonstrates loading the BitNet WASM module and calling the few available functions.</p>
+    <p class="note">Due to significant limitations in the current build (see README.md), this example is minimal and primarily shows successful module loading and calls to init/free functions. Tensor operations and actual BitNet computations are not possible with the current WASM module.</p>
+    <div id="output">Loading module...</div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
