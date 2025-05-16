@@ -2,6 +2,8 @@
 #include <string.h> // For memset (if used in future stubs)
 #include "ggml-bitnet.h" // For declarations and ggml_tensor struct
 
+extern "C" { // Explicitly wrap definitions
+
 // --- Unconditional stub for ggml_bitnet_init ---
 void ggml_bitnet_init(void) {
     printf("STUB: ggml_bitnet_init called (unconditional stub)\n");
@@ -20,19 +22,13 @@ void ggml_bitnet_mul_mat_task_compute(
     
     (void)src0; (void)scales; (void)qlut; (void)lut_scales; (void)lut_biases; 
     (void)n; (void)k; (void)m; (void)bits;
-
-    if (dst && m > 0 && n > 0) { // Assuming n is columns, m is rows for dst
-        // This is a guess for dst structure. A real implementation needs precise details.
-        // For a stub, zeroing out is a safe operation if dst is writable.
-        // Example: if dst is float*, (m*n) elements.
-        // float* out_dst = (float*)dst;
-        // for(int i=0; i < m*n; ++i) out_dst[i] = 0.0f;
-    }
     printf("STUB: ggml_bitnet_mul_mat_task_compute called (unconditional stub)\n");
 }
 
 // --- Unconditional stub for ggml_bitnet_transform_tensor ---
 void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
-    (void)tensor; // Mark as unused
+    (void)tensor;
     printf("STUB: ggml_bitnet_transform_tensor called (unconditional stub)\n");
 }
+
+} // end extern "C"
