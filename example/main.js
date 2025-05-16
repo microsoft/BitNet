@@ -123,18 +123,18 @@ const moduleConfig = {
     }
 };
 
-console.log('main.js loaded. Waiting for bitnet.js to define Module factory...');
+console.log('main.js loaded. Waiting for bitnet.js to define window.Module factory...');
 const initialStatus = document.getElementById('status');
-if (initialStatus) initialStatus.textContent = 'main.js loaded. Waiting for bitnet.js to define Module factory...';
+if (initialStatus) initialStatus.textContent = 'main.js loaded. Waiting for bitnet.js to define window.Module factory...';
 const initialOutput = document.getElementById('output');
-if (initialOutput) initialOutput.innerHTML += 'main.js loaded. Waiting for bitnet.js to define Module factory...<br>';
+if (initialOutput) initialOutput.innerHTML += 'main.js loaded. Waiting for bitnet.js to define window.Module factory...<br>';
 
 function initializeWasm() {
-    if (typeof Module === 'function' && Module.then === undefined) {
-        console.log('Module factory found. Initializing WASM...');
-        if (initialOutput) initialOutput.innerHTML += 'Module factory found. Initializing WASM...<br>';
+    if (typeof window.Module === 'function') { // Explicitly check window.Module
+        console.log('window.Module factory found. Initializing WASM...');
+        if (initialOutput) initialOutput.innerHTML += 'window.Module factory found. Initializing WASM...<br>';
         
-        Module(moduleConfig).then((initializedInstance) => {
+        window.Module(moduleConfig).then((initializedInstance) => { // Call window.Module
             onWasmInitialized(initializedInstance);
         }).catch(e => {
             console.error("Error initializing WASM module:", e);
@@ -142,9 +142,10 @@ function initializeWasm() {
             if (initialStatus) initialStatus.textContent = 'Error initializing WASM module.';
         });
     } else {
-        console.log('Module factory not yet available or already called. Retrying in 100ms...');
-        if (initialOutput && typeof Module !== 'function') {
-             initialOutput.innerHTML += 'Module factory not yet available. Retrying...<br>';
+        const currentTypeOfModule = typeof window.Module; // Check window.Module type
+        console.log(`window.Module factory not yet available (current type: ${currentTypeOfModule}). Retrying in 100ms...`);
+        if (initialOutput) {
+             initialOutput.innerHTML += `window.Module factory not yet available (current type: ${currentTypeOfModule}). Retrying...<br>`;
         }
         setTimeout(initializeWasm, 100); 
     }
