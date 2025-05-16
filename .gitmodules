@@ -2,3 +2,6 @@
 	path = 3rdparty/llama.cpp
 	url = https://github.com/Eddie-Wang1120/llama.cpp.git
 	branch = merge-dev
+[submodule "3rdparty/llama-cpp-wasm"]
+	path = 3rdparty/llama-cpp-wasm
+	url = git@github.com:tangledgroup/llama-cpp-wasm.git
