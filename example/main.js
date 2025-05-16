@@ -1,13 +1,14 @@
 // example/main.js
+import ModuleFactory from '../bitnet.js';
 
 // This function will be called when the WASM module is loaded and initialized
 function onWasmInitialized(wasmModuleInstance) {
     console.log('BitNet WASM Module Initialized and Ready.');
     const outputElement = document.getElementById('output');
-    outputElement.innerHTML += 'BitNet WASM Module Initialized and Ready.<br>';
+    outputElement.innerHTML = 'BitNet WASM Module Initialized and Ready.<br>'; // Clear previous messages
 
     // --- Demonstrate calling available functions ---
-
+    // (Rest of the function is the same as before, using wasmModuleInstance)
     // 1. ggml_init
     try {
         console.log('Calling wasmModuleInstance._ggml_init(0)...');
@@ -86,10 +87,10 @@ function onWasmInitialized(wasmModuleInstance) {
         </ol>
         <p>The calls below demonstrate that the initialization/deinitialization functions and the newly stubbed functions are callable.</p>
     `;
-    console.info(statusMessage.replace(/<[^>]*>/g, '\n').replace(/\n\n+/g, '\n')); // Log plain text version
+    console.info(statusMessage.replace(/<[^>]*>/g, '\n').replace(/\n\n+/g, '\n'));
     outputElement.innerHTML += statusMessage;
 
-    // 6. ggml_bitnet_free (renumbered from 4)
+    // 6. ggml_bitnet_free
     try {
         console.log('Calling wasmModuleInstance._ggml_bitnet_free()...');
         outputElement.innerHTML += 'Calling wasmModuleInstance._ggml_bitnet_free()...<br>';
@@ -121,20 +122,24 @@ const moduleConfig = {
         const outputElement = document.getElementById('output');
         if (outputElement) outputElement.innerHTML += `[WASM stderr] ${text}<br>`;
     }
+    // No 'locateFile' needed if .wasm is in the same directory as .js,
+    // or if using SINGLE_FILE=1 (which we are not here).
+    // Emscripten will try to fetch 'bitnet.wasm' relative to 'bitnet.js'
 };
 
-console.log('main.js loaded. Waiting for bitnet.js to define window.Module factory...');
 const initialStatus = document.getElementById('status');
-if (initialStatus) initialStatus.textContent = 'main.js loaded. Waiting for bitnet.js to define window.Module factory...';
 const initialOutput = document.getElementById('output');
-if (initialOutput) initialOutput.innerHTML += 'main.js loaded. Waiting for bitnet.js to define window.Module factory...<br>';
+
+if (initialStatus) initialStatus.textContent = 'main.js (ESM) loaded. Importing Module factory from bitnet.js...';
+if (initialOutput) initialOutput.innerHTML = 'main.js (ESM) loaded. Importing Module factory from bitnet.js...<br>';
+
 
 function initializeWasm() {
-    if (typeof window.Module === 'function') { // Explicitly check window.Module
-        console.log('window.Module factory found. Initializing WASM...');
-        if (initialOutput) initialOutput.innerHTML += 'window.Module factory found. Initializing WASM...<br>';
+    if (typeof ModuleFactory === 'function') {
+        console.log('Module factory imported successfully. Initializing WASM...');
+        if (initialOutput) initialOutput.innerHTML += 'Module factory imported successfully. Initializing WASM...<br>';
         
-        window.Module(moduleConfig).then((initializedInstance) => { // Call window.Module
+        ModuleFactory(moduleConfig).then((initializedInstance) => {
             onWasmInitialized(initializedInstance);
         }).catch(e => {
             console.error("Error initializing WASM module:", e);
@@ -142,15 +147,20 @@ function initializeWasm() {
             if (initialStatus) initialStatus.textContent = 'Error initializing WASM module.';
         });
     } else {
-        const currentTypeOfModule = typeof window.Module; // Check window.Module type
-        console.log(`window.Module factory not yet available (current type: ${currentTypeOfModule}). Retrying in 100ms...`);
+        // This case should ideally not be hit if ES6 imports work as expected
+        // and bitnet.js correctly exports the factory.
+        const currentTypeOfModuleFactory = typeof ModuleFactory;
+        console.error(`Module factory not available or not a function (current type: ${currentTypeOfModuleFactory}). Check import and bitnet.js export.`);
         if (initialOutput) {
-             initialOutput.innerHTML += `window.Module factory not yet available (current type: ${currentTypeOfModule}). Retrying...<br>`;
+             initialOutput.innerHTML += `Module factory not available or not a function (current type: ${currentTypeOfModuleFactory}). Check import and bitnet.js export.<br>`;
         }
-        setTimeout(initializeWasm, 100); 
+        if (initialStatus) initialStatus.textContent = 'Error: Module factory not found.';
     }
 }
 
+// Since main.js is a module, top-level await is not universally supported without specific server/browser configs.
+// We rely on the static import to make ModuleFactory available.
+// DOMContentLoaded is still useful to ensure elements are ready before manipulation.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeWasm);
 } else {
