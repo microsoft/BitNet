@@ -29,22 +29,22 @@ OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 # -s EXPORT_ES6=1 for ES6 module output (optional, good for modern JS)
 # -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] to allow calling C functions
 # -s ALLOW_MEMORY_GROWTH=1 if dynamic memory is needed
-EMCC_FLAGS="-O3 -msimd128 -fno-rtti -DNDEBUG -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_ALL=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['ggml_init','ggml_nelements'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1GB -s MAXIMUM_MEMORY=4GB -s FORCE_FILESYSTEM=1 -s NO_EXIT_RUNTIME=1"
+EMCC_FLAGS="-O3 -msimd128 -fno-rtti -DNDEBUG -flto=full -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_ALL=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_ggml_init','_ggml_nelements'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1GB -s MAXIMUM_MEMORY=4GB -s FORCE_FILESYSTEM=1 -s NO_EXIT_RUNTIME=1"
 
 # We need to compile the relevant ggml.c from llama.cpp as well.
 # For simplicity, let's assume llama.cpp/ggml/ggml.c is the main one needed.
 # This is a guess and might need adjustment.
-LLAMA_GGML_SOURCES="3rdparty/llama.cpp/ggml/src/ggml.c 3rdparty/llama.cpp/ggml/src/ggml-alloc.c 3rdparty/llama.cpp/ggml/src/ggml-backend.cpp 3rdparty/llama.cpp/ggml/src/ggml-quants.c"
+#LLAMA_GGML_SOURCES="3rdparty/llama.cpp/ggml/src/ggml.c 3rdparty/llama.cpp/ggml/src/ggml-alloc.c 3rdparty/llama.cpp/ggml/src/ggml-backend.cpp 3rdparty/llama.cpp/ggml/src/ggml-quants.c"
 
 # Check if llama.cpp submodule is initialized and primary ggml source file exists
 # (Checking the first file in the list as a proxy for all)
-FIRST_GGML_SOURCE=$(echo $LLAMA_GGML_SOURCES | cut -d' ' -f1)
-if [ ! -f "$FIRST_GGML_SOURCE" ]; then
-    echo "Error: llama.cpp submodule not found or $FIRST_GGML_SOURCE is missing."
-    echo "Please ensure the submodule is initialized: git submodule update --init --recursive"
-    echo "And that the required ggml source files are present in 3rdparty/llama.cpp/ggml/src/"
-    exit 1
-fi
+#FIRST_GGML_SOURCE=$(echo $LLAMA_GGML_SOURCES | cut -d' ' -f1)
+#if [ ! -f "$FIRST_GGML_SOURCE" ]; then
+#    echo "Error: llama.cpp submodule not found or $FIRST_GGML_SOURCE is missing."
+#    echo "Please ensure the submodule is initialized: git submodule update --init --recursive"
+#    echo "And that the required ggml source files are present in 3rdparty/llama.cpp/ggml/src/"
+#    exit 1
+#fi
 
 
 # Prepare bitnet-lut-kernels.h by copying a preset one
@@ -62,7 +62,8 @@ echo "Copying $PRESET_KERNEL_HEADER to $TARGET_KERNEL_HEADER"
 cp "$PRESET_KERNEL_HEADER" "$TARGET_KERNEL_HEADER"
 
 echo "Compiling with Emscripten..."
-emcc $EMCC_FLAGS $INCLUDE_DIRS $BITNET_SOURCES $LLAMA_GGML_SOURCES -o $OUTPUT_JS_FILE > emcc_stdout.log 2> emcc_stderr.log
+echo "Executing: emcc $EMCC_FLAGS $INCLUDE_DIRS $BITNET_SOURCES /workspace/BitNet-wasm/build_llama_cpp/ggml/src/libggml.a /workspace/BitNet-wasm/build_llama_cpp/src/libllama.a -o $OUTPUT_JS_FILE"
+emcc $EMCC_FLAGS $INCLUDE_DIRS $BITNET_SOURCES /workspace/BitNet-wasm/build_llama_cpp/ggml/src/libggml.a /workspace/BitNet-wasm/build_llama_cpp/src/libllama.a -o $OUTPUT_JS_FILE > emcc_stdout.log 2> emcc_stderr.log
 EMCC_EXIT_CODE=$?
 echo "emcc exit code: $EMCC_EXIT_CODE"
 echo "--- emcc stderr ---"
