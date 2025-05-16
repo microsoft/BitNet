@@ -1,83 +1,75 @@
 // example/main.js
 
-// This function will be called when the WASM module is loaded
-function onRuntimeInitialized() {
-    console.log('BitNet WASM Module Loaded.');
+// This function will be called when the WASM module is loaded and initialized
+function onWasmInitialized(wasmModuleInstance) {
+    console.log('BitNet WASM Module Initialized and Ready.');
     const outputElement = document.getElementById('output');
-    outputElement.innerHTML += 'BitNet WASM Module Loaded.<br>';
+    outputElement.innerHTML += 'BitNet WASM Module Initialized and Ready.<br>';
 
     // --- Demonstrate calling available functions ---
 
     // 1. ggml_init
-    // C Signature: void ggml_init(struct ggml_init_params params);
-    // We\'ll pass 0 (null) for params for default initialization.
     try {
-        console.log('Calling Module._ggml_init(0)...');
-        outputElement.innerHTML += 'Calling Module._ggml_init(0)...<br>';
-        Module._ggml_init(0); // Pass 0 for NULL params
-        console.log('Module._ggml_init successfully called.');
-        outputElement.innerHTML += 'Module._ggml_init successfully called.<br>';
+        console.log('Calling wasmModuleInstance._ggml_init(0)...');
+        outputElement.innerHTML += 'Calling wasmModuleInstance._ggml_init(0)...<br>';
+        wasmModuleInstance._ggml_init(0); // Pass 0 for NULL params
+        console.log('wasmModuleInstance._ggml_init successfully called.');
+        outputElement.innerHTML += 'wasmModuleInstance._ggml_init successfully called.<br>';
     } catch (e) {
-        console.error('Error calling Module._ggml_init:', e);
-        outputElement.innerHTML += `Error calling Module._ggml_init: \${e}<br>`;
+        console.error('Error calling wasmModuleInstance._ggml_init:', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_init: ${e}<br>`;
     }
 
     // 2. ggml_bitnet_init
-    // C Signature: void ggml_bitnet_init(void);
     try {
-        console.log('Calling Module._ggml_bitnet_init()...');
-        outputElement.innerHTML += 'Calling Module._ggml_bitnet_init()...<br>';
-        Module._ggml_bitnet_init();
-        console.log('Module._ggml_bitnet_init successfully called.');
-        outputElement.innerHTML += 'Module._ggml_bitnet_init successfully called.<br>';
+        console.log('Calling wasmModuleInstance._ggml_bitnet_init()...');
+        outputElement.innerHTML += 'Calling wasmModuleInstance._ggml_bitnet_init()...<br>';
+        wasmModuleInstance._ggml_bitnet_init();
+        console.log('wasmModuleInstance._ggml_bitnet_init successfully called.');
+        outputElement.innerHTML += 'wasmModuleInstance._ggml_bitnet_init successfully called.<br>';
     } catch (e) {
-        console.error('Error calling Module._ggml_bitnet_init:', e);
-        outputElement.innerHTML += `Error calling Module._ggml_bitnet_init: \${e}<br>\`;
+        console.error('Error calling wasmModuleInstance._ggml_bitnet_init:', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_bitnet_init: ${e}<br>`;
     }
 
-    // 3. ggml_nelements (demonstrative, as we can\'t create a real tensor)
-    // C Signature: int64_t ggml_nelements(const struct ggml_tensor * tensor);
-    // Since we cannot create a ggml_tensor due to missing ggml_new_tensor* functions,
-    // calling this with a dummy pointer (e.g., 0) will likely crash or error.
-    // This is just to show how it *would* be called if tensor creation was possible.
-    console.log('Attempting to call Module._ggml_nelements(0) (expected to fail or be meaningless)...');
-    outputElement.innerHTML += 'Attempting to call Module._ggml_nelements(0) (expected to fail or be meaningless)...<br>';
+    // 3. ggml_nelements
+    console.log('Attempting to call wasmModuleInstance._ggml_nelements(0) (expected to fail or be meaningless)...');
+    outputElement.innerHTML += 'Attempting to call wasmModuleInstance._ggml_nelements(0) (expected to fail or be meaningless)...<br>';
     try {
-        const num_elements = Module._ggml_nelements(0); // Passing 0 for a NULL tensor pointer
-        console.log('Module._ggml_nelements(0) returned:', num_elements, '(This value is likely meaningless as no valid tensor was passed)');
-        outputElement.innerHTML += \`Module._ggml_nelements(0) returned: \${num_elements} (This value is likely meaningless as no valid tensor was passed)<br>\`;
+        const num_elements = wasmModuleInstance._ggml_nelements(0);
+        console.log('wasmModuleInstance._ggml_nelements(0) returned:', num_elements, '(This value is likely meaningless as no valid tensor was passed)');
+        outputElement.innerHTML += `wasmModuleInstance._ggml_nelements(0) returned: ${num_elements} (This value is likely meaningless as no valid tensor was passed)<br>`;
     } catch (e) {
-        console.error('Error calling Module._ggml_nelements (as expected with NULL tensor):', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_nelements (as expected with NULL tensor): \${e}<br>\`;
+        console.error('Error calling wasmModuleInstance._ggml_nelements (as expected with NULL tensor):', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_nelements (as expected with NULL tensor): ${e}<br>`;
     }
 
     // 4. ggml_bitnet_transform_tensor (calling STUB)
-    console.log('Attempting to call Module._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...');
-    outputElement.innerHTML += 'Attempting to call Module._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...<br>';
+    console.log('Attempting to call wasmModuleInstance._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...');
+    outputElement.innerHTML += 'Attempting to call wasmModuleInstance._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...<br>';
     try {
-        Module._ggml_bitnet_transform_tensor(0); // Pass 0 for NULL tensor
-        console.log('Module._ggml_bitnet_transform_tensor(0) called (STUB).');
-        outputElement.innerHTML += 'Module._ggml_bitnet_transform_tensor(0) called (STUB).<br>';
+        wasmModuleInstance._ggml_bitnet_transform_tensor(0); // Pass 0 for NULL tensor
+        console.log('wasmModuleInstance._ggml_bitnet_transform_tensor(0) called (STUB).');
+        outputElement.innerHTML += 'wasmModuleInstance._ggml_bitnet_transform_tensor(0) called (STUB).<br>';
     } catch (e) {
-        console.error('Error calling Module._ggml_bitnet_transform_tensor:', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_transform_tensor: \${e}<br>\`;
+        console.error('Error calling wasmModuleInstance._ggml_bitnet_transform_tensor:', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_bitnet_transform_tensor: ${e}<br>`;
     }
 
     // 5. ggml_bitnet_mul_mat_task_compute (calling STUB)
-    console.log('Attempting to call Module._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...');
-    outputElement.innerHTML += 'Attempting to call Module._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...<br>';
+    console.log('Attempting to call wasmModuleInstance._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...');
+    outputElement.innerHTML += 'Attempting to call wasmModuleInstance._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...<br>';
     try {
-        // Call with dummy parameters: (src0, scales, qlut, lut_scales, lut_biases, dst, n, k, m, bits)
-        Module._ggml_bitnet_mul_mat_task_compute(0, 0, 0, 0, 0, 0, 1, 1, 1, 2);
-        console.log('Module._ggml_bitnet_mul_mat_task_compute called (STUB).');
-        outputElement.innerHTML += 'Module._ggml_bitnet_mul_mat_task_compute called (STUB).<br>';
+        wasmModuleInstance._ggml_bitnet_mul_mat_task_compute(0, 0, 0, 0, 0, 0, 1, 1, 1, 2);
+        console.log('wasmModuleInstance._ggml_bitnet_mul_mat_task_compute called (STUB).');
+        outputElement.innerHTML += 'wasmModuleInstance._ggml_bitnet_mul_mat_task_compute called (STUB).<br>';
     } catch (e) {
-        console.error('Error calling Module._ggml_bitnet_mul_mat_task_compute:', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_mul_mat_task_compute: \${e}<br>\`;
+        console.error('Error calling wasmModuleInstance._ggml_bitnet_mul_mat_task_compute:', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_bitnet_mul_mat_task_compute: ${e}<br>`;
     }
-
+    
     // --- Status Note ---
-    const statusMessage = \`
+    const statusMessage = `
         <p><strong>CURRENT STATUS & NEXT STEPS:</strong></p>
         <p>The BitNet WASM module (bitnet.js & bitnet.wasm) has been successfully built.</p>
         <ul>
@@ -93,53 +85,73 @@ function onRuntimeInitialized() {
             <li>An example BitNet model in GGUF format (or a compatible format) would be needed for testing.</li>
         </ol>
         <p>The calls below demonstrate that the initialization/deinitialization functions and the newly stubbed functions are callable.</p>
-    \`;
-    console.info(statusMessage.replace(/<[^>]*>/g, '\\n').replace(/\\n\\n+/g, '\\n')); // Log plain text version
+    `;
+    console.info(statusMessage.replace(/<[^>]*>/g, '\n').replace(/\n\n+/g, '\n')); // Log plain text version
     outputElement.innerHTML += statusMessage;
 
-
-    // 4. ggml_bitnet_free
-    // C Signature: void ggml_bitnet_free(void);
+    // 6. ggml_bitnet_free (renumbered from 4)
     try {
-        console.log('Calling Module._ggml_bitnet_free()...');
-        outputElement.innerHTML += 'Calling Module._ggml_bitnet_free()...<br>';
-        Module._ggml_bitnet_free();
-        console.log('Module._ggml_bitnet_free successfully called.');
-        outputElement.innerHTML += 'Module._ggml_bitnet_free successfully called.<br>';
+        console.log('Calling wasmModuleInstance._ggml_bitnet_free()...');
+        outputElement.innerHTML += 'Calling wasmModuleInstance._ggml_bitnet_free()...<br>';
+        wasmModuleInstance._ggml_bitnet_free();
+        console.log('wasmModuleInstance._ggml_bitnet_free successfully called.');
+        outputElement.innerHTML += 'wasmModuleInstance._ggml_bitnet_free successfully called.<br>';
     } catch (e) {
-        console.error('Error calling Module._ggml_bitnet_free:', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_free: \${e}<br>\`;
+        console.error('Error calling wasmModuleInstance._ggml_bitnet_free:', e);
+        outputElement.innerHTML += `Error calling wasmModuleInstance._ggml_bitnet_free: ${e}<br>`;
     }
 
     console.log('--- End of WASM function demonstration ---');
     outputElement.innerHTML += '--- End of WASM function demonstration ---<br>';
-    // Update status on the page
     const statusElement = document.getElementById('status');
     if (statusElement) {
-        statusElement.textContent = 'WASM module loaded and example functions called. See details below and in console.';
+        statusElement.textContent = 'WASM module initialized and example functions called. See details below and in console.';
     }
 }
 
-// Emscripten module configuration
-// The \`bitnet.js\` glue code (generated by Emscripten) will look for a global \`Module\` object.
-var Module = {
-    onRuntimeInitialized: onRuntimeInitialized,
+// Emscripten module configuration object
+const moduleConfig = {
     print: function(text) {
         console.log('[WASM stdout]', text);
         const outputElement = document.getElementById('output');
-        if (outputElement) outputElement.innerHTML += \`[WASM stdout] \${text}<br>\`;
+        if (outputElement) outputElement.innerHTML += `[WASM stdout] ${text}<br>`;
     },
     printErr: function(text) {
         console.error('[WASM stderr]', text);
         const outputElement = document.getElementById('output');
-        if (outputElement) outputElement.innerHTML += \`[WASM stderr] \${text}<br>\`;
+        if (outputElement) outputElement.innerHTML += `[WASM stderr] ${text}<br>`;
     }
 };
 
-// The index.html will load bitnet.js, which in turn loads bitnet.wasm
-// and then calls Module.onRuntimeInitialized.
-console.log('main.js loaded. Waiting for bitnet.js to initialize the WASM module...');
+console.log('main.js loaded. Waiting for bitnet.js to define Module factory...');
 const initialStatus = document.getElementById('status');
-if (initialStatus) initialStatus.textContent = 'main.js loaded. Loading bitnet.js and bitnet.wasm...';
+if (initialStatus) initialStatus.textContent = 'main.js loaded. Waiting for bitnet.js to define Module factory...';
 const initialOutput = document.getElementById('output');
-if (initialOutput) initialOutput.innerHTML += 'main.js loaded. Waiting for bitnet.js to initialize the WASM module...<br>';
+if (initialOutput) initialOutput.innerHTML += 'main.js loaded. Waiting for bitnet.js to define Module factory...<br>';
+
+function initializeWasm() {
+    if (typeof Module === 'function' && Module.then === undefined) {
+        console.log('Module factory found. Initializing WASM...');
+        if (initialOutput) initialOutput.innerHTML += 'Module factory found. Initializing WASM...<br>';
+        
+        Module(moduleConfig).then((initializedInstance) => {
+            onWasmInitialized(initializedInstance);
+        }).catch(e => {
+            console.error("Error initializing WASM module:", e);
+            if (initialOutput) initialOutput.innerHTML += `Error initializing WASM module: ${e}<br>`;
+            if (initialStatus) initialStatus.textContent = 'Error initializing WASM module.';
+        });
+    } else {
+        console.log('Module factory not yet available or already called. Retrying in 100ms...');
+        if (initialOutput && typeof Module !== 'function') {
+             initialOutput.innerHTML += 'Module factory not yet available. Retrying...<br>';
+        }
+        setTimeout(initializeWasm, 100); 
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWasm);
+} else {
+    initializeWasm();
+}
