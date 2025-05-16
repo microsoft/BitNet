@@ -1,20 +1,21 @@
-#include <stdio.h>  // For printf
-#include <string.h> // For memset (if used in future stubs)
-#include "ggml-bitnet.h" // For declarations and ggml_tensor struct
+#include <stdio.h>
+#include <string.h>
+#include "ggml-bitnet.h"
+#include <emscripten.h> // For EMSCRIPTEN_KEEPALIVE
 
-extern "C" { // Explicitly wrap definitions
+extern "C" {
 
-// --- Unconditional stub for ggml_bitnet_init ---
+// No keepalive for this one yet, focus on ggml_bitnet_free
 void ggml_bitnet_init(void) {
     printf("STUB: ggml_bitnet_init called (unconditional stub)\n");
 }
 
-// --- Unconditional stub for ggml_bitnet_free ---
+EMSCRIPTEN_KEEPALIVE
 void ggml_bitnet_free(void) {
-    printf("STUB: ggml_bitnet_free called (unconditional stub)\n");
+    printf("STUB: ggml_bitnet_free called (unconditional stub, with KEEPALIVE)\n");
 }
 
-// --- Unconditional stub for ggml_bitnet_mul_mat_task_compute ---
+// No keepalive for this one yet
 void ggml_bitnet_mul_mat_task_compute(
     void * src0, void * scales, void * qlut, 
     void * lut_scales, void * lut_biases, void * dst, 
@@ -25,7 +26,7 @@ void ggml_bitnet_mul_mat_task_compute(
     printf("STUB: ggml_bitnet_mul_mat_task_compute called (unconditional stub)\n");
 }
 
-// --- Unconditional stub for ggml_bitnet_transform_tensor ---
+// No keepalive for this one yet
 void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
     (void)tensor;
     printf("STUB: ggml_bitnet_transform_tensor called (unconditional stub)\n");

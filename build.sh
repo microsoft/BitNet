@@ -29,7 +29,7 @@ OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 # -s EXPORT_ES6=1 for ES6 module output (optional, good for modern JS)
 # -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] to allow calling C functions
 # -s ALLOW_MEMORY_GROWTH=1 if dynamic memory is needed
-EMCC_FLAGS="-O3 -msimd128 -fno-rtti -DNDEBUG -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['ggml_bitnet_free'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1GB -s MAXIMUM_MEMORY=4GB -s FORCE_FILESYSTEM=1 -s NO_EXIT_RUNTIME=1"
+EMCC_FLAGS="-O3 -msimd128 -fno-rtti -DNDEBUG -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['ggml_init','ggml_bitnet_init','ggml_nelements','ggml_bitnet_transform_tensor','ggml_bitnet_mul_mat_task_compute'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1GB -s MAXIMUM_MEMORY=4GB -s FORCE_FILESYSTEM=1 -s NO_EXIT_RUNTIME=1"
 
 # We need to compile the relevant ggml.c from llama.cpp as well.
 # For simplicity, let's assume llama.cpp/ggml/ggml.c is the main one needed.
