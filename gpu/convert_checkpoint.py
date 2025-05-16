@@ -1,9 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 import json
 import os
 import re
@@ -15,7 +9,7 @@ import torch
 from einops import rearrange
 from safetensors.torch import save_file
 import model
-from pack_weight import convert_weight_int8_to_int2_adsbrain, weight_repack, convert_weight_int8_to_int2
+from pack_weight import convert_weight_int8_to_int2
 
 @torch.inference_mode()
 def convert_ts_checkpoint(

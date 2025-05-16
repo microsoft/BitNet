@@ -1,5 +1,3 @@
-# convert_safetensors_to_pth.py
-
 import re
 import torch
 from pathlib import Path

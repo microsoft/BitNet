@@ -51,7 +51,7 @@ The weight matrix is divided into 16×32 blocks to optimize memory access patter
 
 Within each block, values are stored contiguously in memory and permuted to facilitate efficient access and processing.  
 
-See `convert_convert_checkpoint.py` for details.
+See `convert_checkpoint.py` for details.
 
 ### Fast Decoding
 
@@ -73,13 +73,21 @@ It significantly improves GEMV throughput when processing quantized weights and 
 
 ## Performance
 
-| Shape (N×K)         | W2A8 Latency (us) | BF16 Latency (us) | Acceleration rate    |
+Kernel performance (tested on NVIDIA A100 40GB GPU):
+
+| Shape (N×K)         | W2A8 Latency (us) | BF16 Latency (us) | Speedup Ratio        |
 |---------------------|-------------------|-------------------|----------------------|
-| 2560 × 2560         | 12.54             | 13.73             |   1.09               |
-| 3840 × 2560         | 11.75             | 14.61             |   1.24               |
-| 13824 × 2560        | 13.52             | 50.04             |   3.70               |
-| 2560 × 6912         | 11.75             | 30.26             |   2.58               |
-| 3200 × 3200         | 11.65             | 14.61             |   1.25               |
-| 4800 × 3200         | 11.72             | 17.15             |   1.46               |
-| 3200 × 10240        | 13.74             | 49.53             |   3.60               |
-| 20480 × 3200        | 21.91             | 92.71             |   4.23               |
+| 2560 × 2560         | 13.32             | 18.32             |   1.38               |
+| 3840 × 2560         | 14.90             | 18.87             |   1.27               |
+| 13824 × 2560        | 18.75             | 59.51             |   3.17               |
+| 2560 × 6912         | 14.49             | 37.78             |   2.61               |
+| 3200 × 3200         | 14.61             | 19.08             |   1.31               |
+| 4800 × 3200         | 13.09             | 21.84             |   1.67               |
+| 3200 × 10240        | 19.64             | 60.79             |   3.10               |
+| 20480 × 3200        | 30.99             | 112.39            |   3.63               |
+
+Generation throughput:
+
+| BF16 (tokens/s) | W2A8 (tokens/s) | Speedup Ratio |
+|---|---|---|
+| 10.9 | 213.3 | 19.6 |

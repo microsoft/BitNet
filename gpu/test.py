@@ -2,7 +2,7 @@ import torch
 from torch.utils import benchmark
 from torch import nn
 
-from pack_weight import convert_weight_int8_to_int2, weight_repack, convert_weight_int8_to_int2_adsbrain
+from pack_weight import convert_weight_int8_to_int2
 from torch.profiler import profile, record_function, ProfilerActivity
 import ctypes
 import numpy as np
