@@ -5,17 +5,17 @@
 
 extern "C" {
 
-// No keepalive for this one yet, focus on ggml_bitnet_free
+EMSCRIPTEN_KEEPALIVE
 void ggml_bitnet_init(void) {
-    printf("STUB: ggml_bitnet_init called (unconditional stub)\n");
+    printf("STUB: ggml_bitnet_init called (KEEPALIVE)\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
 void ggml_bitnet_free(void) {
-    printf("STUB: ggml_bitnet_free called (unconditional stub, with KEEPALIVE)\n");
+    printf("STUB: ggml_bitnet_free called (KEEPALIVE)\n");
 }
 
-// No keepalive for this one yet
+EMSCRIPTEN_KEEPALIVE
 void ggml_bitnet_mul_mat_task_compute(
     void * src0, void * scales, void * qlut, 
     void * lut_scales, void * lut_biases, void * dst, 
@@ -23,13 +23,13 @@ void ggml_bitnet_mul_mat_task_compute(
     
     (void)src0; (void)scales; (void)qlut; (void)lut_scales; (void)lut_biases; 
     (void)n; (void)k; (void)m; (void)bits;
-    printf("STUB: ggml_bitnet_mul_mat_task_compute called (unconditional stub)\n");
+    printf("STUB: ggml_bitnet_mul_mat_task_compute called (KEEPALIVE)\n");
 }
 
-// No keepalive for this one yet
+EMSCRIPTEN_KEEPALIVE
 void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
     (void)tensor;
-    printf("STUB: ggml_bitnet_transform_tensor called (unconditional stub)\n");
+    printf("STUB: ggml_bitnet_transform_tensor called (KEEPALIVE)\n");
 }
 
 } // end extern "C"
