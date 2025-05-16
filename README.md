@@ -63,32 +63,74 @@ You can call these from JavaScript using `Module.ccall` or `Module.cwrap` after 
     *   **JS Access Example:** `Module._ggml_bitnet_free()`
     *   **Status:** Available. Frees resources allocated by `ggml_bitnet_init`.
 
-### Limitations and Missing Functions
+## Current Status & Limitations
 
-The current WASM build has significant limitations due to issues within the `BitNet-wasm` source code and its `llama.cpp` submodule (commit `5eb47b72`) when targeting WebAssembly:
+The build process has been updated:
+*   The Emscripten SDK (currently v4.0.8) is now expected to be installed in the environment (e.g., in `/tmp/emsdk`). The `build.sh` script sources `emsdk_env.sh` and calls `emcc` directly. The Docker setup is still available in `build.sh` but commented out.
+*   The `build.sh` script now uses the `-s EXPORT_ALL=1` Emscripten flag. This means most C functions from the compiled sources (including many `ggml_*` functions) are exported and available on the `Module` object in JavaScript (prefixed with an underscore).
 
-1.  **Core BitNet Functionality Missing:**
-    *   `ggml_bitnet_mul_mat`: This crucial function for BitNet matrix multiplication is **declared but not defined** in the provided C++ sources. It cannot be exported or used.
-    *   `ggml_bitnet_transform_tensor`: This function, also declared in `ggml-bitnet.h`, is **not defined** in the provided sources and cannot be used.
+**Build Artifacts:**
+*   `bitnet.js` (JavaScript glue code)
+*   `bitnet.wasm` (WebAssembly module)
 
-2.  **General `ggml` Functionality Issues:**
-    *   Many standard `ggml` functions essential for practical use (e.g., `ggml_new_context`, `ggml_free` (for context), `ggml_new_tensor_1d/2d/3d`, `ggml_get_data`, `ggml_set_f32_flat`) fail to link when included in `EXPORTED_FUNCTIONS`.
-    *   These failures appear to be due to two main reasons:
-        *   Linker errors: "symbol exported via --export not found" for the functions themselves, suggesting they are not being correctly picked up from the compiled `ggml.c` object file or are being optimized out before the final link stage for WASM under the current flags.
-        *   Linker errors: "undefined symbol" for various architecture-specific quantization kernels (e.g., `quantize_mat_q8_0`, `ggml_gemv_q4_0_4x4_q8_0`). These are pulled in as dependencies by the more complex `ggml` functions. The `llama.cpp` commit `5eb47b72` does not seem to provide or enable generic C fallbacks for these kernels when compiling for the WASM target with the current build configuration.
+**Key Available Functions (callable from JavaScript via `Module._functionName`):**
+*   `ggml_init`
+*   `ggml_bitnet_init`
+*   `ggml_bitnet_free`
+*   `ggml_nelements`
+*   `ggml_bitnet_transform_tensor` (**STUBBED** - see below)
+*   `ggml_bitnet_mul_mat_task_compute` (**STUBBED** - see below)
+*   Many other `ggml_*` functions (due to `EXPORT_ALL=1`).
 
-**As a result, the current WASM package can only offer very basic initialization and de-initialization functions. It cannot create or manage tensors, nor can it perform BitNet computations.**
+**Critical Limitations:**
+1.  **Core BitNet Functions are STUBBED:**
+    *   The essential C++ functions `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (defined in `src/ggml-bitnet-lut.cpp`) are currently **placeholders (stubs)**.
+    *   They were added to allow the project to compile and link successfully.
+    *   **These stubs DO NOT perform any actual BitNet computations.** They will not produce correct results for inference.
+2.  **No High-Level Inference API:**
+    *   There isn't a simple C or JavaScript API yet to load a model, prepare input, run inference, and get output.
 
-To achieve a functional WASM package for `BitNet-wasm`, the underlying C++ source code would need to be addressed:
-*   Provide complete definitions for `ggml_bitnet_mul_mat` and `ggml_bitnet_transform_tensor` within the `BitNet-wasm/src` files.
-*   Resolve the linking issues for standard `ggml` functions. This might involve:
-    *   Investigating symbol visibility and linkage of functions in `ggml.c` when compiled to WASM.
-    *   Modifying `ggml` (e.g., `ggml-quants.c`) to include or enable generic C implementations for the missing quantization kernels, or stubbing them if they are not strictly necessary for the desired BitNet operations on WASM.
+**Conclusion:** The WASM module can be built, loaded, and basic initialization/stub functions can be called. However, **it CANNOT perform any meaningful BitNet inference in its current state.**
+
+## Next Steps for Full Functionality
+
+To make this project fully capable of BitNet inference in WebAssembly, the following steps are crucial:
+
+1.  **Implement Core BitNet C++ Functions:**
+    *   The placeholder C++ implementations for `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (located in `src/ggml-bitnet-lut.cpp`) **MUST** be replaced with their correct algorithmic logic based on the BitNet paper and `ggml` integration. This is the most critical step.
+
+2.  **Develop/Expose High-Level Inference API:**
+    *   Define and implement higher-level C/C++ functions that orchestrate the inference process. This would typically involve:
+        *   Loading a model (e.g., from a GGUF file if leveraging `llama.cpp`'s `ggml` loading capabilities).
+        *   Creating a `ggml_context` and managing `ggml_tensor` objects for weights, inputs, and computations.
+        *   Building a `ggml_cgraph` (computation graph) that uses the BitNet-specific functions and other `ggml` operations.
+        *   Executing the graph.
+        *   Providing functions to set input data and retrieve output data.
+    *   Ensure these high-level functions are exported for JavaScript access.
+
+3.  **Update JavaScript Example:**
+    *   Modify `example/main.js` to use the new high-level C/WASM API to:
+        *   Load a BitNet model.
+        *   Prepare sample input.
+        *   Run inference.
+        *   Display the results.
+
+4.  **Model Preparation:**
+    *   Obtain or convert a BitNet model into a format compatible with the chosen loading mechanism (e.g., GGUF if using `ggml`'s standard model loading).
+
+5.  **Thorough Testing:**
+    *   Verify the correctness of the implemented BitNet operations and the end-to-end inference pipeline against known test cases or reference implementations if available.
 
 ## Example Usage
 
-An example demonstrating how to load the module and call the few available functions is provided in the `example/` directory:
+An example demonstrating how to load the module and call some of the available functions (including the STUBBED BitNet functions) is provided in the `example/` directory:
 *   `example/index.html`
-*   `example/main.js`
+*   `example/main.js` (updated to reflect current status and call stubs)
 
-Due to the limitations mentioned above, this example is minimal and primarily shows successful module loading and calls to init/free functions.
+To run the example:
+1.  Ensure `bitnet.js` and `bitnet.wasm` are built using `./build.sh`.
+2.  Start a simple HTTP server in the `BitNet-wasm` root directory (e.g., `python3 -m http.server`).
+3.  Open `http://localhost:PORT/example/index.html` in your browser.
+
+**Note:** This example primarily shows that the WASM module loads and that the exported C functions (including the stubs) are callable from JavaScript. It does not perform any real inference.
+

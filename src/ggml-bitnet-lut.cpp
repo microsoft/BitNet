@@ -166,3 +166,32 @@ int ggml_bitnet_get_type_bits(enum ggml_type type) {
     }
 }
 #endif
+
+// Placeholder for ggml_bitnet_mul_mat_task_compute
+// This function is critical for BitNet matrix multiplication and needs a real implementation.
+void ggml_bitnet_mul_mat_task_compute(void * src0, void * scales, void * qlut, void * lut_scales, void * lut_biases, void * dst, int n, int k, int m, int bits) {
+    (void)src0; (void)scales; (void)qlut; (void)lut_scales; (void)lut_biases; (void)dst; (void)n; (void)k; (void)m; (void)bits;
+    // For now, it does nothing. A real implementation would perform matrix multiplication.
+    // To prevent uninitialized data issues if this were called, one might zero out dst if its size is known.
+    // However, without knowing the structure of dst (e.g., if it's a ggml_tensor or raw float array and its dimensions),
+    // directly writing to it is risky. The parameters n, k, m, bits give clues.
+    // Assuming dst is a float pointer and n, m are output dimensions (e.g. m rows, n cols)
+    if (dst && m > 0 && n > 0) {
+        float* out = (float*)dst;
+        for (int i = 0; i < m * n; ++i) {
+            out[i] = 0.0f; // Zero out destination as a safe default for a stub
+        }
+    }
+    // Consider adding a printf here for debugging if this function gets called:
+    // printf("Warning: ggml_bitnet_mul_mat_task_compute is a stub and has been called!\n");
+}
+
+// Placeholder for ggml_bitnet_transform_tensor
+// This function is critical for preparing BitNet tensors and needs a real implementation.
+void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
+    (void)tensor;
+    // For now, it does nothing. A real implementation would transform the tensor data/metadata.
+    // Consider adding a printf here for debugging if this function gets called:
+    // printf("Warning: ggml_bitnet_transform_tensor is a stub and has been called!\n");
+}
+

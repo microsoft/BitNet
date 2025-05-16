@@ -19,7 +19,7 @@ function onRuntimeInitialized() {
         outputElement.innerHTML += 'Module._ggml_init successfully called.<br>';
     } catch (e) {
         console.error('Error calling Module._ggml_init:', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_init: \${e}<br>\`;
+        outputElement.innerHTML += `Error calling Module._ggml_init: \${e}<br>`;
     }
 
     // 2. ggml_bitnet_init
@@ -32,7 +32,7 @@ function onRuntimeInitialized() {
         outputElement.innerHTML += 'Module._ggml_bitnet_init successfully called.<br>';
     } catch (e) {
         console.error('Error calling Module._ggml_bitnet_init:', e);
-        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_init: \${e}<br>\`;
+        outputElement.innerHTML += `Error calling Module._ggml_bitnet_init: \${e}<br>\`;
     }
 
     // 3. ggml_nelements (demonstrative, as we can\'t create a real tensor)
@@ -51,48 +51,51 @@ function onRuntimeInitialized() {
         outputElement.innerHTML += \`Error calling Module._ggml_nelements (as expected with NULL tensor): \${e}<br>\`;
     }
 
-    // --- Limitations Note ---
-    const limitationsMessage = \`
-        <p><strong>IMPORTANT LIMITATIONS:</strong></p>
-        <p>The current WASM module is severely limited due to issues in the underlying C++ source
-        and its llama.cpp submodule (commit 5eb47b72) when targeting WebAssembly.</p>
-        <ol>
-            <li><strong>Missing Core BitNet Functions:</strong>
-                <ul>
-                    <li><code>ggml_bitnet_mul_mat</code>: Declared but NOT DEFINED. Cannot be called.</li>
-                    <li><code>ggml_bitnet_transform_tensor</code>: Declared but NOT DEFINED. Cannot be called.</li>
-                </ul>
-            </li>
-            <li><strong>GGML Function Linker Issues:</strong>
-                <ul>
-                    <li>Functions like <code>ggml_new_context</code>, <code>ggml_free</code> (context), <code>ggml_new_tensor_1d/2d/3d</code>,
-                        <code>ggml_get_data</code>, etc., could NOT be successfully exported.</li>
-                    <li>This is due to:
-                        <ol type="a">
-                            <li>"symbol exported via --export not found" errors for the functions themselves.</li>
-                            <li>"undefined symbol" errors for quantization kernels (e.g., <code>quantize_mat_q8_0</code>)
-                                that are dependencies of these ggml functions. The llama.cpp version used
-                                does not seem to provide generic C fallbacks for these when building for WASM.</li>
-                        </ol>
-                    </li>
-                </ul>
-            </li>
-        </ol>
-        <p><strong>CONCLUSION:</strong></p>
-        <p>This WASM module can initialize and free some BitNet-related internal structures
-        (<code>_ggml_bitnet_init</code>, <code>_ggml_bitnet_free</code>) and call the basic <code>_ggml_init</code>.
-        However, it CANNOT:
+    // 4. ggml_bitnet_transform_tensor (calling STUB)
+    console.log('Attempting to call Module._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...');
+    outputElement.innerHTML += 'Attempting to call Module._ggml_bitnet_transform_tensor(0) (STUBBED FUNCTION)...<br>';
+    try {
+        Module._ggml_bitnet_transform_tensor(0); // Pass 0 for NULL tensor
+        console.log('Module._ggml_bitnet_transform_tensor(0) called (STUB).');
+        outputElement.innerHTML += 'Module._ggml_bitnet_transform_tensor(0) called (STUB).<br>';
+    } catch (e) {
+        console.error('Error calling Module._ggml_bitnet_transform_tensor:', e);
+        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_transform_tensor: \${e}<br>\`;
+    }
+
+    // 5. ggml_bitnet_mul_mat_task_compute (calling STUB)
+    console.log('Attempting to call Module._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...');
+    outputElement.innerHTML += 'Attempting to call Module._ggml_bitnet_mul_mat_task_compute (STUBBED FUNCTION)...<br>';
+    try {
+        // Call with dummy parameters: (src0, scales, qlut, lut_scales, lut_biases, dst, n, k, m, bits)
+        Module._ggml_bitnet_mul_mat_task_compute(0, 0, 0, 0, 0, 0, 1, 1, 1, 2);
+        console.log('Module._ggml_bitnet_mul_mat_task_compute called (STUB).');
+        outputElement.innerHTML += 'Module._ggml_bitnet_mul_mat_task_compute called (STUB).<br>';
+    } catch (e) {
+        console.error('Error calling Module._ggml_bitnet_mul_mat_task_compute:', e);
+        outputElement.innerHTML += \`Error calling Module._ggml_bitnet_mul_mat_task_compute: \${e}<br>\`;
+    }
+
+    // --- Status Note ---
+    const statusMessage = \`
+        <p><strong>CURRENT STATUS & NEXT STEPS:</strong></p>
+        <p>The BitNet WASM module (bitnet.js & bitnet.wasm) has been successfully built.</p>
         <ul>
-            <li>Create or manage <code>ggml_context</code> or <code>ggml_tensor</code> objects.</li>
-            <li>Perform any actual BitNet computations (like matrix multiplication).</li>
-            <li>Be used for any meaningful inference tasks in its current state.</li>
+            <li>The build system was updated, and Emscripten SDK is used for compilation.</li>
+            <li>Key C++ functions <code>ggml_bitnet_mul_mat_task_compute</code> and <code>ggml_bitnet_transform_tensor</code>, which were previously undefined, have been added as STUBS.</li>
+            <li><strong>IMPORTANT:</strong> These stubs allow the module to load and call these functions, but they DO NOT perform the actual BitNet computations. They mostly do nothing or zero out memory.</li>
+            <li>Many ggml functions should now be available for use from JavaScript due to the <code>-s EXPORT_ALL=1</code> flag used during compilation.</li>
         </ul>
-        </p>
-        <p>Resolving these issues would require significant C++ development to define the missing
-        BitNet functions and to fix the ggml linkage problems for the WASM target.</p>
+        <p><strong>To achieve functional BitNet inference:</strong></p>
+        <ol>
+            <li>The C++ stub implementations for <code>ggml_bitnet_mul_mat_task_compute</code> and <code>ggml_bitnet_transform_tensor</code> in <code>src/ggml-bitnet-lut.cpp</code> MUST be replaced with their correct algorithmic logic.</li>
+            <li>A higher-level C/C++ API for model loading, context management, and inference execution needs to be defined and then called from this JavaScript example. This would involve using various <code>ggml_*</code> functions to construct and evaluate a computation graph.</li>
+            <li>An example BitNet model in GGUF format (or a compatible format) would be needed for testing.</li>
+        </ol>
+        <p>The calls below demonstrate that the initialization/deinitialization functions and the newly stubbed functions are callable.</p>
     \`;
-    console.warn(limitationsMessage.replace(/<[^>]*>/g, \'\\n\').replace(/\\n\\n+/g, \'\\n\')); // Log plain text version
-    outputElement.innerHTML += limitationsMessage;
+    console.info(statusMessage.replace(/<[^>]*>/g, '\\n').replace(/\\n\\n+/g, '\\n')); // Log plain text version
+    outputElement.innerHTML += statusMessage;
 
 
     // 4. ggml_bitnet_free
