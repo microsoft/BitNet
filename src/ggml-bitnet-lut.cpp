@@ -16,8 +16,8 @@ void ggml_bitnet_free(void) {
 
 // --- Unconditional stub for ggml_bitnet_mul_mat_task_compute ---
 void ggml_bitnet_mul_mat_task_compute(
-    const void * src0, const void * scales, const void * qlut, 
-    const void * lut_scales, const void * lut_biases, void * dst, 
+    void * src0, void * scales, void * qlut, 
+    void * lut_scales, void * lut_biases, void * dst, 
     int n, int k, int m, int bits) {
     
     (void)src0; (void)scales; (void)qlut; (void)lut_scales; (void)lut_biases; 
