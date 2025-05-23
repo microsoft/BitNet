@@ -292,6 +292,17 @@ python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile 
 # Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
 python utils/e2e_benchmark.py -m models/dummy-bitnet-125m.tl1.gguf -p 512 -n 128
 ```
+
+### Convert from `.safetensors` Checkpoints
+
+```sh
+# Prepare the .safetensors model file
+huggingface-cli download microsoft/bitnet-b1.58-2B-4T-bf16 --local-dir ./models/bitnet-b1.58-2B-4T-bf16
+
+# Convert to gguf model
+python ./utils/convert-helper-bitnet.py ./models/bitnet-b1.58-2B-4T-bf16
+```
+
 ### FAQ (Frequently Asked Questions)📌 
 
 #### Q1: The build dies with errors building llama.cpp due to issues with std::chrono in log.cpp?
