@@ -73,7 +73,9 @@ It significantly improves GEMV throughput when processing quantized weights and 
 
 ## Performance
 
-Kernel performance (tested on NVIDIA A100 40GB GPU):
+### Kernel Benchmarks
+
+Tested on NVIDIA A100 40GB GPU, our custom W2A8 kernel shows significant speedups over standard BF16 implementations:
 
 | Shape (N×K)         | W2A8 Latency (us) | BF16 Latency (us) | Speedup Ratio        |
 |---------------------|-------------------|-------------------|----------------------|
@@ -86,8 +88,20 @@ Kernel performance (tested on NVIDIA A100 40GB GPU):
 | 3200 × 10240        | 19.64             | 60.79             |   3.10               |
 | 20480 × 3200        | 30.99             | 112.39            |   3.63               |
 
-Generation throughput:
+### End-to-End Generation Latency
 
-| BF16 (tokens/s) | W2A8 (tokens/s) | Speedup Ratio |
-|---|---|---|
-| 10.9 | 213.3 | 19.6 |
+Compared to a similarly-sized BF16 model (Gemma-2-2B using vLLM), BitNet-b1.58-2B with our kernel achieves consistent speedups across workloads:
+
+| Input Length | Output Length | BF16 Latency (ms) | W2A8 Latency (ms) | Speedup Ratio |
+| --- | --- | --- | --- | --- |
+| 64 | 16 | 187.64 | 57.40 | 3.27 |
+| 64 | 32 | 353.50 | 112.22 | 3.15 |
+| 64 | 64 | 683.23 | 221.08 | 3.09 |
+| 256 | 16 | 183.14 | 61.24 | 2.99 |
+| 256 | 32 | 353.14 | 115.47 | 3.06 |
+| 256 | 64 | 684.24 | 224.16 | 3.05 |
+| 512 | 16 | 208.99 | 68.06 | 3.07 |
+| 512 | 32 | 354.33 | 122.72 | 2.89 |
+| 512 | 64 | 709.65 | 231.82 | 3.06 |
+
+*Note: Comparison uses equivalent-sized models (2B parameters) on NVIDIA A100 40GB GPU.*
