@@ -19,9 +19,6 @@ void ggml_bitnet_init(void) {
     }
     initialized = true;
 
-    // if (wrapper == nullptr) {
-    //     wrapper = new BITNET::BITNETGeMMWrapper<bitnet_bitnet_float_type>();
-    // }
     if (bitnet_tensor_extras == nullptr) {
         bitnet_tensor_extras = new bitnet_tensor_extra[GGML_BITNET_MAX_NODES];
     }
@@ -36,12 +33,6 @@ void ggml_bitnet_free(void) {
     }
     initialized = false;
 
-    // delete wrapper;
-    // wrapper = nullptr;
-    for (size_t i = 0; i < bitnet_tensor_extras_index; i++) {
-        // aligned_free(bitnet_tensor_extras[i].qweights);
-        // aligned_free(bitnet_tensor_extras[i].scales);
-    }
     delete[] bitnet_tensor_extras;
     bitnet_tensor_extras = nullptr;
 }
@@ -103,9 +94,6 @@ void ggml_bitnet_init(void) {
     }
     initialized = true;
 
-    // if (wrapper == nullptr) {
-    //     wrapper = new BITNET::BITNETGeMMWrapper<bitnet_bitnet_float_type>();
-    // }
     if (bitnet_tensor_extras == nullptr) {
         bitnet_tensor_extras = new bitnet_tensor_extra[GGML_BITNET_MAX_NODES];
     }
@@ -120,12 +108,6 @@ void ggml_bitnet_free(void) {
     }
     initialized = false;
 
-    // delete wrapper;
-    // wrapper = nullptr;
-    for (size_t i = 0; i < bitnet_tensor_extras_index; i++) {
-        // aligned_free(bitnet_tensor_extras[i].qweights);
-        // aligned_free(bitnet_tensor_extras[i].scales);
-    }
     delete[] bitnet_tensor_extras;
     bitnet_tensor_extras = nullptr;
 }
