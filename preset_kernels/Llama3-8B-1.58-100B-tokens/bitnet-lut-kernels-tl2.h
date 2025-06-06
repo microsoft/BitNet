@@ -82,7 +82,7 @@ inline int32_t per_tensor_quant(int k, void* lut_scales_, void* b_) {
     __m128 max1 = _mm_max_ps(_mm256_extractf128_ps(max_vec, 1), _mm256_castps256_ps128(max_vec));
     max1 = _mm_max_ps(max1, _mm_movehl_ps(max1, max1));
     max1 = _mm_max_ss(max1, _mm_movehdup_ps(max1));
-    float scales = 127 / _mm_cvtss_f32(max1);
+    float scales = 127 / (_mm_cvtss_f32(max1) + 1e-10f);
     *lut_scales = scales;
 #endif
     return 0;
