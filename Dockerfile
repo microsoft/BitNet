@@ -57,6 +57,11 @@ COPY --from=builder /src/models      ./models
 
 COPY run_inference_server.py        ./
 
+RUN cp build/3rdparty/llama.cpp/ggml/src/libggml.so /usr/local/lib/ && \
+  cp build/3rdparty/llama.cpp/examples/llava/libllava_shared.so /usr/local/lib/ && \
+  cp build/3rdparty/llama.cpp/src/libllama.so /usr/local/lib/ && \
+  ldconfig
+
 # expose and launch
 EXPOSE 11435
 

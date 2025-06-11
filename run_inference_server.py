@@ -51,7 +51,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     
     parser = argparse.ArgumentParser(description='Run llama.cpp server')
-    parser.add_argument("-m", "--model", type=str, help="Path to model file", required=False, default="models/bitnet_b1_58-3B/ggml-model-i2_s.gguf")
+    parser.add_argument("-m", "--model", type=str, help="Path to model file", required=False, default="models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf")
     parser.add_argument("-p", "--prompt", type=str, help="System prompt for the model", required=False)
     parser.add_argument("-n", "--n-predict", type=int, help="Number of tokens to predict", required=False, default=4096)
     parser.add_argument("-t", "--threads", type=int, help="Number of threads to use", required=False, default=2)
