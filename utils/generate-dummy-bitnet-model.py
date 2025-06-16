@@ -773,7 +773,7 @@ def preprocess_weights_tl2(
     return weight
     
 
-@Model.register("BitnetForCausalLM")
+@Model.register("BitnetForCausalLM", "BitNetForCausalLM")
 class BitnetModel(Model):
     model_arch = gguf.MODEL_ARCH.BITNET
     params: str = ""
