@@ -49,7 +49,7 @@ __global__ void __launch_bounds__(128) ladder_int8xint2_kernel(int8_t* __restric
   constexpr int wmma_K = 32;
   constexpr int wmma_N = 16;
   int in_thread_C_local[1];
-  signed char A_local[K_per_loop];
+  alignas(16) signed char A_local[K_per_loop];
   int B_reshape_local[1];
   signed char B_decode_local[K_per_loop];
   int red_buf0[1];
