@@ -1,59 +1,63 @@
 import torch
-from model import BitLinear, BitLinearKernel
 from pack_weight import convert_weight_int8_to_int2
+from torch.profiler import profile, record_function, ProfilerActivity
+import ctypes
+import numpy as np
+from torch.utils import benchmark
 
-from torch import nn
+gemm_lib = ctypes.CDLL('bitnet_kernels/libgemm.so')
+# set all seed
+torch.manual_seed(42)
+np.random.seed(42)
 
+def bit_linear_int8xint2(input0, weight, out, M, N, K):
+    stream = torch.cuda.current_stream()
+    gemm_lib.bitlinear_int8xint2(*[
+        ctypes.c_void_p(input0.data_ptr()),
+        ctypes.c_void_p(weight.data_ptr()),
+        ctypes.c_void_p(out.data_ptr()),
+        ctypes.c_int(M),
+        ctypes.c_int(N),
+        ctypes.c_int(K),
+        ctypes.c_void_p(stream.cuda_stream),])
 
-def quant_weight_int8(weight):
-    s = 1.0 / weight.abs().mean().clamp_(min=1e-5)
-    new_weight = (weight * s).round().clamp(-1, 1).to(torch.int8)
-    new_scale = (1.0 / s).to(torch.bfloat16)
-    return new_weight, new_scale.reshape(1).repeat(6)
+M = 512
+test_list = [
+    (2560,  2560), 
+    (3840,  2560), 
+    (13824, 2560),
+    (2560,  6912),
+]
+for N,K in test_list:
+    weight = torch.randint(-1, 2, (N, K), dtype=torch.int8, device='cuda')
+    weight_scale = torch.ones(1, dtype=torch.bfloat16, device='cuda')
+    weight_compressed = convert_weight_int8_to_int2(weight).to('cuda')
+    weight_np = weight.cpu().to(torch.int32).T.numpy()
+    stream = torch.cuda.current_stream()
+    input0 = torch.randint(-128,127,(M, K),dtype=torch.int8, device='cuda')
+    input0_np = input0.cpu().to(torch.int32).numpy()
+    out_np = np.matmul(input0_np, weight_np)
+    weight_bf16 = weight.to(torch.bfloat16).T
+    input0_bf16 = input0.to(torch.bfloat16)
+    s = torch.ones(1, dtype=torch.bfloat16, device='cuda')
+    ws = torch.ones(6, dtype=torch.bfloat16, device='cuda')
+    out = torch.empty(M, N, dtype=torch.int32, device='cuda')
+    t0 = benchmark.Timer(
+        stmt="bit_linear_int8xint2(input0, weight_compressed, out, M, N, K)",
+        setup="from __main__ import input0, weight_compressed, s, ws, out, bit_linear_int8xint2, M, N, K",
+        num_threads=1,
+    )
 
-def quant_weight(weight):
-    s = 1.0 / weight.abs().mean().clamp_(min=1e-5)
-    new_weight = (weight * s).round().clamp(-1, 1) / s
+    t1 = benchmark.Timer(
+        stmt="out_bf16 = torch.matmul(input0_bf16, weight_bf16)",
+        setup="from __main__ import input0_bf16, weight_bf16",
+        num_threads=1,
+    )
 
-    return new_weight
+    time0 = t0.timeit(50)
+    time1 = t1.timeit(50)
 
-def convert_int8_to_int2(weight):
-    return convert_weight_int8_to_int2(weight)
+    print(f'Shape{M,N,K}, W2A8: {time0.mean * 1e6:.2f}us, torch BF16: {time1.mean * 1e6:.2f}us')
+    out_np = torch.tensor(out_np).cuda()
 
-
-def test_BitLinear():
-    in_dim = 2560   # 64
-    out_dim = 3840  # 32
-    default_dtype = torch.bfloat16
-    x = torch.randn(128, in_dim, dtype=default_dtype).cuda()  # (batch, in_features)
-    
-    layer0 = BitLinear(in_dim, out_dim).cuda()
-    layer0 = layer0.to(default_dtype) 
-    nn.init.kaiming_uniform_(layer0.weight, nonlinearity='relu')
-    with torch.no_grad():
-        layer0.weight.copy_( quant_weight(layer0.weight))
-    nn.init.zeros_(layer0.bias)
-    out0 = layer0(x)
-
-    assert not torch.isnan(out0).any()
-    assert layer0.weight.dtype == default_dtype
-    # print(layer0.weight.dtype, layer0.weight.shape)
-    
-    layer1 = BitLinearKernel(in_dim, out_dim).cuda()
-    weight_int8, scale = quant_weight_int8(layer0.weight)
-    weight = convert_int8_to_int2(weight_int8)
-
-    
-    with torch.no_grad():
-        layer1.weight.copy_(weight)
-        layer1.weight_scale.copy_(scale)
-    print(layer1.weight, layer1.weight_scale)
-    out1 = layer1(x, weight_int8)
-    assert out1.dtype == default_dtype
-
-    print(f"Non-kernel output: {out0}, Kernel output: {out1}")
-    assert torch.equal(out0, out1), "Outputs from non-kernel and kernel paths should match"
-
-
-if __name__ == "__main__":
-    test_BitLinear()
+    print(f'custom == np {torch.all(out==out_np)}')
