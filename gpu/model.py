@@ -17,8 +17,11 @@ from xformers.ops.fmha.attn_bias import (
 
 import ctypes
 bitnet_lib = ctypes.CDLL('bitnet_kernels/libbitnet.so')
+gemm_lib = ctypes.CDLL('bitnet_kernels/libgemm.so')
 
-def bitnet_int8xint2_linear(input0, input1, s, ws):
+import numpy as np
+
+def bitnet_int8xint2_linear_gemv(input0, input1, s, ws):
     out_shape = list(input0.shape)
     out_shape[-1] = input1.shape[0]
 
@@ -35,6 +38,42 @@ def bitnet_int8xint2_linear(input0, input1, s, ws):
     bitnet_lib.bitlinear_int8xint2(*[ctypes.c_void_p(input0.data_ptr()), ctypes.c_void_p(input1.data_ptr()), ctypes.c_void_p(ret.data_ptr()), ctypes.c_void_p(s.data_ptr()), ctypes.c_void_p(ws.data_ptr()), ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K), ctypes.c_void_p(stream.cuda_stream)])
 
     return ret
+
+def bitnet_int8xint2_linear_gemm(input0, input1, s, ws):
+    out_shape = list(input0.shape)
+    out_shape[-1] = input1.shape[0]
+
+    stream = torch.cuda.current_stream()
+
+    M = input0.shape[0]
+    if len(out_shape) == 3: 
+        M *= input0.shape[1]
+    N = input1.shape[0]
+    K = input1.shape[1] * 4
+
+    ret = torch.zeros(*out_shape, dtype=torch.int32, device=input0.device)
+
+    gemm_lib.bitlinear_int8xint2(*[ctypes.c_void_p(input0.data_ptr()), ctypes.c_void_p(input1.data_ptr()), ctypes.c_void_p(ret.data_ptr()), ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K), ctypes.c_void_p(stream.cuda_stream)])
+    ret = ret.to(torch.bfloat16)
+    ret = ret / s
+    if N == 3840 and K == 2560:
+        #split last dim to 6 parts evenly
+        ret = ret.reshape(*ret.shape[:-1], 6, -1)
+        # devide each part by first 6 coresponding weight scale
+        ret = ret * ws[:6].reshape(1, 6, 1)
+    elif (N == 2560 and K == 2560):
+        # 1 part
+        ret = ret* ws[:1].reshape(1, 1, 1, 1)
+    elif (N == 13824 and K == 2560):
+        # 2 parts
+        ret = ret.reshape(*ret.shape[:-1], 2, -1)
+        # devide each part by first 2 coresponding weight scale
+        ret = ret * ws[:2].reshape(1, 1, 2, 1)
+    elif (N == 2560 and K == 6912):
+        # 1 part
+        ret = ret * ws[:1].reshape(1, 1, 1, 1)
+
+    return ret.reshape(*out_shape)
 
 @dataclass
 class ModelArgs:
@@ -63,16 +102,22 @@ class BitLinearKernel(nn.Module):
         self.out_features = out_features
 
         self.weight = torch.nn.Parameter(torch.zeros(out_features, in_features//4, dtype=torch.int8), requires_grad=False)
-        self.weight_scale = torch.nn.Parameter(torch.zeros(4, dtype=torch.bfloat16), requires_grad=False)
+        self.weight_scale = torch.nn.Parameter(torch.zeros(6, dtype=torch.bfloat16), requires_grad=False)
 
     @torch.compile
     def quant_input(self, input):
         s = 127 / input.abs().max(dim=-1, keepdim=True).values.clamp_(min=1e-5)
         return (input * s).round().clamp(-128, 127).to(torch.int8), s
 
-    def forward(self, input):
+    def forward(self, input, weight_int8=None):
         input, s = self.quant_input(input)
-        return bitnet_int8xint2_linear(input, self.weight, s, self.weight_scale)
+        weight_np = weight_int8.cpu().to(torch.int32).T.numpy()
+        input_np = input.cpu().to(torch.int32).numpy()
+        out_np = np.matmul(input_np, weight_np)
+        if input.shape[0] == 1:
+            return bitnet_int8xint2_linear_gemv(input, self.weight, s, self.weight_scale)
+        else:
+            return bitnet_int8xint2_linear_gemm(input, self.weight, s, self.weight_scale)
 
 class BitLinear(nn.Linear):
     @torch.compile
