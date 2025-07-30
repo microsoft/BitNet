@@ -226,11 +226,4 @@ extern "C" void bitlinear_int8xint2(int8_t *input0, int8_t *input1,
     std::cerr << "CUDA kernel launch failed: " << cudaGetErrorString(launch_error) << std::endl;
     throw std::runtime_error("CUDA kernel launch failed");
   }
-  
-  // Synchronize and check for execution errors
-  cudaError_t sync_error = cudaStreamSynchronize(stream);
-  if (sync_error != cudaSuccess) {
-    std::cerr << "CUDA kernel execution failed: " << cudaGetErrorString(sync_error) << std::endl;
-    throw std::runtime_error("CUDA kernel execution failed");
-  }
 }

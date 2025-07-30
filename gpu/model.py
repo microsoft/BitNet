@@ -109,11 +109,8 @@ class BitLinearKernel(nn.Module):
         s = 127 / input.abs().max(dim=-1, keepdim=True).values.clamp_(min=1e-5)
         return (input * s).round().clamp(-128, 127).to(torch.int8), s
 
-    def forward(self, input, weight_int8=None):
+    def forward(self, input):
         input, s = self.quant_input(input)
-        weight_np = weight_int8.cpu().to(torch.int32).T.numpy()
-        input_np = input.cpu().to(torch.int32).numpy()
-        out_np = np.matmul(input_np, weight_np)
         if input.shape[0] == 1:
             return bitnet_int8xint2_linear_gemv(input, self.weight, s, self.weight_scale)
         else:
