@@ -51,27 +51,17 @@ def bitnet_int8xint2_linear_gemm(input0, input1, s, ws):
     N = input1.shape[0]
     K = input1.shape[1] * 4
 
-    ret = torch.zeros(*out_shape, dtype=torch.int32, device=input0.device)
+    ret = torch.zeros(*out_shape, dtype=torch.bfloat16, device=input0.device)
 
-    gemm_lib.bitlinear_int8xint2(*[ctypes.c_void_p(input0.data_ptr()), ctypes.c_void_p(input1.data_ptr()), ctypes.c_void_p(ret.data_ptr()), ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K), ctypes.c_void_p(stream.cuda_stream)])
-    ret = ret.to(torch.bfloat16)
-    ret = ret / s
-    if N == 3840 and K == 2560:
-        #split last dim to 6 parts evenly
-        ret = ret.reshape(*ret.shape[:-1], 6, -1)
-        # devide each part by first 6 coresponding weight scale
-        ret = ret * ws[:6].reshape(1, 6, 1)
-    elif (N == 2560 and K == 2560):
-        # 1 part
-        ret = ret* ws[:1].reshape(1, 1, 1, 1)
-    elif (N == 13824 and K == 2560):
-        # 2 parts
-        ret = ret.reshape(*ret.shape[:-1], 2, -1)
-        # devide each part by first 2 coresponding weight scale
-        ret = ret * ws[:2].reshape(1, 1, 2, 1)
-    elif (N == 2560 and K == 6912):
-        # 1 part
-        ret = ret * ws[:1].reshape(1, 1, 1, 1)
+    gemm_lib.bitlinear_fused_int8xint2(*[ctypes.c_void_p(input0.data_ptr()),
+                                        ctypes.c_void_p(input1.data_ptr()), 
+                                        ctypes.c_void_p(ret.data_ptr()),
+                                        ctypes.c_int(M), 
+                                        ctypes.c_int(N), 
+                                        ctypes.c_int(K), 
+                                        ctypes.c_void_p(s.data_ptr()),
+                                        ctypes.c_void_p(ws.data_ptr()),
+                                        ctypes.c_void_p(stream.cuda_stream)])
 
     return ret.reshape(*out_shape)
 
