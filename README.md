@@ -13,7 +13,7 @@ The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achi
 <img src="./assets/m2_performance.jpg" alt="m2_performance" width="800"/>
 <img src="./assets/intel_performance.jpg" alt="m2_performance" width="800"/>
 
->The tested models are dummy setups used in a research context to demonstrate the inference performance of bitnet.cpp.
+> The tested models are dummy setups used in a research context to demonstrate the inference performance of bitnet.cpp.
 
 ## Demo
 
@@ -35,6 +35,7 @@ https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
 ## Acknowledgements
 
 This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp) framework. We would like to thank all the authors for their contributions to the open-source community. Also, bitnet.cpp's kernels are built on top of the Lookup Table methodologies pioneered in [T-MAC](https://github.com/microsoft/T-MAC/). For inference of general low-bit LLMs beyond ternary models, we recommend using T-MAC.
+
 ## Official Models
 <table>
     </tr>
@@ -153,23 +154,22 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
     </tr>
 </table>
 
-
-
 ## Installation
 
 ### Requirements
 - python>=3.9
 - cmake>=3.22
 - clang>=18
-    - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options(this also automatically installs the required additional tools like CMake):
-        -  Desktop-development with C++
-        -  C++-CMake Tools for Windows
-        -  Git for Windows
-        -  C++-Clang Compiler for Windows
-        -  MS-Build Support for LLVM-Toolset (clang)
-    - For Debian/Ubuntu users, you can download with [Automatic installation script](https://apt.llvm.org/)
-
-        `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`
+  - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options (this also automatically installs the required additional tools like CMake):
+    - Desktop-development with C++
+    - C++-CMake Tools for Windows
+    - Git for Windows
+    - C++-Clang Compiler for Windows
+    - MS-Build Support for LLVM-Toolset (clang)
+  - For Debian/Ubuntu users, you can download with [Automatic installation script](https://apt.llvm.org/)
+    ```
+    bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+    ```
 - conda (highly recommend)
 
 ### Build from source
@@ -177,20 +177,31 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
 > [!IMPORTANT]
 > If you are using Windows, please remember to always use a Developer Command Prompt / PowerShell for VS2022 for the following commands. Please refer to the FAQs below if you see any issues.
 
-1. Clone the repo
-```bash
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-```
-2. Install the dependencies
-```bash
-# (Recommended) Create a new conda environment
-conda create -n bitnet-cpp python=3.9
-conda activate bitnet-cpp
+1. **Clone the repo**
+    ```bash
+    git clone --recursive https://github.com/microsoft/BitNet.git
+    cd BitNet
+    ```
 
-pip install -r requirements.txt
-```
-3. Build the project
+2. **Install the dependencies**
+    ```bash
+    # (Recommended) Create a new conda environment
+    conda create -n bitnet-cpp python=3.9
+    conda activate bitnet-cpp
+
+    pip install -r requirements.txt
+    ```
+
+3. **Make sure `llama.cpp` is present (submodule or manual clone)**  
+   Many build issues happen when `3rdparty/llama.cpp` is empty because the repo was cloned without submodules.
+
+   **A) Preferred — initialize the submodule**
+   ```bash
+   # from repo root
+   git submodule sync --recursive
+   git submodule update --init --recursive
+   
+4. Build the project
 ```bash
 # Manually download the model and run with local path
 huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
