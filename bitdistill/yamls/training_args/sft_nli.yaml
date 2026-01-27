@@ -1,0 +1,51 @@
+### model
+model_name_or_path: Qwen/Qwen3-0.6B
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: full
+# lora_rank: 8
+# lora_target: all
+flash_attn: fa2
+
+### dataset
+dataset: nli_train
+dataset_dir: /mnt/msranlp/xun/BieNet_finetuning/datasets/multi_nli
+template: qwen
+cutoff_len: 512
+max_samples: null
+overwrite_cache: true
+preprocessing_num_workers: 32
+dataloader_num_workers: 8
+
+### output
+output_dir: /mnt/msranlp/xun/BieNet_finetuning/training_results_llamafactory/debug
+logging_steps: 100
+save_steps: 50
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+
+### train
+per_device_train_batch_size: 64
+disable_gradient_checkpointing: true
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-5
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+
+### eval
+eval_dataset: nli_valid
+# val_size: 0.1
+per_device_eval_batch_size: 1
+eval_strategy: steps
+eval_steps: 10
+
+report_to: wandb
+run_name: nli-Qwen3-0.6B-baseline-warm0.05-epoch3-lr1e-5-bs64xa4xg8
