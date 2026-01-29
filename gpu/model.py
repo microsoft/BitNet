@@ -25,7 +25,7 @@ def bitnet_int8xint2_linear(input0, input1, s, ws):
     stream = torch.cuda.current_stream()
 
     M = input0.shape[0]
-    if len(out_shape) == 3: 
+    if len(out_shape) == 3:
         M *= input0.shape[1]
     N = input1.shape[0]
     K = input1.shape[1] * 4
@@ -319,7 +319,7 @@ def make_cache(
             cache entries (defaults to the default dtype).
 
     Returns:
-        The cache object to pass to ``Tranformer.forward``.
+        The cache object to pass to ``Transformer.forward``.
     """
 
     head_dim = args.dim // args.n_heads
@@ -348,7 +348,7 @@ def cache_prefix(cache: list[LayerCache], length: int) -> list[LayerCache]:
     Take a prefix view of a larger cache.
 
     The original cache object remains of identical size and valid
-    after the shrinked alias has been used. This function is useful
+    after the shrunk alias has been used. This function is useful
     when a cache was allocated for a larger batch size than what is
     necessary.
 

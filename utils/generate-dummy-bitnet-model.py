@@ -125,13 +125,13 @@ class Model(ABC):
         self.ftype = ftype
         self.fname_out = fname_out
         self.is_big_endian = is_big_endian
-        self.endianess = gguf.GGUFEndian.BIG if is_big_endian else gguf.GGUFEndian.LITTLE
+        self.endianness = gguf.GGUFEndian.BIG if is_big_endian else gguf.GGUFEndian.LITTLE
         self.use_temp_file = use_temp_file
         self.is_safetensors = self._is_model_safetensors()
         self.num_parts = Model.count_model_parts(self.dir_model, ".safetensors" if self.is_safetensors else ".bin")
         self.part_names = self._get_part_names()
         self.hparams = Model.load_hparams(self.dir_model)
-        self.gguf_writer = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[self.model_arch], endianess=self.endianess, use_temp_file=self.use_temp_file)
+        self.gguf_writer = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[self.model_arch], endianness=self.endianness, use_temp_file=self.use_temp_file)
         self.block_count = self.find_hparam(["n_layers", "num_hidden_layers", "n_layer"])
         self.tensor_map = gguf.get_tensor_name_map(self.model_arch, self.block_count)
 
@@ -601,14 +601,14 @@ def preprocess_two_weights_tl2(M, K, weight_num, BM, BY, bm, by, weight, final_w
                     left_weight = func_weights[0]
                     left_sub_weights = np.split(left_weight, 4, axis=0)
                     new_left_weight = np.reshape(
-                                        np.concatenate([left_sub_weights[0], left_sub_weights[2], 
+                                        np.concatenate([left_sub_weights[0], left_sub_weights[2],
                                         left_sub_weights[1], left_sub_weights[3]], axis=0, dtype=np.uint8),
                                         (bm))
 
                     right_weight = func_weights[1]
                     right_sub_weights = np.split(right_weight, 4, axis=0)
                     new_right_weight = np.reshape(
-                                        np.concatenate([right_sub_weights[0], right_sub_weights[2], 
+                                        np.concatenate([right_sub_weights[0], right_sub_weights[2],
                                         right_sub_weights[1], right_sub_weights[3]], axis=0, dtype=np.uint8),
                                         (bm))
                     hi_weight = new_left_weight.astype(np.uint8) << 4
@@ -651,7 +651,7 @@ def preprocess_three_weights_tl2(M, K, weight_num, BM, BY, bm, by, weight, final
                     left_weight = func_weights[0]
                     left_sub_weights = np.split(left_weight, 4, axis=0)
                     new_left_weight = np.reshape(
-                                        np.concatenate([left_sub_weights[0], left_sub_weights[2], 
+                                        np.concatenate([left_sub_weights[0], left_sub_weights[2],
                                         left_sub_weights[1], left_sub_weights[3]], axis=0, dtype=np.uint8),
                                         (bm))
 
@@ -659,7 +659,7 @@ def preprocess_three_weights_tl2(M, K, weight_num, BM, BY, bm, by, weight, final
                     right_sub_weights = np.split(right_weight, 4, axis=0)
 
                     new_right_weight = np.reshape(
-                                        np.concatenate([right_sub_weights[0], right_sub_weights[2], 
+                                        np.concatenate([right_sub_weights[0], right_sub_weights[2],
                                         right_sub_weights[1], right_sub_weights[3]], axis=0, dtype=np.uint8),
                                         (bm))
                     hi_weight = new_left_weight.astype(np.uint8) << 4
@@ -771,13 +771,13 @@ def preprocess_weights_tl2(
     weight = np.array(final_weight, dtype=np.uint8)
 
     return weight
-    
+
 
 @Model.register("BitnetForCausalLM")
 class BitnetModel(Model):
     model_arch = gguf.MODEL_ARCH.BITNET
     params: str = ""
-    
+
     def set_params(self, params: str):
         self.params = params
         hp_config = model_config[self.params]
@@ -788,11 +788,11 @@ class BitnetModel(Model):
         self.hparams["num_key_value_heads"] = hp_config["num_attention_heads"]
         self.block_count = self.find_hparam(["n_layers", "num_hidden_layers", "n_layer"])
         self.tensor_map = gguf.get_tensor_name_map(self.model_arch, self.block_count)
-        
+
 
     def set_vocab(self):
         self._set_vocab_sentencepiece()
-        
+
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
 
@@ -819,7 +819,7 @@ class BitnetModel(Model):
         # res = np.round(x / scale + 2).astype(np.uint8)
         res = preprocess_weights_tl2(x)
         return res, scale
-    
+
     # generate dummy model
     def generate_tensors(self) -> Iterator[tuple[str, np.ndarray]]:
         hp_config = model_config[self.params]
@@ -851,7 +851,7 @@ class BitnetModel(Model):
 
     def modify_tensors(self, data_torch: Tensor, name: str, bid: int | None) -> Iterable[tuple[str, Tensor]]:
         # quant weight to i2 (in fp16)
-        if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight", 
+        if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight",
                           "down_proj.weight", "up_proj.weight", "gate_proj.weight",
                           "o_proj.weight")):
             data_torch = self.weight_quant(data_torch)
@@ -1015,7 +1015,7 @@ def read_gguf_file(gguf_file_path):
         size_str = str(tensor.n_elements)
         quantization_str = tensor.tensor_type.name
         print(tensor_info_format.format(tensor.name, shape_str, size_str, quantization_str)) # noqa: NP100
-        
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate a dummy bitnet model with GGUF format")

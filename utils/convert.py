@@ -739,7 +739,7 @@ def preprocess_weights(
             kfactor = int(cf.get(sec, 'kfactor'))
             simd_n_in = int(cf.get(sec, 'simd_n_in'))
             simd_n_out = int(cf.get(sec, 'simd_n_out'))
-            break    
+            break
 
     M = M * bits
     ngroups_per_elem = 8 // g
@@ -1167,8 +1167,8 @@ def check_vocab_size(params: Params, vocab: BaseVocab, pad_vocab: bool = False) 
 
 
 class OutputFile:
-    def __init__(self, fname_out: Path, endianess:gguf.GGUFEndian = gguf.GGUFEndian.LITTLE):
-        self.gguf = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[ARCH], endianess=endianess)
+    def __init__(self, fname_out: Path, endianness:gguf.GGUFEndian = gguf.GGUFEndian.LITTLE):
+        self.gguf = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[ARCH], endianness=endianness)
 
     def add_meta_arch(self, params: Params) -> None:
         name = "LLaMA"
@@ -1295,7 +1295,7 @@ class OutputFile:
             logger.info(
                 f"[{i + 1:{padi}d}/{len(model)}] Writing tensor {name:38s} | size {size:16} | type {lazy_tensor.data_type.name:4} | T+{int(elapsed):4}"
             )
-            
+
             if i2_scale is not None:
                 i2_scale = np.tile(i2_scale, 8)
                 ndarray = preprocess_weights(ndarray)
@@ -1310,11 +1310,11 @@ class OutputFile:
     @staticmethod
     def write_vocab_only(
         fname_out: Path, params: Params, vocab: Vocab, svocab: gguf.SpecialVocab,
-        endianess: gguf.GGUFEndian = gguf.GGUFEndian.LITTLE, pad_vocab: bool = False,
+        endianness: gguf.GGUFEndian = gguf.GGUFEndian.LITTLE, pad_vocab: bool = False,
     ) -> None:
         check_vocab_size(params, vocab, pad_vocab=pad_vocab)
 
-        of = OutputFile(fname_out, endianess=endianess)
+        of = OutputFile(fname_out, endianness=endianness)
 
         # meta data
         of.add_meta_arch(params)
@@ -1341,12 +1341,12 @@ class OutputFile:
     @staticmethod
     def write_all(
         fname_out: Path, ftype: GGMLFileType, params: Params, model: LazyModel, vocab: BaseVocab, svocab: gguf.SpecialVocab,
-        concurrency: int = DEFAULT_CONCURRENCY, endianess: gguf.GGUFEndian = gguf.GGUFEndian.LITTLE,
+        concurrency: int = DEFAULT_CONCURRENCY, endianness: gguf.GGUFEndian = gguf.GGUFEndian.LITTLE,
         pad_vocab: bool = False,
     ) -> None:
         check_vocab_size(params, vocab, pad_vocab=pad_vocab)
 
-        of = OutputFile(fname_out, endianess=endianess)
+        of = OutputFile(fname_out, endianness=endianness)
 
         # meta data
         of.add_meta_arch(params)
@@ -1418,7 +1418,7 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
                         raise ValueError(f"Expert tensor not found: layers.{i_l}.feed_forward.experts.{e}.w{w}.weight")
                 tmp[f"layers.{i_l}.feed_forward.experts.w{w}.weight"] = pack_experts_lazy(experts)
 
-    # HF models permut or pack some of the tensors, so we need to undo that
+    # HF models permute or pack some of the tensors, so we need to undo that
     for i in itertools.count():
         if f"model.layers.{i}.self_attn.q_proj.weight" in model:
             logger.debug(f"Permuting layer {i}")
@@ -1433,7 +1433,7 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
             del tmp[f"model.layers.{i}.self_attn.W_pack.weight"]
         else:
             break
-    
+
     # check if is bitnet
     if ARCH == 33:
         del tmp['output.weight']
@@ -1647,9 +1647,9 @@ def main(args_in: list[str] | None = None) -> None:
         do_dump_model(model_plus)
         return
 
-    endianess = gguf.GGUFEndian.LITTLE
+    endianness = gguf.GGUFEndian.LITTLE
     if args.big_endian:
-        endianess = gguf.GGUFEndian.BIG
+        endianness = gguf.GGUFEndian.BIG
 
     params = Params.load(model_plus)
     if params.n_ctx == -1:
@@ -1684,7 +1684,7 @@ def main(args_in: list[str] | None = None) -> None:
             raise ValueError("need --outfile if using --vocab-only")
         outfile = args.outfile
         OutputFile.write_vocab_only(outfile, params, vocab, special_vocab,
-                                    endianess=endianess, pad_vocab=args.pad_vocab)
+                                    endianness=endianness, pad_vocab=args.pad_vocab)
         logger.info(f"Wrote {outfile}")
         return
 
@@ -1703,7 +1703,7 @@ def main(args_in: list[str] | None = None) -> None:
     logger.info(f"Writing {outfile}, format {ftype}")
 
     OutputFile.write_all(outfile, ftype, params, model, vocab, special_vocab,
-                         concurrency=args.concurrency, endianess=endianess, pad_vocab=args.pad_vocab)
+                         concurrency=args.concurrency, endianness=endianness, pad_vocab=args.pad_vocab)
     logger.info(f"Wrote {outfile}")
 
 
