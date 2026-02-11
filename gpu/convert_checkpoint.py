@@ -47,7 +47,7 @@ def convert_ts_checkpoint(
             wk_weight, wb_scale = quant_weight_int8(wk)
             wv_weight, wc_scale = quant_weight_int8(wv)
             wqkv_weight = torch.cat([wq_weight, wk_weight, wv_weight], dim=0)
-            wqkv_scale = torch.cat([wa_scale, wb_scale, wc_scale, zero], dim=0)
+            wqkv_scale = torch.cat([wa_scale, wa_scale, wa_scale, wa_scale, wb_scale, wc_scale], dim=0)
             int2_result[key] = convert_int8_to_int2(wqkv_weight)
             int2_result[key.replace('weight', 'weight_scale')] = wqkv_scale
 
@@ -62,7 +62,7 @@ def convert_ts_checkpoint(
             w1_weight, w1_scale = quant_weight_int8(w1)
             w3_weight, w3_scale = quant_weight_int8(w3)
             w13_weight = torch.cat([w1_weight, w3_weight], dim=0)
-            w13_scale = torch.cat([w1_scale, w3_scale, zero, zero], dim=0)
+            w13_scale = torch.cat([w1_scale, w3_scale, zero, zero, zero, zero], dim=0)
             int2_result[key] = convert_int8_to_int2(w13_weight)
             int2_result[key.replace('weight', 'weight_scale')] = w13_scale
 
@@ -72,7 +72,7 @@ def convert_ts_checkpoint(
             fp16_result[key] = w13_weight
         elif 'w2' in key or 'wo' in key:
             weight, scale = quant_weight_int8(value)
-            scale = torch.cat([scale, zero, zero, zero], dim=0)
+            scale = torch.cat([scale, zero, zero, zero, zero, zero], dim=0)
             int2_result[key] = convert_int8_to_int2(weight)
             int2_result[key.replace('weight', 'weight_scale')] = scale
 

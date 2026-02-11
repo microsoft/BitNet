@@ -53,7 +53,7 @@ class FastGen:
         """
         start_time = time.time()
 
-        model_args_prefill = fast.ModelArgs(use_kernel=False)
+        model_args_prefill = fast.ModelArgs(use_kernel=True)
         model_args_decode = fast.ModelArgs(use_kernel=True)
         tokenizer = Tokenizer("./tokenizer.model")
 
@@ -63,11 +63,9 @@ class FastGen:
         prefill_model = fast.Transformer(model_args_prefill)
         decode_model = fast.Transformer(model_args_decode)
 
-        fp16_ckpt_path = str(Path(ckpt_dir) / "model_state_fp16.pt")
-        fp16_checkpoint = torch.load(fp16_ckpt_path, map_location="cpu")
         int2_ckpt_path = str(Path(ckpt_dir) / "model_state_int2.pt")
         int2_checkpoint = torch.load(int2_ckpt_path, map_location="cpu")
-        prefill_model.load_state_dict(fp16_checkpoint, strict=True)
+        prefill_model.load_state_dict(int2_checkpoint, strict=True)
         decode_model.load_state_dict(int2_checkpoint, strict=True)
 
         torch.cuda.synchronize()
