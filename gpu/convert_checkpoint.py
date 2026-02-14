@@ -34,7 +34,7 @@ def convert_ts_checkpoint(
     def convert_int8_to_int2(weight):
         return convert_weight_int8_to_int2(weight)
 
-    merged_result = torch.load(input_path, map_location="cpu", mmap=True)
+    merged_result = torch.load(input_path, map_location="cpu", weights_only=True)
     int2_result = {}
     fp16_result = {}
     zero = torch.zeros(1).to(torch.bfloat16)
@@ -82,7 +82,15 @@ def convert_ts_checkpoint(
             int2_result[key] = value.clone()
             fp16_result[key] = value.clone()
 
-    output_dir = os.path.dirname(input_path)
+    output_dir = os.path.dirname(os.path.abspath(input_path))
+    
+    # Validate that the output directory is within an expected base directory
+    base_dir = os.path.abspath(".")
+    if not os.path.abspath(output_dir).startswith(base_dir):
+        raise ValueError(f"Output directory '{output_dir}' is outside the base directory '{base_dir}'")
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
     print(f"Saving checkpoint to {output_dir}/model_state_int2.pt")
     torch.save(int2_result, f"{output_dir}/model_state_int2.pt")
 
