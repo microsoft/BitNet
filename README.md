@@ -8,7 +8,6 @@ This repository contains the dedicated C++ inference engine for the MakineAI pro
 
 **Supported Languages:**  
 - English  
-- Türkçe
 
 **Tags:**  
 - chat  
