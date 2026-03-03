@@ -7,7 +7,8 @@ This repository contains the dedicated C++ inference engine for the MakineAI pro
 **License:** [MIT License](https://huggingface.co/MakineCeviri/MakineAI/blob/main/LICENSE)
 
 **Supported Languages:**  
-- English  
+- English
+- Türkçe (Coming soon)
 
 **Tags:**  
 - chat  
