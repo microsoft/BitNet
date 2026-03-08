@@ -7,7 +7,10 @@
 
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
+
+#if defined(GGML_BITNET_ARM_TL1) || defined(GGML_BITNET_X86_TL2)
 #include "bitnet-lut-kernels.h"
+#endif
 
 #if defined(GGML_BITNET_ARM_TL1)
 
@@ -163,5 +166,64 @@ int ggml_bitnet_get_type_bits(enum ggml_type type) {
         default:
             return 0;
     }
+}
+#endif
+
+#if !defined(GGML_BITNET_ARM_TL1) && !defined(GGML_BITNET_X86_TL2)
+void ggml_bitnet_init(void) {
+}
+
+void ggml_bitnet_free(void) {
+}
+
+bool ggml_bitnet_can_mul_mat(const struct ggml_tensor * src0, const struct ggml_tensor * src1, const struct ggml_tensor * dst) {
+    (void) src0;
+    (void) src1;
+    (void) dst;
+    return false;
+}
+
+size_t ggml_bitnet_mul_mat_get_wsize(const struct ggml_tensor * src0, const struct ggml_tensor * src1, const struct ggml_tensor * dst) {
+    (void) src0;
+    (void) src1;
+    (void) dst;
+    return 0;
+}
+
+void ggml_bitnet_mul_mat_task_init(void * src1, void * qlut, void * lut_scales, void * lut_biases, int n, int k, int m, int bits) {
+    (void) src1;
+    (void) qlut;
+    (void) lut_scales;
+    (void) lut_biases;
+    (void) n;
+    (void) k;
+    (void) m;
+    (void) bits;
+}
+
+void ggml_bitnet_mul_mat_task_compute(void * src0, void * scales, void * qlut, void * lut_scales, void * lut_biases, void * dst, int n, int k, int m, int bits) {
+    (void) src0;
+    (void) scales;
+    (void) qlut;
+    (void) lut_scales;
+    (void) lut_biases;
+    (void) dst;
+    (void) n;
+    (void) k;
+    (void) m;
+    (void) bits;
+}
+
+void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
+    (void) tensor;
+}
+
+int ggml_bitnet_get_type_bits(enum ggml_type type) {
+    (void) type;
+    return 0;
+}
+
+void ggml_bitnet_set_n_threads(int n_threads) {
+    (void) n_threads;
 }
 #endif
