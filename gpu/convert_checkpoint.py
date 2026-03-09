@@ -34,7 +34,7 @@ def convert_ts_checkpoint(
     def convert_int8_to_int2(weight):
         return convert_weight_int8_to_int2(weight)
 
-    merged_result = torch.load(input_path, map_location="cpu", mmap=True)
+    merged_result = torch.load(input_path, map_location="cpu", mmap=True, weights_only=True)
     int2_result = {}
     fp16_result = {}
     zero = torch.zeros(1).to(torch.bfloat16)
