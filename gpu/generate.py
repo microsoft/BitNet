@@ -64,9 +64,9 @@ class FastGen:
         decode_model = fast.Transformer(model_args_decode)
 
         fp16_ckpt_path = str(Path(ckpt_dir) / "model_state_fp16.pt")
-        fp16_checkpoint = torch.load(fp16_ckpt_path, map_location="cpu")
+        fp16_checkpoint = torch.load(fp16_ckpt_path, map_location="cpu", weights_only=True)
         int2_ckpt_path = str(Path(ckpt_dir) / "model_state_int2.pt")
-        int2_checkpoint = torch.load(int2_ckpt_path, map_location="cpu")
+        int2_checkpoint = torch.load(int2_ckpt_path, map_location="cpu", weights_only=True)
         prefill_model.load_state_dict(fp16_checkpoint, strict=True)
         decode_model.load_state_dict(int2_checkpoint, strict=True)
 
