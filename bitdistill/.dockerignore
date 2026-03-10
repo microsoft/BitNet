@@ -1,0 +1,15 @@
+.vscode
+.git
+.github
+.venv
+cache
+docker
+saves
+hf_cache
+ms_cache
+om_cache
+shared_data
+output
+.dockerignore
+.gitattributes
+.gitignore
