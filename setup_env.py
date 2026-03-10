@@ -211,7 +211,15 @@ def compile():
         logging.error(f"Arch {arch} is not supported yet")
         exit(0)
     logging.info("Compiling the code using CMake.")
-    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"], log_step="generate_build_files")
+    cmake_args = ["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"]
+
+    # Work around LLVM InterleavedLoadCombine optimization bug on Apple Silicon
+    # that causes infinite recursion during compilation (see issue #294, #251, #260)
+    if platform.system() == "Darwin" and arch == "arm64":
+        llvm_flags = "-mllvm -disable-interleaved-load-combine"
+        cmake_args += [f"-DCMAKE_C_FLAGS={llvm_flags}", f"-DCMAKE_CXX_FLAGS={llvm_flags}"]
+
+    run_command(cmake_args, log_step="generate_build_files")
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
