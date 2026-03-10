@@ -1,0 +1,241 @@
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index 121f72d..1695ad8 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -22713,7 +22713,12 @@ static const size_t GGUF_TYPE_SIZE[GGUF_TYPE_COUNT] = {
+     [GGUF_TYPE_UINT32]  = sizeof(uint32_t),
+     [GGUF_TYPE_INT32]   = sizeof(int32_t),
+     [GGUF_TYPE_FLOAT32] = sizeof(float),
++    // PowerPC GCC has sizeof(bool) == 4, but GGUF stores bool as 1 byte on disk
++#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++    [GGUF_TYPE_BOOL]    = 1,
++#else
+     [GGUF_TYPE_BOOL]    = sizeof(bool),
++#endif
+     [GGUF_TYPE_STRING]  = sizeof(struct gguf_str),
+     [GGUF_TYPE_UINT64]  = sizeof(uint64_t),
+     [GGUF_TYPE_INT64]   = sizeof(int64_t),
+@@ -22825,19 +22830,77 @@ static void gguf_tensor_info_sanitize(struct gguf_tensor_info * info) {
+     GGML_ASSERT(INT64_MAX/info->ne[3] > info->ne[0]*info->ne[1]*info->ne[2]);
+ }
+
++// --- Big-endian byte-swap support for GGUF ---
++// GGUF is always little-endian on disk. On big-endian hosts, swap multi-byte values.
++#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++#define GGUF_IS_BIG_ENDIAN 1
++#else
++#define GGUF_IS_BIG_ENDIAN 0
++#endif
++
++#if GGUF_IS_BIG_ENDIAN
++static inline void gguf_bswap_2(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t = b[0]; b[0] = b[1]; b[1] = t;
++}
++static inline void gguf_bswap_4(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t;
++    t = b[0]; b[0] = b[3]; b[3] = t;
++    t = b[1]; b[1] = b[2]; b[2] = t;
++}
++static inline void gguf_bswap_8(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t;
++    t = b[0]; b[0] = b[7]; b[7] = t;
++    t = b[1]; b[1] = b[6]; b[6] = t;
++    t = b[2]; b[2] = b[5]; b[5] = t;
++    t = b[3]; b[3] = b[4]; b[4] = t;
++}
++static inline void gguf_bswap(void * data, size_t size) {
++    switch (size) {
++        case 2: gguf_bswap_2(data); break;
++        case 4: gguf_bswap_4(data); break;
++        case 8: gguf_bswap_8(data); break;
++        default: break;
++    }
++}
++static inline void gguf_bswap_n(void * data, size_t n, size_t elem_size) {
++    if (elem_size <= 1) return;
++    uint8_t * p = (uint8_t *)data;
++    for (size_t i = 0; i < n; i++) {
++        gguf_bswap(p + i * elem_size, elem_size);
++    }
++}
++#endif
++
++// Raw read - no byte-swapping (used for string data, bulk tensor data)
+ static bool gguf_fread_el(FILE * file, void * dst, size_t size, size_t * offset) {
+     const size_t n = fread(dst, 1, size, file);
+     *offset += n;
+     return n == size;
+ }
+
++// Read a scalar value with byte-swap on big-endian
++// Use for numeric scalars (uint32, uint64, float32, etc.), NOT for string data
++static bool gguf_fread_val(FILE * file, void * dst, size_t size, size_t * offset) {
++    const size_t n = fread(dst, 1, size, file);
++    *offset += n;
++    if (n != size) return false;
++#if GGUF_IS_BIG_ENDIAN
++    gguf_bswap(dst, size);
++#endif
++    return true;
++}
++
+ static bool gguf_fread_str(FILE * file, struct gguf_str * p, size_t * offset) {
+     p->n    = 0;
+     p->data = NULL;
+
+     bool ok = true;
+
+-    ok = ok && gguf_fread_el(file, &p->n, sizeof(p->n), offset);
++    // Read string length as scalar (needs byte-swap on big-endian)
++    ok = ok && gguf_fread_val(file, &p->n, sizeof(p->n), offset);
+
+     // early exit if string length is invalid, prevents from integer overflow
+     if (p->n == SIZE_MAX) {
+@@ -22847,6 +22910,7 @@ static bool gguf_fread_str(FILE * file, struct gguf_str * p, size_t * offset) {
+
+     p->data = GGML_CALLOC(p->n + 1, 1);
+
++    // Read string data as raw bytes (no swap needed for character data)
+     ok = ok && gguf_fread_el(file,  p->data, p->n, offset);
+
+     return ok;
+@@ -22935,9 +22999,9 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+         ctx->infos = NULL;
+         ctx->data  = NULL;
+
+-        ok = ok && gguf_fread_el(file, &ctx->header.version,   sizeof(ctx->header.version),   &offset);
+-        ok = ok && gguf_fread_el(file, &ctx->header.n_tensors, sizeof(ctx->header.n_tensors), &offset);
+-        ok = ok && gguf_fread_el(file, &ctx->header.n_kv,      sizeof(ctx->header.n_kv),      &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.version,   sizeof(ctx->header.version),   &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.n_tensors, sizeof(ctx->header.n_tensors), &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.n_kv,      sizeof(ctx->header.n_kv),      &offset);
+
+         if (ctx->header.version == 1) {
+             fprintf(stderr, "%s: GGUFv1 is no longer supported. please use a more up-to-date version\n", __func__);
+@@ -22974,27 +23038,27 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+             //fprintf(stderr, "%s: reading kv %d\n", __func__, i);
+
+             ok = ok && gguf_fread_str(file, &kv->key,                    &offset);
+-            ok = ok && gguf_fread_el (file, &kv->type, sizeof(kv->type), &offset);
++            ok = ok && gguf_fread_val(file, &kv->type, sizeof(kv->type), &offset);
+
+             //fprintf(stderr, "%s: reading kv with key %s\n", __func__, kv->key.data);
+
+             switch (kv->type) {
+-                case GGUF_TYPE_UINT8:   ok = ok && gguf_fread_el (file, &kv->value.uint8,   sizeof(kv->value.uint8),   &offset); break;
+-                case GGUF_TYPE_INT8:    ok = ok && gguf_fread_el (file, &kv->value.int8,    sizeof(kv->value.int8),    &offset); break;
+-                case GGUF_TYPE_UINT16:  ok = ok && gguf_fread_el (file, &kv->value.uint16,  sizeof(kv->value.uint16),  &offset); break;
+-                case GGUF_TYPE_INT16:   ok = ok && gguf_fread_el (file, &kv->value.int16,   sizeof(kv->value.int16),   &offset); break;
+-                case GGUF_TYPE_UINT32:  ok = ok && gguf_fread_el (file, &kv->value.uint32,  sizeof(kv->value.uint32),  &offset); break;
+-                case GGUF_TYPE_INT32:   ok = ok && gguf_fread_el (file, &kv->value.int32,   sizeof(kv->value.int32),   &offset); break;
+-                case GGUF_TYPE_FLOAT32: ok = ok && gguf_fread_el (file, &kv->value.float32, sizeof(kv->value.float32), &offset); break;
+-                case GGUF_TYPE_UINT64:  ok = ok && gguf_fread_el (file, &kv->value.uint64,  sizeof(kv->value.uint64),  &offset); break;
+-                case GGUF_TYPE_INT64:   ok = ok && gguf_fread_el (file, &kv->value.int64,   sizeof(kv->value.int64),   &offset); break;
+-                case GGUF_TYPE_FLOAT64: ok = ok && gguf_fread_el (file, &kv->value.float64, sizeof(kv->value.float64), &offset); break;
+-                case GGUF_TYPE_BOOL:    ok = ok && gguf_fread_el (file, &kv->value.bool_,   sizeof(kv->value.bool_),   &offset); break;
++                case GGUF_TYPE_UINT8:   ok = ok && gguf_fread_val(file, &kv->value.uint8,   sizeof(kv->value.uint8),   &offset); break;
++                case GGUF_TYPE_INT8:    ok = ok && gguf_fread_val(file, &kv->value.int8,    sizeof(kv->value.int8),    &offset); break;
++                case GGUF_TYPE_UINT16:  ok = ok && gguf_fread_val(file, &kv->value.uint16,  sizeof(kv->value.uint16),  &offset); break;
++                case GGUF_TYPE_INT16:   ok = ok && gguf_fread_val(file, &kv->value.int16,   sizeof(kv->value.int16),   &offset); break;
++                case GGUF_TYPE_UINT32:  ok = ok && gguf_fread_val(file, &kv->value.uint32,  sizeof(kv->value.uint32),  &offset); break;
++                case GGUF_TYPE_INT32:   ok = ok && gguf_fread_val(file, &kv->value.int32,   sizeof(kv->value.int32),   &offset); break;
++                case GGUF_TYPE_FLOAT32: ok = ok && gguf_fread_val(file, &kv->value.float32, sizeof(kv->value.float32), &offset); break;
++                case GGUF_TYPE_UINT64:  ok = ok && gguf_fread_val(file, &kv->value.uint64,  sizeof(kv->value.uint64),  &offset); break;
++                case GGUF_TYPE_INT64:   ok = ok && gguf_fread_val(file, &kv->value.int64,   sizeof(kv->value.int64),   &offset); break;
++                case GGUF_TYPE_FLOAT64: ok = ok && gguf_fread_val(file, &kv->value.float64, sizeof(kv->value.float64), &offset); break;
++                case GGUF_TYPE_BOOL:    ok = ok && gguf_fread_val(file, &kv->value.bool_,   sizeof(kv->value.bool_),   &offset); break;
+                 case GGUF_TYPE_STRING:  ok = ok && gguf_fread_str(file, &kv->value.str,                                &offset); break;
+                 case GGUF_TYPE_ARRAY:
+                     {
+-                        ok = ok && gguf_fread_el(file, &kv->value.arr.type, sizeof(kv->value.arr.type), &offset);
+-                        ok = ok && gguf_fread_el(file, &kv->value.arr.n,    sizeof(kv->value.arr.n),    &offset);
++                        ok = ok && gguf_fread_val(file, &kv->value.arr.type, sizeof(kv->value.arr.type), &offset);
++                        ok = ok && gguf_fread_val(file, &kv->value.arr.n,    sizeof(kv->value.arr.n),    &offset);
+
+                         switch (kv->value.arr.type) {
+                             case GGUF_TYPE_UINT8:
+@@ -23020,6 +23084,10 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+                                     kv->value.arr.data = GGML_CALLOC(kv->value.arr.n, gguf_type_size(kv->value.arr.type));
+
+                                     ok = ok && gguf_fread_el(file, kv->value.arr.data, kv->value.arr.n * gguf_type_size(kv->value.arr.type), &offset);
++#if GGUF_IS_BIG_ENDIAN
++                                    // Byte-swap each element in the array
++                                    gguf_bswap_n(kv->value.arr.data, kv->value.arr.n, gguf_type_size(kv->value.arr.type));
++#endif
+                                 } break;
+                             case GGUF_TYPE_STRING:
+                                 {
+@@ -23071,16 +23139,16 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+             }
+
+             ok = ok && gguf_fread_str(file, &info->name,                          &offset);
+-            ok = ok && gguf_fread_el (file, &info->n_dims, sizeof(info->n_dims),  &offset);
++            ok = ok && gguf_fread_val(file, &info->n_dims, sizeof(info->n_dims),  &offset);
+
+             ok = ok && (info->n_dims <= GGML_MAX_DIMS);
+
+             for (uint32_t j = 0; j < info->n_dims; ++j) {
+-                ok = ok && gguf_fread_el(file, &info->ne[j], sizeof(info->ne[j]), &offset);
++                ok = ok && gguf_fread_val(file, &info->ne[j], sizeof(info->ne[j]), &offset);
+             }
+
+-            ok = ok && gguf_fread_el (file, &info->type,   sizeof(info->type),    &offset);
+-            ok = ok && gguf_fread_el (file, &info->offset, sizeof(info->offset),  &offset);
++            ok = ok && gguf_fread_val(file, &info->type,   sizeof(info->type),    &offset);
++            ok = ok && gguf_fread_val(file, &info->offset, sizeof(info->offset),  &offset);
+
+             // TODO: return an error instead of crashing with GGML_ASSERT
+             gguf_tensor_info_sanitize(info);
+diff --git a/src/llama.cpp b/src/llama.cpp
+index 666fcc4..1951402 100644
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -5263,6 +5263,45 @@ struct llama_model_loader {
+             }
+
+             size_done += n_size;
++
++            // --- Big-endian tensor byte-swap ---
++            // GGUF stores all tensor data in little-endian format.
++            // On big-endian hosts, swap multi-byte elements after loading.
++#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++            if (cur->data && n_size > 0) {
++                const enum ggml_type ttype = cur->type;
++                uint8_t * d = (uint8_t *)cur->data;
++                if (ttype == GGML_TYPE_F32) {
++                    for (size_t i = 0; i + 3 < n_size; i += 4) {
++                        uint8_t t;
++                        t = d[i]; d[i] = d[i+3]; d[i+3] = t;
++                        t = d[i+1]; d[i+1] = d[i+2]; d[i+2] = t;
++                    }
++                    LLAMA_LOG_INFO("%s: [BE] swapped %zu bytes of F32 tensor '%s'\n",
++                        __func__, n_size, ggml_get_name(cur));
++                } else if (ttype == GGML_TYPE_F16) {
++                    for (size_t i = 0; i + 1 < n_size; i += 2) {
++                        uint8_t t = d[i]; d[i] = d[i+1]; d[i+1] = t;
++                    }
++                    LLAMA_LOG_INFO("%s: [BE] swapped %zu bytes of F16 tensor '%s'\n",
++                        __func__, n_size, ggml_get_name(cur));
++                } else if (ttype == GGML_TYPE_I2_S) {
++                    // I2_S layout: [quantized uint8 data: ne0*ne1/4 bytes] [float scale: 4 bytes]
++                    // The quantized bytes are endian-independent (bit-packed uint8).
++                    // Only the trailing float scale needs byte-swap.
++                    int64_t ne0 = cur->ne[0];
++                    int64_t ne1 = cur->ne[1];
++                    size_t scale_offset = (size_t)(ne0 * ne1 / 4);
++                    if (scale_offset + 4 <= n_size) {
++                        uint8_t * s = d + scale_offset;
++                        uint8_t t;
++                        t = s[0]; s[0] = s[3]; s[3] = t;
++                        t = s[1]; s[1] = s[2]; s[2] = t;
++                    }
++                }
++            }
++#endif
++
+ #if defined(GGML_BITNET_ARM_TL1) || defined(GGML_BITNET_X86_TL2)
+             ggml_bitnet_transform_tensor(cur);
+ #endif

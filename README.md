@@ -337,3 +337,126 @@ Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common
 ```
 
 These steps will initialize your environment and allow you to use the correct Visual Studio tools.
+
+---
+
+## POWER8 / PowerPC Support
+
+bitnet.cpp has been ported to IBM POWER8 (ppc64le) with AltiVec/VSX SIMD optimizations.
+This is the first port of BitNet to the PowerPC architecture.
+
+### POWER8 Build
+
+```bash
+cd BitNet
+mkdir build-ppc && cd build-ppc
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-mcpu=power8 -mvsx -maltivec -O3 -mtune=power8 -funroll-loops" \
+    -DCMAKE_CXX_FLAGS="-mcpu=power8 -mvsx -maltivec -O3 -mtune=power8 -funroll-loops -std=c++17"
+make -j$(nproc)
+```
+
+### POWER8 Optimizations
+
+Three levels of optimization are implemented:
+
+1. **Scalar fallback** — Baseline C code for any PowerPC target
+2. **VSX vec_msum kernels** — Uses `vmsummbm` instruction for 16-way signed×unsigned byte multiply-accumulate per cycle. All 5 I2_S kernel functions are vectorized: `quantize_i2_s`, `1x1`, `1x4_32W`, `1xN`, `Nx1`
+3. **L3 resident dcbt prefetch** — Uses `dcbt` with TH=0x10 hint to keep weight tensors pinned in L3 cache between token generation steps, avoiding DRAM re-fetch
+
+### POWER8 Benchmarks
+
+**Hardware**: IBM Power System S824 (8286-42A), Dual 8-core POWER8 (16c/128t SMT8), 512 GB DDR3, Ubuntu 20.04 LTS
+**Run config**: 64 threads, `numactl --interleave=all`, `OMP_PROC_BIND=spread`
+
+#### Scalar → VSX Speedup
+
+| Model | Size | pp128 (scalar) | pp128 (VSX) | Speedup |
+|-------|------|----------------|-------------|---------|
+| BitNet 700M | 257 MiB | 21.48 t/s | 211.48 t/s | **9.8x** |
+| BitNet 2B | 1.71 GiB | 8.04 t/s | 73.03 t/s | **9.1x** |
+| Llama3-8B BitNet | 3.58 GiB | 2.60 t/s | 27.39 t/s | **10.5x** |
+
+#### Full Results (VSX + dcbt resident prefetch)
+
+| Model | Size | Params | pp128 | pp256 | pp512 | tg32 |
+|-------|------|--------|-------|-------|-------|------|
+| BitNet 700M | 257 MiB | 728.84 M | 209.38 t/s | 176.67 t/s | 134.10 t/s | 24.02 t/s |
+| BitNet 2B | 1.71 GiB | 2.74 B | 71.95 t/s | 64.98 t/s | 52.67 t/s | 11.99 t/s |
+| Llama3-8B BitNet | 3.58 GiB | 8.03 B | 26.98 t/s | 25.06 t/s | 21.70 t/s | 5.63 t/s |
+
+#### Total Speedup vs Scalar Baseline
+
+| Model | pp128 | tg32 |
+|-------|-------|------|
+| 700M | **9.7x** | **2.2x** |
+| 2B | **9.0x** | **2.9x** |
+| 8B | **10.4x** | **3.5x** |
+
+### Key Technical Details
+
+- **vec_msum (vmsummbm)**: One POWER8 instruction multiplies 16 signed×unsigned byte pairs and accumulates to 4 int32 lanes — ideal for I2_S ternary {-1, 0, 1} dot products
+- **dcbt resident (TH=0x10)**: Tells POWER8 cache controller to keep data sticky in L3 rather than LRU eviction — gives +5-15% on token generation
+- **Optimal threads**: 64 (not 128) — SMT8 causes cache thrashing at full thread count
+- **NUMA**: `--interleave=all` required for models spanning both memory nodes
+
+### POWER8 Models
+
+Tested with:
+- [microsoft/BitNet-b1.58-2B-4T](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T) (I2_S quantized)
+- [1bitLLM/bitnet_b1_58-large](https://huggingface.co/1bitLLM/bitnet_b1_58-large) (700M)
+- [HF1BitLLM/Llama3-8B-1.58-100B-tokens](https://huggingface.co/HF1BitLLM/Llama3-8B-1.58-100B-tokens) (converted via `convert-hf-to-gguf-bitnet.py --outtype f32` then `llama-quantize` to I2_S)
+
+### Power Mac G5 (Big-Endian) Support
+
+bitnet.cpp also runs on Power Mac G5 (PowerPC 970, big-endian) with Mac OS X 10.5 Leopard.
+This required solving the GGUF big-endian byte-swap problem: GGUF is always little-endian on disk,
+so all multi-byte scalar values and tensor data must be byte-swapped when reading on big-endian hosts.
+
+#### G5 Big-Endian Patches
+
+The `patches/` directory contains everything needed:
+
+- **`g5-big-endian.patch`** — Adds `gguf_fread_val()` byte-swap function and patches all GGUF scalar reads (header, KV pairs, tensor info). Also adds tensor data byte-swap for F32, F16, and I2_S scale at load time. Fixes `sizeof(bool)==4` on PowerPC GCC.
+- **`regex-ppc.h`** — POSIX regex wrapper replacing `std::regex` which crashes with Bus error on PPC big-endian (GCC libstdc++ bug).
+- **`build_g5.sh`** — Build script that applies patches and compiles with G5-safe flags.
+
+#### G5 Build
+
+```bash
+cd BitNet
+./patches/build_g5.sh /usr/local/gcc-10/bin
+```
+
+Or manually:
+```bash
+cd 3rdparty/llama.cpp
+git apply ../../patches/g5-big-endian.patch
+cp ../../patches/regex-ppc.h common/
+make -j2 CC=/usr/local/gcc-10/bin/gcc CXX=/usr/local/gcc-10/bin/g++ \
+    GGML_NO_METAL=1 LLAMA_NO_ACCELERATE=1 LLAMA_NO_LLAMAFILE=1 "GGML_NO_OPENMP=" \
+    MK_CFLAGS="-mcpu=970 -maltivec -Os -fno-strict-aliasing -I ggml/include" \
+    MK_CXXFLAGS="-mcpu=970 -maltivec -Os -fno-strict-aliasing -std=gnu++17 -I ggml/include -include common/regex-ppc.h" \
+    MK_LDFLAGS="-L/usr/local/gcc-10/lib -lgomp" \
+    llama-cli
+```
+
+#### G5 Benchmarks
+
+**Hardware**: Power Mac G5 Dual 2.0 GHz (PowerPC 970), 8 GB DDR2, Mac OS X 10.5.8 Leopard
+**Compiler**: GCC 10.5.0, `-Os -mcpu=970 -maltivec`
+
+| Model | Size | pp5 | tg30 | Notes |
+|-------|------|-----|------|-------|
+| BitNet 700M | 257 MiB | 4.31 t/s | 1.61 t/s | Scalar I2_S, 2 threads |
+
+#### G5 Key Details
+
+- **Optimization level**: `-Os` is the highest safe level. `-O2` and `-O3` cause Bus errors from instruction scheduling on PowerPC 970.
+- **GGUF byte-swap**: All GGUF numeric fields read through `gguf_fread_val()` which byte-swaps on `__BIG_ENDIAN__`. String data and raw tensor bytes use `gguf_fread_el()` (no swap).
+- **I2_S tensor layout**: Quantized uint8 bytes are endian-independent. Only the trailing float scale (at offset `ne0*ne1/4`) needs byte-swap.
+- **`sizeof(bool)`**: PowerPC GCC defines `sizeof(bool)==4` but GGUF stores bools as 1 byte. Fixed with compile-time conditional.
+- **`--no-mmap` required**: Mac OS X 10.5 mmap behavior differs; use `--no-mmap` flag.
+
+Developed by [Elyan Labs](https://github.com/Scottcjn).

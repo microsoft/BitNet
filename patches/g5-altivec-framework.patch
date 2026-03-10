@@ -1,0 +1,371 @@
+diff --git a/ggml/src/ggml-quants.c b/ggml/src/ggml-quants.c
+index 127c6bcd..b569831d 100644
+--- a/ggml/src/ggml-quants.c
++++ b/ggml/src/ggml-quants.c
+@@ -3503,6 +3503,72 @@ void dequantize_row_tq2_0(const block_tq2_0 * restrict x, float * restrict y, in
+ void quantize_row_i8_s(const float * x, void * y, int64_t n, float* act_scales, int32_t* act_sums) {
+ // void quantize_row_i8_s(const float * x, void * y, int64_t n, float* act_scales) {
+     int8_t* dst = (int8_t*)y;
++
++#if defined(__ALTIVEC__) || defined(__VSX__)
++    // AltiVec/VSX vectorized path (~4x speedup over scalar)
++    // Pass 1: Find max absolute value using vec_abs + vec_max
++    vector float vmax = vec_splats(0.00001f);
++    int64_t i;
++    for (i = 0; i + 3 < n; i += 4) {
++        vector float vx = vec_ld(0, x + i);
++        vector float vabs = vec_abs(vx);
++        vmax = vec_max(vmax, vabs);
++    }
++    // Horizontal max of vmax
++    float max_arr[4] __attribute__((aligned(16)));
++    vec_st(vmax, 0, max_arr);
++    double max_val = max_arr[0];
++    for (int j = 1; j < 4; j++) {
++        if (max_arr[j] > max_val) max_val = max_arr[j];
++    }
++    // Scalar remainder for max
++    for (; i < n; i++) {
++        double a = fabs((double)x[i]);
++        if (a > max_val) max_val = a;
++    }
++
++    float s = 127.0f / (float)max_val;
++    act_scales[0] = s;
++
++    // Pass 2: Scale, round, clamp to int8, accumulate sum
++    vector float vs = vec_splats(s);
++    vector float vzero = vec_splats(0.0f);
++    vector signed int vsum = vec_splat_s32(0);
++    vector signed int vmin_clamp = vec_splats((int)-128);
++    vector signed int vmax_clamp = vec_splats((int)127);
++    for (i = 0; i + 3 < n; i += 4) {
++        vector float vx = vec_ld(0, x + i);
++        vector float scaled = vec_madd(vx, vs, vzero);
++        // vec_round = vrfin = round-to-nearest-even (AltiVec)
++        vector float rounded = vec_round(scaled);
++        vector signed int vi = vec_cts(rounded, 0);
++        vi = vec_max(vi, vmin_clamp);
++        vi = vec_min(vi, vmax_clamp);
++        vsum = vec_add(vsum, vi);
++        // Pack int32 -> int16 -> int8 (saturate)
++        vector signed short vs16 = vec_packs(vi, vi);
++        vector signed char vs8 = vec_packs(vs16, vs16);
++        // Extract 4 bytes (big-endian: first 4 valid bytes at positions 0-3)
++        dst[i+0] = vec_extract(vs8, 0);
++        dst[i+1] = vec_extract(vs8, 1);
++        dst[i+2] = vec_extract(vs8, 2);
++        dst[i+3] = vec_extract(vs8, 3);
++    }
++    // Reduce vsum: vec_sums places result in element 3 on big-endian
++    vector signed int vsum_r = vec_sums(vsum, vec_splat_s32(0));
++    int32_t sum = vec_extract(vsum_r, 3);
++    // Scalar remainder
++    for (; i < n; i++) {
++        int v = (int)roundf(x[i] * s);
++        if (v >  127) v = 127;
++        if (v < -128) v = -128;
++        sum += v;
++        dst[i] = (int8_t)v;
++    }
++    act_sums[0] = sum;
++
++#else
++    // Scalar path (original)
+     double min = 0.00001;
+     double max = min;
+     for (int i = 0; i < n; ++i) {
+@@ -3519,6 +3585,7 @@ void quantize_row_i8_s(const float * x, void * y, int64_t n, float* act_scales,
+         dst[i] = (int8_t)(v);
+     }
+     act_sums[0] = sum;
++#endif
+ }
+ 
+ void quantize_row_i8_s_4x1(const float * x, void * y, int64_t n, float* act_scales, int32_t* act_sums) {
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index 121f72da..52017f88 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -1594,6 +1594,94 @@ static inline void __avx_f32cx8_store(ggml_fp16_t *x, __m256 y) {
+                                    r[i - GGML_ENDIAN_BYTE(0)]), \
+             0, p - GGML_F16_EPR)
+ 
++#elif defined(__ALTIVEC__)
++
++// AltiVec SIMD for PowerPC G5 (970) and later pre-VSX processors.
++// Uses vec_ld/vec_st (aligned) instead of VSX vec_xl/vec_xst (unaligned).
++// Uses vec_madd(a,b,zero) instead of vec_mul (no vmulfp on G5).
++// GGML uses >=32-byte alignment so aligned loads are safe.
++// F16 handled via scalar FP16<->FP32 conversion (same approach as WASM backend).
++
++#include <altivec.h>
++
++#define GGML_SIMD
++
++// F32 AltiVec
++
++#define GGML_F32_STEP 32
++#define GGML_F32_EPR  4
++
++static const vector float __altivec_f32_zero = {0.0f, 0.0f, 0.0f, 0.0f};
++
++#define GGML_F32x4              vector float
++#define GGML_F32x4_ZERO         __altivec_f32_zero
++#define GGML_F32x4_SET1         vec_splats
++#define GGML_F32x4_LOAD(p)      vec_ld(0, p)
++#define GGML_F32x4_STORE(p, r)  vec_st(r, 0, p)
++#define GGML_F32x4_FMA(a, b, c) vec_madd(b, c, a)
++#define GGML_F32x4_ADD          vec_add
++#define GGML_F32x4_MUL(a, b)    vec_madd(a, b, __altivec_f32_zero)
++#define GGML_F32x4_REDUCE(res, x)              \
++{                                              \
++    int offset = GGML_F32_ARR >> 1;            \
++    for (int i = 0; i < offset; ++i) {         \
++        x[i] = vec_add(x[i], x[offset+i]);    \
++    }                                          \
++    offset >>= 1;                              \
++    for (int i = 0; i < offset; ++i) {         \
++        x[i] = vec_add(x[i], x[offset+i]);    \
++    }                                          \
++    offset >>= 1;                              \
++    for (int i = 0; i < offset; ++i) {         \
++        x[i] = vec_add(x[i], x[offset+i]);    \
++    }                                          \
++    res = vec_extract(x[0], 0) +               \
++          vec_extract(x[0], 1) +               \
++          vec_extract(x[0], 2) +               \
++          vec_extract(x[0], 3);                \
++}
++
++#define GGML_F32_VEC        GGML_F32x4
++#define GGML_F32_VEC_ZERO   GGML_F32x4_ZERO
++#define GGML_F32_VEC_SET1   GGML_F32x4_SET1
++#define GGML_F32_VEC_LOAD   GGML_F32x4_LOAD
++#define GGML_F32_VEC_STORE  GGML_F32x4_STORE
++#define GGML_F32_VEC_FMA    GGML_F32x4_FMA
++#define GGML_F32_VEC_ADD    GGML_F32x4_ADD
++#define GGML_F32_VEC_MUL    GGML_F32x4_MUL
++#define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
++
++// F16 AltiVec: No native F16 on AltiVec, use F32 paths with scalar conversion
++#define GGML_F16_STEP       GGML_F32_STEP
++#define GGML_F16_EPR        GGML_F32_EPR
++#define GGML_F16_VEC        GGML_F32x4
++#define GGML_F16_VEC_ZERO   GGML_F32x4_ZERO
++#define GGML_F16_VEC_SET1   GGML_F32x4_SET1
++#define GGML_F16_VEC_FMA    GGML_F32x4_FMA
++#define GGML_F16_VEC_ADD    GGML_F32x4_ADD
++#define GGML_F16_VEC_MUL    GGML_F32x4_MUL
++#define GGML_F16_VEC_REDUCE GGML_F32x4_REDUCE
++// F16 load: scalar convert each FP16 element to FP32, then load as vector
++inline static vector float __altivec_f16x4_load(const ggml_fp16_t * p) {
++    float tmp[4] __attribute__((aligned(16)));
++    tmp[0] = GGML_FP16_TO_FP32(p[0]);
++    tmp[1] = GGML_FP16_TO_FP32(p[1]);
++    tmp[2] = GGML_FP16_TO_FP32(p[2]);
++    tmp[3] = GGML_FP16_TO_FP32(p[3]);
++    return vec_ld(0, tmp);
++}
++// F16 store: extract vector to FP32 array, then scalar convert each to FP16
++inline static void __altivec_f16x4_store(ggml_fp16_t * p, vector float x) {
++    float tmp[4] __attribute__((aligned(16)));
++    vec_st(x, 0, tmp);
++    p[0] = GGML_FP32_TO_FP16(tmp[0]);
++    p[1] = GGML_FP32_TO_FP16(tmp[1]);
++    p[2] = GGML_FP32_TO_FP16(tmp[2]);
++    p[3] = GGML_FP32_TO_FP16(tmp[3]);
++}
++#define GGML_F16_VEC_LOAD(p, i)     __altivec_f16x4_load(p)
++#define GGML_F16_VEC_STORE(p, r, i) __altivec_f16x4_store(p, r[i])
++
+ #elif defined(__wasm_simd128__)
+ 
+ #define GGML_SIMD
+@@ -22713,7 +22801,12 @@ static const size_t GGUF_TYPE_SIZE[GGUF_TYPE_COUNT] = {
+     [GGUF_TYPE_UINT32]  = sizeof(uint32_t),
+     [GGUF_TYPE_INT32]   = sizeof(int32_t),
+     [GGUF_TYPE_FLOAT32] = sizeof(float),
++    // PowerPC GCC has sizeof(bool) == 4, but GGUF stores bool as 1 byte on disk
++#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++    [GGUF_TYPE_BOOL]    = 1,
++#else
+     [GGUF_TYPE_BOOL]    = sizeof(bool),
++#endif
+     [GGUF_TYPE_STRING]  = sizeof(struct gguf_str),
+     [GGUF_TYPE_UINT64]  = sizeof(uint64_t),
+     [GGUF_TYPE_INT64]   = sizeof(int64_t),
+@@ -22825,19 +22918,77 @@ static void gguf_tensor_info_sanitize(struct gguf_tensor_info * info) {
+     GGML_ASSERT(INT64_MAX/info->ne[3] > info->ne[0]*info->ne[1]*info->ne[2]);
+ }
+ 
++// --- Big-endian byte-swap support for GGUF ---
++// GGUF is always little-endian on disk. On big-endian hosts, swap multi-byte values.
++#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++#define GGUF_IS_BIG_ENDIAN 1
++#else
++#define GGUF_IS_BIG_ENDIAN 0
++#endif
++
++#if GGUF_IS_BIG_ENDIAN
++static inline void gguf_bswap_2(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t = b[0]; b[0] = b[1]; b[1] = t;
++}
++static inline void gguf_bswap_4(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t;
++    t = b[0]; b[0] = b[3]; b[3] = t;
++    t = b[1]; b[1] = b[2]; b[2] = t;
++}
++static inline void gguf_bswap_8(void * p) {
++    uint8_t * b = (uint8_t *)p;
++    uint8_t t;
++    t = b[0]; b[0] = b[7]; b[7] = t;
++    t = b[1]; b[1] = b[6]; b[6] = t;
++    t = b[2]; b[2] = b[5]; b[5] = t;
++    t = b[3]; b[3] = b[4]; b[4] = t;
++}
++static inline void gguf_bswap(void * data, size_t size) {
++    switch (size) {
++        case 2: gguf_bswap_2(data); break;
++        case 4: gguf_bswap_4(data); break;
++        case 8: gguf_bswap_8(data); break;
++        default: break;
++    }
++}
++static inline void gguf_bswap_n(void * data, size_t n, size_t elem_size) {
++    if (elem_size <= 1) return;
++    uint8_t * p = (uint8_t *)data;
++    for (size_t i = 0; i < n; i++) {
++        gguf_bswap(p + i * elem_size, elem_size);
++    }
++}
++#endif
++
++// Raw read - no byte-swapping (used for string data, bulk tensor data)
+ static bool gguf_fread_el(FILE * file, void * dst, size_t size, size_t * offset) {
+     const size_t n = fread(dst, 1, size, file);
+     *offset += n;
+     return n == size;
+ }
+ 
++// Read a scalar value with byte-swap on big-endian
++// Use for numeric scalars (uint32, uint64, float32, etc.), NOT for string data
++static bool gguf_fread_val(FILE * file, void * dst, size_t size, size_t * offset) {
++    const size_t n = fread(dst, 1, size, file);
++    *offset += n;
++    if (n != size) return false;
++#if GGUF_IS_BIG_ENDIAN
++    gguf_bswap(dst, size);
++#endif
++    return true;
++}
++
+ static bool gguf_fread_str(FILE * file, struct gguf_str * p, size_t * offset) {
+     p->n    = 0;
+     p->data = NULL;
+ 
+     bool ok = true;
+ 
+-    ok = ok && gguf_fread_el(file, &p->n, sizeof(p->n), offset);
++    // Read string length as scalar (needs byte-swap on big-endian)
++    ok = ok && gguf_fread_val(file, &p->n, sizeof(p->n), offset);
+ 
+     // early exit if string length is invalid, prevents from integer overflow
+     if (p->n == SIZE_MAX) {
+@@ -22847,6 +22998,7 @@ static bool gguf_fread_str(FILE * file, struct gguf_str * p, size_t * offset) {
+ 
+     p->data = GGML_CALLOC(p->n + 1, 1);
+ 
++    // Read string data as raw bytes (no swap needed for character data)
+     ok = ok && gguf_fread_el(file,  p->data, p->n, offset);
+ 
+     return ok;
+@@ -22935,9 +23087,9 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+         ctx->infos = NULL;
+         ctx->data  = NULL;
+ 
+-        ok = ok && gguf_fread_el(file, &ctx->header.version,   sizeof(ctx->header.version),   &offset);
+-        ok = ok && gguf_fread_el(file, &ctx->header.n_tensors, sizeof(ctx->header.n_tensors), &offset);
+-        ok = ok && gguf_fread_el(file, &ctx->header.n_kv,      sizeof(ctx->header.n_kv),      &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.version,   sizeof(ctx->header.version),   &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.n_tensors, sizeof(ctx->header.n_tensors), &offset);
++        ok = ok && gguf_fread_val(file, &ctx->header.n_kv,      sizeof(ctx->header.n_kv),      &offset);
+ 
+         if (ctx->header.version == 1) {
+             fprintf(stderr, "%s: GGUFv1 is no longer supported. please use a more up-to-date version\n", __func__);
+@@ -22974,27 +23126,27 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+             //fprintf(stderr, "%s: reading kv %d\n", __func__, i);
+ 
+             ok = ok && gguf_fread_str(file, &kv->key,                    &offset);
+-            ok = ok && gguf_fread_el (file, &kv->type, sizeof(kv->type), &offset);
++            ok = ok && gguf_fread_val(file, &kv->type, sizeof(kv->type), &offset);
+ 
+             //fprintf(stderr, "%s: reading kv with key %s\n", __func__, kv->key.data);
+ 
+             switch (kv->type) {
+-                case GGUF_TYPE_UINT8:   ok = ok && gguf_fread_el (file, &kv->value.uint8,   sizeof(kv->value.uint8),   &offset); break;
+-                case GGUF_TYPE_INT8:    ok = ok && gguf_fread_el (file, &kv->value.int8,    sizeof(kv->value.int8),    &offset); break;
+-                case GGUF_TYPE_UINT16:  ok = ok && gguf_fread_el (file, &kv->value.uint16,  sizeof(kv->value.uint16),  &offset); break;
+-                case GGUF_TYPE_INT16:   ok = ok && gguf_fread_el (file, &kv->value.int16,   sizeof(kv->value.int16),   &offset); break;
+-                case GGUF_TYPE_UINT32:  ok = ok && gguf_fread_el (file, &kv->value.uint32,  sizeof(kv->value.uint32),  &offset); break;
+-                case GGUF_TYPE_INT32:   ok = ok && gguf_fread_el (file, &kv->value.int32,   sizeof(kv->value.int32),   &offset); break;
+-                case GGUF_TYPE_FLOAT32: ok = ok && gguf_fread_el (file, &kv->value.float32, sizeof(kv->value.float32), &offset); break;
+-                case GGUF_TYPE_UINT64:  ok = ok && gguf_fread_el (file, &kv->value.uint64,  sizeof(kv->value.uint64),  &offset); break;
+-                case GGUF_TYPE_INT64:   ok = ok && gguf_fread_el (file, &kv->value.int64,   sizeof(kv->value.int64),   &offset); break;
+-                case GGUF_TYPE_FLOAT64: ok = ok && gguf_fread_el (file, &kv->value.float64, sizeof(kv->value.float64), &offset); break;
+-                case GGUF_TYPE_BOOL:    ok = ok && gguf_fread_el (file, &kv->value.bool_,   sizeof(kv->value.bool_),   &offset); break;
++                case GGUF_TYPE_UINT8:   ok = ok && gguf_fread_val(file, &kv->value.uint8,   sizeof(kv->value.uint8),   &offset); break;
++                case GGUF_TYPE_INT8:    ok = ok && gguf_fread_val(file, &kv->value.int8,    sizeof(kv->value.int8),    &offset); break;
++                case GGUF_TYPE_UINT16:  ok = ok && gguf_fread_val(file, &kv->value.uint16,  sizeof(kv->value.uint16),  &offset); break;
++                case GGUF_TYPE_INT16:   ok = ok && gguf_fread_val(file, &kv->value.int16,   sizeof(kv->value.int16),   &offset); break;
++                case GGUF_TYPE_UINT32:  ok = ok && gguf_fread_val(file, &kv->value.uint32,  sizeof(kv->value.uint32),  &offset); break;
++                case GGUF_TYPE_INT32:   ok = ok && gguf_fread_val(file, &kv->value.int32,   sizeof(kv->value.int32),   &offset); break;
++                case GGUF_TYPE_FLOAT32: ok = ok && gguf_fread_val(file, &kv->value.float32, sizeof(kv->value.float32), &offset); break;
++                case GGUF_TYPE_UINT64:  ok = ok && gguf_fread_val(file, &kv->value.uint64,  sizeof(kv->value.uint64),  &offset); break;
++                case GGUF_TYPE_INT64:   ok = ok && gguf_fread_val(file, &kv->value.int64,   sizeof(kv->value.int64),   &offset); break;
++                case GGUF_TYPE_FLOAT64: ok = ok && gguf_fread_val(file, &kv->value.float64, sizeof(kv->value.float64), &offset); break;
++                case GGUF_TYPE_BOOL:    ok = ok && gguf_fread_val(file, &kv->value.bool_,   sizeof(kv->value.bool_),   &offset); break;
+                 case GGUF_TYPE_STRING:  ok = ok && gguf_fread_str(file, &kv->value.str,                                &offset); break;
+                 case GGUF_TYPE_ARRAY:
+                     {
+-                        ok = ok && gguf_fread_el(file, &kv->value.arr.type, sizeof(kv->value.arr.type), &offset);
+-                        ok = ok && gguf_fread_el(file, &kv->value.arr.n,    sizeof(kv->value.arr.n),    &offset);
++                        ok = ok && gguf_fread_val(file, &kv->value.arr.type, sizeof(kv->value.arr.type), &offset);
++                        ok = ok && gguf_fread_val(file, &kv->value.arr.n,    sizeof(kv->value.arr.n),    &offset);
+ 
+                         switch (kv->value.arr.type) {
+                             case GGUF_TYPE_UINT8:
+@@ -23020,6 +23172,10 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+                                     kv->value.arr.data = GGML_CALLOC(kv->value.arr.n, gguf_type_size(kv->value.arr.type));
+ 
+                                     ok = ok && gguf_fread_el(file, kv->value.arr.data, kv->value.arr.n * gguf_type_size(kv->value.arr.type), &offset);
++#if GGUF_IS_BIG_ENDIAN
++                                    // Byte-swap each element in the array
++                                    gguf_bswap_n(kv->value.arr.data, kv->value.arr.n, gguf_type_size(kv->value.arr.type));
++#endif
+                                 } break;
+                             case GGUF_TYPE_STRING:
+                                 {
+@@ -23071,16 +23227,16 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
+             }
+ 
+             ok = ok && gguf_fread_str(file, &info->name,                          &offset);
+-            ok = ok && gguf_fread_el (file, &info->n_dims, sizeof(info->n_dims),  &offset);
++            ok = ok && gguf_fread_val(file, &info->n_dims, sizeof(info->n_dims),  &offset);
+ 
+             ok = ok && (info->n_dims <= GGML_MAX_DIMS);
+ 
+             for (uint32_t j = 0; j < info->n_dims; ++j) {
+-                ok = ok && gguf_fread_el(file, &info->ne[j], sizeof(info->ne[j]), &offset);
++                ok = ok && gguf_fread_val(file, &info->ne[j], sizeof(info->ne[j]), &offset);
+             }
+ 
+-            ok = ok && gguf_fread_el (file, &info->type,   sizeof(info->type),    &offset);
+-            ok = ok && gguf_fread_el (file, &info->offset, sizeof(info->offset),  &offset);
++            ok = ok && gguf_fread_val(file, &info->type,   sizeof(info->type),    &offset);
++            ok = ok && gguf_fread_val(file, &info->offset, sizeof(info->offset),  &offset);
+ 
+             // TODO: return an error instead of crashing with GGML_ASSERT
+             gguf_tensor_info_sanitize(info);

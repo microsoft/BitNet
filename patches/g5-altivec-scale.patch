@@ -1,0 +1,65 @@
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -13285,9 +13285,27 @@ static void ggml_compute_forward_mul_mat(
+                 gemm(ne00, &tmp[0], src0_end - src0_start, (const char *) src0->data + src0_start * nb01 / 4,
+                     (const char *) src1_wdata, ne11 - ne11 % 4, src0_end - src0_start);
+                 for (int col = 0; col < ne11 - ne11 % 4; col++) {
+-                    for (int row = 0; row < src0_end - src0_start; row++) {
+-                        tmp[col * (src0_end - src0_start) + row] = (tmp[col * (src0_end - src0_start) + row] - act_sums[col]) / (act_scales[col]) * (*scale);
+-                    }
++#if defined(__ALTIVEC__) || defined(__VSX__)
++                    /* AltiVec: (x - A) / B * C = x * (C/B) + (-(A * C/B)) = vec_madd */
++                    {
++                        int nrows = src0_end - src0_start;
++                        float * _sc_base = tmp + col * nrows;
++                        float _sc_factor = (*scale) / act_scales[col];
++                        float _sc_neg_off = -((float)act_sums[col] * _sc_factor);
++                        vector float vfac = vec_splats(_sc_factor);
++                        vector float vneg = vec_splats(_sc_neg_off);
++                        int row;
++                        for (row = 0; row + 3 < nrows; row += 4) {
++                            vector float vx = vec_ld(0, _sc_base + row);
++                            vec_st(vec_madd(vx, vfac, vneg), 0, _sc_base + row);
++                        }
++                        for (; row < nrows; row++)
++                            _sc_base[row] = _sc_base[row] * _sc_factor + _sc_neg_off;
++                    }
++#else
++                    for (int row = 0; row < src0_end - src0_start; row++)
++                        tmp[col * (src0_end - src0_start) + row] = (tmp[col * (src0_end - src0_start) + row] - act_sums[col]) / (act_scales[col]) * (*scale);
++#endif
+                     memcpy((float *)((char *) dst->data + (col * nb1)) + src0_start, tmp + col * (src0_end - src0_start), (src0_end - src0_start) * sizeof(float));
+                 }
+             }
+@@ -13306,10 +13324,27 @@ static void ggml_compute_forward_mul_mat(
+                 gemv(ne00, &tmp[0], ne01,
+                     (const char *) src0->data + src0_start * nb01 / 4,
+                     (const char *) src1_wdata + (src1_col_stride * iter),
+                     1, src0_end - src0_start);
+-                for (int row = 0; row < src0_end - src0_start; row++) {
+-                    tmp[row] = (tmp[row] - act_sums[iter]) / (act_scales[iter]) * (*scale);
+-                }
++#if defined(__ALTIVEC__) || defined(__VSX__)
++                /* AltiVec: (x - A) / B * C = x * (C/B) + (-(A * C/B)) = vec_madd */
++                {
++                    int nrows = src0_end - src0_start;
++                    float _sc_factor = (*scale) / act_scales[iter];
++                    float _sc_neg_off = -((float)act_sums[iter] * _sc_factor);
++                    vector float vfac = vec_splats(_sc_factor);
++                    vector float vneg = vec_splats(_sc_neg_off);
++                    int row;
++                    for (row = 0; row + 3 < nrows; row += 4) {
++                        vector float vx = vec_ld(0, tmp + row);
++                        vec_st(vec_madd(vx, vfac, vneg), 0, tmp + row);
++                    }
++                    for (; row < nrows; row++)
++                        tmp[row] = tmp[row] * _sc_factor + _sc_neg_off;
++                }
++#else
++                for (int row = 0; row < src0_end - src0_start; row++)
++                    tmp[row] = (tmp[row] - act_sums[iter]) / (act_scales[iter]) * (*scale);
++#endif
+                 memcpy((float *)((char *) dst->data + (iter * nb1)) + src0_start, tmp, (src0_end - src0_start) * sizeof(float));
+             }
+             else {
