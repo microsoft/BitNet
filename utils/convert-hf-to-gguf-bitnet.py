@@ -745,7 +745,7 @@ class LlamaModel(Model):
                     bid = int(part)
                     break
 
-            # old gguf bf16 not implenmented
+            # old gguf bf16 not implemented
             # if data_torch.dtype == torch.bfloat16:
             #     for new_name, data in ((n, d) for n, d in self.modify_tensors(data_torch, name, bid)):
             #         shape_str = f"{{{', '.join(str(n) for n in reversed(data.shape))}}}"

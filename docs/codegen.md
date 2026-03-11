@@ -3,7 +3,7 @@ Codegen for TL1 and TL2
 
 codegen_tl1.py and codegen_tl2.py are using params to generate kernel codes in different devices to achieve fastest performance for TL1 and TL2.
 
-We cutting weight into multiple compute blocks to best utilize hardware capabilities.
+We cut weights into multiple compute blocks to best utilize hardware capabilities.
 
 ### Example
 bitnet_b1_58-large:
