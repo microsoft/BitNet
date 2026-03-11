@@ -16,6 +16,10 @@ option(BITNET_ARM_TL1    "bitnet.cpp: use tl1 on arm platform"    OFF)
 option(BITNET_X86_TL2    "bitnet.cpp: use tl2 on x86 platform"    OFF)
 
 
+# Use C++17 to support modern Apple SDK headers which require elaborated enum base
+# declarations not available in C++11. This fixes compilation on macOS with
+# recent Xcode/AppleClang versions. See issue #350.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
