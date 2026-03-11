@@ -345,12 +345,26 @@ void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {\n\
     }}\n".format(kernel_shapes[i][0], kernel_shapes[i][1])])
 
     kernel_code = "".join([kernel_code, "\n\
+    if (bm == 0) {{\n\
+        fprintf(stderr, \"ggml_bitnet_transform_tensor: unsupported tensor dimensions m=%d, k=%d\\n\", m, k);\n\
+        return;\n\
+    }}\n\
+\n\
+    if (tensor->data == nullptr) {{\n\
+        fprintf(stderr, \"ggml_bitnet_transform_tensor: tensor->data is null\\n\");\n\
+        return;\n\
+    }}\n\
+\n\
     const int n_tile_num = m / bm;\n\
     const int BK = bk;\n\
     uint8_t * qweights;\n\
     bitnet_float_type * scales;\n\
 \n\
     scales = (bitnet_float_type *) aligned_malloc(sizeof(bitnet_float_type));\n\
+    if (scales == nullptr) {{\n\
+        fprintf(stderr, \"ggml_bitnet_transform_tensor: failed to allocate scales\\n\");\n\
+        return;\n\
+    }}\n\
     qweights = (uint8_t *) tensor->data;\n\
     float * i2_scales = (float * )(qweights + k * m / 4);\n\
     scales[0] = (bitnet_float_type) i2_scales[0];\n\
