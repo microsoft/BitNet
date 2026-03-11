@@ -158,6 +158,57 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
 
 ## Installation
 
+### Ubuntu quck start
+
+```
+sudo apt install ccache clang libomp-dev llvm-dev
+sudo swapoff -a
+
+git clone --recursive https://github.com/microsoft/BitNet.git
+cd BitNet/
+git submodule sync --recursive
+git submodule update --init --recursive
+
+gguf="ggml-model-i2_s.gguf"
+mdir="models/BitNet-b1.58-2B-4T"
+url="https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf"
+link="$url/resolve/main/$gguf"
+modprm="$mdir/$gguf"
+
+mkdir -p $mdir && wget -c "$link" -O $modprm
+{ python3 -m pip install --upgrade pip; pip install -r requirements.txt; }\
+ | grep -ve "^Requirement already satisfied:"
+python3 setup_env.py -md $mdir -q i2_s
+cmake --build build --config Release
+
+export PATH="$PATH:$PWD/build/bin/"
+sysprompt="You are a helpful assistant"
+python3 run_inference.py -m $modprm -p "$sysprompt" -t $(nproc) --temp 0.3 -cnv
+
+# Alternative with a file prompt and sepcific parameters
+tempr="--temp 0.3 --dynatemp-range 0.1 --no-warmup"
+file_prompt=${file_prompt:-/dev/null -p '$sysprompt'}
+pretkns="--override-kv tokenizer.ggml.pre=str:llama3 --mlock"
+intcnv="-i --multiline-input -cnv -co -c 4096 -b 2048 -ub 256 --keep -1 -n -1"
+llama-cli -m $modprm -f ${file_prompt} -t $(nproc) $pretkns $tempr $intcnv
+
+# Useful bash functions
+
+function perplexity() {
+  for f in "$@"; do
+    printf "Analysing '$f'\nwait for results ...\n"
+    llama-perplexity -m $modprm  -t $(nproc) $pretkns $tempr -f "$f" 2>&1 | grep PPL
+  done
+}
+
+function llama3-token-counter() {
+  for f in "$@"; do
+    llama-cli -m $modprm -t $(nproc) $pretkns -f "$f" -c 1 2>&1 |\
+      sed -ne "s/.*too long (\([0-9]\+\) tok.*/\\1/p"
+  done
+}
+```
+
 ### Requirements
 - python>=3.9
 - cmake>=3.22
@@ -199,7 +250,7 @@ python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 ```
 <pre>
-usage: setup_env.py [-h] [--hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}] [--model-dir MODEL_DIR] [--log-dir LOG_DIR] [--quant-type {i2_s,tl1}] [--quant-embd]
+usage: setup_env.py [-h] [--hf-repo {1bitLLM/bitnet_b1_58-large,1bitLLM/bitnet_b1_58-3B,HF1BitLLM/Llama3-8B-1.58-100B-tokens,tiiuae/Falcon3-1B-Instruct-1.58bit,tiiuae/Falcon3-3B-Instruct-1.58bit,tiiuae/Falcon3-7B-Instruct-1.58bit,tiiuae/Falcon3-10B-Instruct-1.58bit}] [--model-dir MODEL_DIR] [--log-dir LOG_DIR] [--quant-type {i2_s,tl1,tl2}] [--quant-embd]
                     [--use-pretuned]
 
 Setup the environment for running inference
@@ -212,7 +263,7 @@ optional arguments:
                         Directory to save/load the model
   --log-dir LOG_DIR, -ld LOG_DIR
                         Directory to save the logging info
-  --quant-type {i2_s,tl1}, -q {i2_s,tl1}
+  --quant-type {i2_s,tl1,tl2}, -q {i2_s,tl1,tl2}
                         Quantization type
   --quant-embd          Quantize the embeddings to f16
   --use-pretuned, -p    Use the pretuned kernel parameters
@@ -285,7 +336,7 @@ python utils/e2e_benchmark.py -m /path/to/model -n 200 -p 256 -t 4
    
 This command would run the inference benchmark using the model located at `/path/to/model`, generating 200 tokens from a 256 token prompt, utilizing 4 threads.  
 
-For the model layout that do not supported by any public model, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
+For the model layouts that are not supported by any public models, we provide scripts to generate a dummy model with the given model layout, and run the benchmark on your machine:
 
 ```bash
 python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile models/dummy-bitnet-125m.tl1.gguf --outtype tl1 --model-size 125M
