@@ -117,7 +117,7 @@ class Tokenizer:
         By default, setting disallowed_special=() encodes a string by ignoring
         special tokens. Specifically:
         - Setting `disallowed_special` to () will cause all text corresponding
-          to special tokens to be encoded as natural text (insteading of raising
+          to special tokens to be encoded as natural text (instead of raising
           an error).
         - Setting `allowed_special` to "all" will treat all text corresponding
           to special tokens to be encoded as special tokens.
@@ -198,7 +198,7 @@ class ChatFormat:
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
         self.eot_id = tokenizer.special_tokens["<|eot_id|>"]
-    
+
     def decode(self, tokens: List[int]) -> str:
         # Decode the tokens to a string.
         decoded_str = self.tokenizer.decode(tokens)
@@ -250,7 +250,7 @@ class ChatFormat:
         # Add the start of an assistant message for the model to complete.
         if completion:
             tokens.extend(self.encode_header({"role": "assistant", "content": ""}))
-        
+
         if return_target:
             return tokens, targets
 

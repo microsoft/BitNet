@@ -53,13 +53,13 @@ class Model(ABC):
         self.ftype = ftype
         self.fname_out = fname_out
         self.is_big_endian = is_big_endian
-        self.endianess = gguf.GGUFEndian.BIG if is_big_endian else gguf.GGUFEndian.LITTLE
+        self.endianness = gguf.GGUFEndian.BIG if is_big_endian else gguf.GGUFEndian.LITTLE
         self.use_temp_file = use_temp_file
         self.is_safetensors = self._is_model_safetensors()
         self.num_parts = Model.count_model_parts(self.dir_model, ".safetensors" if self.is_safetensors else ".bin")
         self.part_names = self._get_part_names()
         self.hparams = Model.load_hparams(self.dir_model)
-        self.gguf_writer = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[self.model_arch], endianess=self.endianess, use_temp_file=self.use_temp_file)
+        self.gguf_writer = gguf.GGUFWriter(fname_out, gguf.MODEL_ARCH_NAMES[self.model_arch], endianness=self.endianness, use_temp_file=self.use_temp_file)
         self.block_count = self.find_hparam(["n_layers", "num_hidden_layers", "n_layer"])
         self.tensor_map = gguf.get_tensor_name_map(self.model_arch, self.block_count)
 
@@ -542,7 +542,7 @@ def preprocess_two_weights_tl2(M, K, weight_num, BM, BY, bm, by, weight, final_w
     weight = weight.reshape((M * K // bm // by, bm // 8, 8))
     weight[:, [0, 1, 2, 3], :] = weight[:, [0, 2, 1, 3], :]
     weight = weight.reshape(M * K // bm // by, bm)
-    
+
     for i in range(weight.shape[0]):
         final_weight.append(weight[i, :])
 
@@ -590,7 +590,7 @@ def preprocess_three_weights_tl2(M, K, weight_num, BM, BY, bm, by, weight, final
         combine_weight += temp_weight
     combine_weight = combine_weight.view(np.uint8)
     combine_weight = combine_weight.reshape((M * K // bm // (by * 4)), bm)
-    
+
     for i in range(combine_weight.shape[0]):
         final_weight.append(combine_weight[i, :])
 
@@ -958,7 +958,7 @@ class BitnetModel(Model):
 
     def set_vocab(self):
         self._set_vocab_sentencepiece()
-        
+
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
 
@@ -976,7 +976,7 @@ class BitnetModel(Model):
 
     def modify_tensors(self, data_torch: Tensor, name: str, bid: int | None) -> Iterable[tuple[str, Tensor]]:
         # quant weight to i2 (in fp16)
-        if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight", 
+        if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight",
                           "down_proj.weight", "up_proj.weight", "gate_proj.weight",
                           "o_proj.weight")):
             data_torch = self.weight_quant(data_torch)
