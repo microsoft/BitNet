@@ -1,0 +1,11 @@
+# Compiled test binaries
+test_branchless_conversion
+test_branchless_conversion_v2
+test_final
+test_avx512_unpack
+analyze_pattern
+test_stfma_integration
+
+# Backup files (keep for reference but exclude from tracking)
+*.backup
+*_modified.txt

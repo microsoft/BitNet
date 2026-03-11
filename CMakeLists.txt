@@ -14,6 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # option list
 option(BITNET_ARM_TL1    "bitnet.cpp: use tl1 on arm platform"    OFF)
 option(BITNET_X86_TL2    "bitnet.cpp: use tl2 on x86 platform"    OFF)
+option(BITNET_USE_STFMA  "bitnet.cpp: use sparse-ternary-fma for ternary operations" ON)
 
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -30,6 +31,43 @@ if (GGML_BITNET_ARM_TL1)
 endif()
 if (GGML_BITNET_X86_TL2)
     add_compile_definitions(GGML_BITNET_X86_TL2)
+endif()
+
+# sparse-ternary-fma integration
+if (BITNET_USE_STFMA)
+    message(STATUS "Enabling sparse-ternary-fma integration")
+    
+    # Add sparse-ternary-fma library
+    set(STFMA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sparse-ternary-fma")
+    
+    add_library(sparse_ternary_fma STATIC
+        ${STFMA_DIR}/src/sparse_ternary_fma.c
+    )
+    
+    target_include_directories(sparse_ternary_fma PUBLIC
+        ${STFMA_DIR}/include
+    )
+    
+    # Set compile flags for AVX-512 support
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+        target_compile_options(sparse_ternary_fma PRIVATE
+            -mavx512f
+            -mavx512bw
+            -mavx512dq
+            -mavx512vl
+        )
+    endif()
+    
+    # Add compile definition
+    add_compile_definitions(GGML_BITNET_USE_STFMA)
+    
+    # Set threshold (can be overridden)
+    if(NOT DEFINED GGML_BITNET_STFMA_THRESHOLD)
+        set(GGML_BITNET_STFMA_THRESHOLD 1024)
+    endif()
+    add_compile_definitions(GGML_BITNET_STFMA_THRESHOLD=${GGML_BITNET_STFMA_THRESHOLD})
+    
+    message(STATUS "STFMA threshold set to: ${GGML_BITNET_STFMA_THRESHOLD}")
 endif()
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
