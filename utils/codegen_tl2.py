@@ -6,11 +6,13 @@ def gen_ctor_code():
     kernel_code = "\n\
 #include \"ggml-bitnet.h\"\n\
 #include <cstring>\n\
+#include <cstdio>\n\
+#include <atomic>\n\
 #include <immintrin.h>\n\
 #define GGML_BITNET_MAX_NODES 8192\n\
 static bool initialized = false;\n\
 static bitnet_tensor_extra * bitnet_tensor_extras = nullptr;\n\
-static size_t bitnet_tensor_extras_index = 0;\n\
+static std::atomic<size_t> bitnet_tensor_extras_index{{0}};\n\
 static void * aligned_malloc(size_t size) {\n\
 #if defined(_WIN32)\n\
     return _aligned_malloc(size, 64);\n\
@@ -661,14 +663,20 @@ void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {\n\
     float * i2_scales = (float * )(qweights + nbytes);\n\
     scales[0] = (bitnet_float_type) i2_scales[0];\n\
 \n\
-    tensor->extra = bitnet_tensor_extras + bitnet_tensor_extras_index;\n\
-    bitnet_tensor_extras[bitnet_tensor_extras_index++] = {\n\
+    size_t current_index = bitnet_tensor_extras_index.fetch_add(1);\n\
+    if (current_index >= GGML_BITNET_MAX_NODES) {{\n\
+        fprintf(stderr, \"ggml_bitnet_transform_tensor: GGML_BITNET_MAX_NODES reached (%d)\\n\", GGML_BITNET_MAX_NODES);\n\
+        return;\n\
+    }}\n\
+\n\
+    tensor->extra = bitnet_tensor_extras + current_index;\n\
+    bitnet_tensor_extras[current_index] = {{\n\
         /* .lut_scales_size = */ lut_scales_size,\n\
         /* .BK              = */ BK,\n\
         /* .n_tile_num      = */ n_tile_num,\n\
         /* .qweights        = */ qweights,\n\
         /* .scales          = */ scales\n\
-    };\n\
+    }};\n\
 }\n"])
 
     return kernel_code
