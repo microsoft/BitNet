@@ -23,19 +23,19 @@ SUPPORTED_HF_MODELS = {
     "tiiuae/Falcon3-7B-Instruct-1.58bit": {
         "model_name": "Falcon3-7B-Instruct-1.58bit",
     },
-    "tiiuae/Falcon3-7B-1.58bit": {
+    "tiiuae/Falcon3-7B-Base-1.58bit": {
         "model_name": "Falcon3-7B-1.58bit",
     },
     "tiiuae/Falcon3-10B-Instruct-1.58bit": {
         "model_name": "Falcon3-10B-Instruct-1.58bit",
     },
-    "tiiuae/Falcon3-10B-1.58bit": {
+    "tiiuae/Falcon3-10B-Base-1.58bit": {
         "model_name": "Falcon3-10B-1.58bit",
     },
     "tiiuae/Falcon3-3B-Instruct-1.58bit": {
         "model_name": "Falcon3-3B-Instruct-1.58bit",
     },
-    "tiiuae/Falcon3-3B-1.58bit": {
+    "tiiuae/Falcon3-3B-Base-1.58bit": {
         "model_name": "Falcon3-3B-1.58bit",
     },
     "tiiuae/Falcon3-1B-Instruct-1.58bit": {
