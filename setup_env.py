@@ -200,6 +200,27 @@ def gen_code():
             raise NotImplementedError()
 
 
+def _find_clang():
+    """Find the best Clang/Clang++ available for BitNet compilation.
+
+    On Linux, prefers versioned installs (clang-18, clang-17, …) over the
+    bare 'clang' alias.  Distro-packaged versioned compilers (e.g. from
+    llvm.org or apt) ship a matching libomp that the linker can resolve.
+    Using a mismatched 'clang' (e.g. from Homebrew on a Linux host) links
+    against a different libomp that may not be on the system library path,
+    causing undefined-symbol errors at link time.
+
+    Falls back to unversioned 'clang'/'clang++' on non-Linux platforms
+    (macOS, Windows) where the version-suffixed binaries are not standard.
+    """
+    if platform.system() == "Linux":
+        for ver in ["18", "17", "16", "15"]:
+            if shutil.which(f"clang-{ver}") and shutil.which(f"clang++-{ver}"):
+                logging.info(f"Using clang-{ver}/clang++-{ver}")
+                return f"clang-{ver}", f"clang++-{ver}"
+    return "clang", "clang++"
+
+
 def compile():
     # Check if cmake is installed
     cmake_exists = subprocess.run(["cmake", "--version"], capture_output=True)
@@ -211,7 +232,8 @@ def compile():
         logging.error(f"Arch {arch} is not supported yet")
         exit(0)
     logging.info("Compiling the code using CMake.")
-    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"], log_step="generate_build_files")
+    c_compiler, cxx_compiler = _find_clang()
+    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), f"-DCMAKE_C_COMPILER={c_compiler}", f"-DCMAKE_CXX_COMPILER={cxx_compiler}"], log_step="generate_build_files")
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
