@@ -5,7 +5,6 @@ import platform
 import argparse
 import subprocess
 import logging
-
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -14,6 +13,19 @@ def setup_logging():
             logging.StreamHandler()
         ]
     )
+
+def check_cuda():
+    """Check if CUDA is available."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            logging.info(f"CUDA is available: {torch.cuda.get_device_name(0)}")
+            return True
+        else:
+            logging.warning("CUDA is not available. Falling back to CPU.")
+    except ImportError:
+        logging.warning("PyTorch not installed. CUDA check skipped.")
+    return False
 
 def run_command(command, shell=False):
     """Run a system command and ensure it succeeds."""
@@ -32,24 +44,27 @@ def run_inference():
             main_path = os.path.join(build_dir, "bin", "llama-cli")
     else:
         main_path = os.path.join(build_dir, "bin", "llama-cli")
-    
+
     if not os.path.exists(main_path):
         logging.error(f"The executable {main_path} does not exist. Please ensure the build directory is correct.")
         sys.exit(1)
-    
+
     command = [
         f'{main_path}',
         '-m', args.model,
         '-n', str(args.n_predict),
         '-t', str(args.threads),
         '-p', args.prompt,
-        '-ngl', '0',
+        '-ngl', '1' if check_cuda() else '0',
         '-c', str(args.ctx_size),
         '--temp', str(args.temperature),
         "-b", "1",
     ]
+
     if args.conversation:
         command.append("-cnv")
+
+    logging.info("Starting inference process...")
     run_command(command)
 
 def signal_handler(sig, frame):
