@@ -14,6 +14,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # option list
 option(BITNET_ARM_TL1    "bitnet.cpp: use tl1 on arm platform"    OFF)
 option(BITNET_X86_TL2    "bitnet.cpp: use tl2 on x86 platform"    OFF)
+set(BITNET_PRESET_KERNEL_MODEL "bitnet_b1_58-3B" CACHE STRING "Preset kernel model used to prepare include/bitnet-lut-kernels.h")
+set(BITNET_LUT_KERNELS_FILE "" CACHE FILEPATH "Optional path to a pre-generated bitnet-lut-kernels.h file")
 
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -34,6 +36,39 @@ endif()
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-fpermissive)
+endif()
+
+set(BITNET_LUT_KERNELS_DST "${CMAKE_CURRENT_SOURCE_DIR}/include/bitnet-lut-kernels.h")
+if (NOT EXISTS "${BITNET_LUT_KERNELS_DST}")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+    if (BITNET_LUT_KERNELS_FILE)
+        if (NOT EXISTS "${BITNET_LUT_KERNELS_FILE}")
+            message(FATAL_ERROR "BITNET_LUT_KERNELS_FILE does not exist: ${BITNET_LUT_KERNELS_FILE}")
+        endif()
+        configure_file("${BITNET_LUT_KERNELS_FILE}" "${BITNET_LUT_KERNELS_DST}" COPYONLY)
+        message(STATUS "Prepared bitnet-lut-kernels.h from BITNET_LUT_KERNELS_FILE=${BITNET_LUT_KERNELS_FILE}")
+    else()
+        set(BITNET_LUT_KERNEL_VARIANT "tl2")
+        if (GGML_BITNET_ARM_TL1)
+            set(BITNET_LUT_KERNEL_VARIANT "tl1")
+        elseif (GGML_BITNET_X86_TL2)
+            set(BITNET_LUT_KERNEL_VARIANT "tl2")
+        elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)")
+            set(BITNET_LUT_KERNEL_VARIANT "tl1")
+        endif()
+
+        set(BITNET_PRESET_KERNEL_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/preset_kernels/${BITNET_PRESET_KERNEL_MODEL}/bitnet-lut-kernels-${BITNET_LUT_KERNEL_VARIANT}.h")
+        if (NOT EXISTS "${BITNET_PRESET_KERNEL_HEADER}")
+            message(FATAL_ERROR
+                "bitnet-lut-kernels.h is missing and no valid preset header was found. "
+                "Expected: ${BITNET_PRESET_KERNEL_HEADER}. "
+                "Set BITNET_LUT_KERNELS_FILE to a generated header or BITNET_PRESET_KERNEL_MODEL to an available preset.")
+        endif()
+
+        configure_file("${BITNET_PRESET_KERNEL_HEADER}" "${BITNET_LUT_KERNELS_DST}" COPYONLY)
+        message(STATUS "Prepared bitnet-lut-kernels.h from preset model=${BITNET_PRESET_KERNEL_MODEL}, variant=${BITNET_LUT_KERNEL_VARIANT}")
+    endif()
 endif()
 
 find_package(Threads REQUIRED)
