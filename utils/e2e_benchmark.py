@@ -20,7 +20,7 @@ def run_command(command, shell=False, log_step=None):
             subprocess.run(command, shell=shell, check=True)
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while running command: {e}")
-        sys.exit(1)
+            sys.exit(1)
 
 def run_benchmark():
     build_dir =  os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build")
