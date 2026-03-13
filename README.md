@@ -12,6 +12,8 @@ The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achi
 
 **Latest optimization** introduces parallel kernel implementations with configurable tiling and embedding quantization support, achieving **1.15x to 2.1x** additional speedup over the original implementation across different hardware platforms and workloads. For detailed technical information, see the [optimization guide](src/README.md).
 
+For runtime implementers who need the ternary weight layout, see [docs/i2s-format.md](docs/i2s-format.md).
+
 <img src="./assets/performance.png" alt="performance_comparison" width="800"/>
 
 
