@@ -194,7 +194,7 @@ pip install -r requirements.txt
 3. Build the project
 ```bash
 # Manually download the model and run with local path
-huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
+hf download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
 python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 ```
