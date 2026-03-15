@@ -193,8 +193,8 @@ pip install -r requirements.txt
 ```
 3. Build the project
 ```bash
-# Manually download the model and run with local path
-huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
+# Manually download the model with the huggingface-cli and run with local path
+hf download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
 python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 ```
@@ -306,12 +306,7 @@ python ./utils/convert-helper-bitnet.py ./models/bitnet-b1.58-2B-4T-bf16
 
 ### FAQ (Frequently Asked Questions)📌 
 
-#### Q1: The build dies with errors building llama.cpp due to issues with std::chrono in log.cpp?
-
-**A:**
-This is an issue introduced in recent version of llama.cpp. Please refer to this [commit](https://github.com/tinglou/llama.cpp/commit/4e3db1e3d78cc1bcd22bcb3af54bd2a4628dd323) in the [discussion](https://github.com/abetlen/llama-cpp-python/issues/1942) to fix this issue.
-
-#### Q2: How to build with clang in conda environment on windows?
+#### Q: How to build with clang in conda environment on windows?
 
 **A:** 
 Before building the project, verify your clang installation and access to Visual Studio tools by running:
