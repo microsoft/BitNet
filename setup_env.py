@@ -82,7 +82,7 @@ ARCH_ALIAS = {
 }
 
 def system_info():
-    return platform.system(), ARCH_ALIAS[platform.machine()]
+    return platform.system(), ARCH_ALIAS.get(platform.machine(), platform.machine())
 
 def get_model_name():
     if args.hf_repo:
@@ -209,7 +209,7 @@ def compile():
     _, arch = system_info()
     if arch not in COMPILER_EXTRA_ARGS.keys():
         logging.error(f"Arch {arch} is not supported yet")
-        exit(0)
+        sys.exit(1)
     logging.info("Compiling the code using CMake.")
     run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"], log_step="generate_build_files")
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
@@ -223,6 +223,9 @@ def main():
     
 def parse_args():
     _, arch = system_info()
+    if arch not in SUPPORTED_QUANT_TYPES:
+        logging.error(f"Unsupported architecture: {platform.machine()} (resolved as '{arch}')")
+        sys.exit(1)
     parser = argparse.ArgumentParser(description='Setup the environment for running the inference')
     parser.add_argument("--hf-repo", "-hr", type=str, help="Model used for inference", choices=SUPPORTED_HF_MODELS.keys())
     parser.add_argument("--model-dir", "-md", type=str, help="Directory to save/load the model", default="models")
