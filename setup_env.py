@@ -150,7 +150,16 @@ def prepare_model():
         logging.info(f"GGUF model already exists at {gguf_path}")
 
 def setup_gguf():
-    # Install the pip package
+    # Install the pip package (only if --install-gguf flag is set)
+    if not args.install_gguf:
+        # Check if gguf is already installed
+        try:
+            import gguf
+            logging.info("gguf package already installed, skipping installation.")
+            return
+        except ImportError:
+            pass
+    
     run_command([sys.executable, "-m", "pip", "install", "3rdparty/llama.cpp/gguf-py"], log_step="install_gguf")
 
 def gen_code():
@@ -230,6 +239,7 @@ def parse_args():
     parser.add_argument("--quant-type", "-q", type=str, help="Quantization type", choices=SUPPORTED_QUANT_TYPES[arch], default="i2_s")
     parser.add_argument("--quant-embd", action="store_true", help="Quantize the embeddings to f16")
     parser.add_argument("--use-pretuned", "-p", action="store_true", help="Use the pretuned kernel parameters")
+    parser.add_argument("--install-gguf", "-ig", action="store_true", help="Force install gguf-py package (default: skip if already installed)")
     return parser.parse_args()
 
 def signal_handler(sig, frame):
