@@ -4,8 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1
 
 ARG MODEL=BitNet-b1.58-2B-4T
-ARG MODEL_REPO=microsoft/$(MODEL)-gguf
-ARG MODEL_DIR=models/$(MODEL)
+ARG MODEL_REPO=microsoft/${MODEL}-gguf
+ARG MODEL_DIR=models/${MODEL}
 ARG QUANT_TYPE=i2_s
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

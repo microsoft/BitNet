@@ -1,13 +1,20 @@
 
+TAG?=latest
+
+submodule:
+	git submodule update --init --recursive
+
 build:
-	docker build -t local-bitnet:latest . --platform=linux/amd64
+	docker build -t local-bitnet:$(TAG) . --platform=linux/amd64
+	# `docker build -t local-bitnet:latest . --platform=linux/amd64` 
+	# Using `--platform=linux/arm64` results in a series of nonsensical words appearing when running on macOS.
 
 run-in-docker:
 	docker run --rm -it \
-		--cpuset-cpus="0,1,2,3" \
-		-m 2048m \
-		local-bitnet:latest \
-        python3 run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -t 4 -c 4096 -n 256 -temp 0.3 -p "explain what is '1-bit model'? "
+		--cpuset-cpus="8" \
+		-m 512m \
+		local-bitnet:$(TAG) \
+        python3 run_inference.py -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf -t 1 -c 4096 -n 1024 -temp 0.7 -p "explain what is '1-bit model'? "
 
 
 .PHONY: build run-in-docker
