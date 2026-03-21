@@ -109,12 +109,12 @@ def main():
             except OSError as e:
                 print(f"Warning: Could not remove {preprocessed_output_file}: {e}")
         
-        if gguf_f32_output.exists():
-            print(f"Removing f32 GGUF: {gguf_f32_output}")
-            try:
-                gguf_f32_output.unlink()
-            except OSError as e:
-                print(f"Warning: Could not remove {gguf_f32_output}: {e}")
+        # if gguf_f32_output.exists():
+        #     print(f"Removing f32 GGUF: {gguf_f32_output}")
+        #     try:
+        #         gguf_f32_output.unlink()
+        #     except OSError as e:
+        #         print(f"Warning: Could not remove {gguf_f32_output}: {e}")
         
         if input_backup_file.exists():
             if not input_file.exists():

@@ -64,8 +64,8 @@ SUPPORTED_QUANT_TYPES = {
 }
 
 COMPILER_EXTRA_ARGS = {
-    "arm64": ["-DBITNET_ARM_TL1=ON"],
-    "x86_64": ["-DBITNET_X86_TL2=ON"]
+    "arm64": ["-DBITNET_ARM_TL1=OFF"],
+    "x86_64": ["-DBITNET_X86_TL2=OFF"]
 }
 
 OS_EXTRA_ARGS = {

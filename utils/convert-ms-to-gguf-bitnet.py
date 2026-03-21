@@ -12,14 +12,12 @@ import json
 import math
 import mmap
 import os
-import pickle
 import re
 import signal
 import struct
 import sys
 import textwrap
 import time
-import zipfile
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -945,7 +943,6 @@ def part_lazy(lazy_tensor: LazyTensor, n_part: int) -> LazyTensor:
 
 import torch
 
-@torch.compile
 def forward_t(x):
     dtype = x.dtype
     x = x.float()
@@ -956,7 +953,8 @@ def forward_t(x):
 def weight_quant(weight):
     weight = torch.tensor(weight, dtype=torch.float32)
     weight = forward_t(weight)
-    weight = weight.numpy().astype(np.float32)
+    # Use tolist() then convert to numpy to avoid PyTorch-NumPy compatibility issues
+    weight = np.array(weight.tolist(), dtype=np.float32)
     return weight
 
 def part_lazy_q(lazy_tensor: LazyTensor, n_part: int) -> LazyTensor:
@@ -1028,98 +1026,6 @@ def pack_experts_lazy(lazy_tensors: list[LazyTensor]) -> LazyTensor:
     return LazyTensor(load, s, lazy_tensors[0].data_type, 'pack_experts ' + ' | '.join(lt.description for lt in lazy_tensors))
 
 
-# Functionality that simulates `torch.load` but where individual tensors are
-# only loaded into memory on demand, not all at once.
-# PyTorch can't do this natively as of time of writing:
-# - https://github.com/pytorch/pytorch/issues/64327
-# This allows us to de-shard without multiplying RAM usage, and also
-# conveniently drops the PyTorch dependency (though we still need numpy).
-
-
-@dataclass
-class LazyStorageKind:
-    data_type: DataType
-
-
-@dataclass
-class LazyStorage:
-    load: Callable[[int, int], NDArray]
-    kind: LazyStorageKind
-    description: str
-
-
-class LazyUnpickler(pickle.Unpickler):
-    def __init__(self, fp: IO[bytes], data_base_path: str, zip_file: zipfile.ZipFile):
-        super().__init__(fp)
-        self.data_base_path = data_base_path
-        self.zip_file = zip_file
-
-    def persistent_load(self, pid: Any) -> Any:
-        assert pid[0] == 'storage'
-        assert isinstance(pid[1], LazyStorageKind)
-        data_type = pid[1].data_type
-        filename_stem = pid[2]
-        filename = f'{self.data_base_path}/{filename_stem}'
-        info = self.zip_file.getinfo(filename)
-
-        def load(offset: int, elm_count: int) -> NDArray:
-            dtype = data_type.dtype
-            with self.zip_file.open(info) as fp:
-                fp.seek(offset * dtype.itemsize)
-                size = elm_count * dtype.itemsize
-                data = fp.read(size)
-            assert len(data) == size
-            return np.frombuffer(data, dtype)
-        description = f'storage data_type={data_type} path-in-zip={filename} path={self.zip_file.filename}'
-        return LazyStorage(load=load, kind=pid[1], description=description)
-
-    @staticmethod
-    def lazy_rebuild_tensor_v2(storage: Any, storage_offset: Any, size: Any, stride: Any,
-                               requires_grad: Any, backward_hooks: Any, metadata: Any = None) -> LazyTensor:
-        assert isinstance(storage, LazyStorage)
-
-        def load() -> UnquantizedTensor:
-            elm_count = stride[0] * size[0]
-            return UnquantizedTensor(storage.load(storage_offset, elm_count).reshape(size))
-        description = f'pickled storage_offset={storage_offset} in {storage.description}'
-        return LazyTensor(load, list(size), storage.kind.data_type, description)
-
-    @staticmethod
-    def rebuild_from_type_v2(func, new_type, args, state):
-        return func(*args)
-
-    CLASSES = {
-        # getattr used here as a workaround for mypy not being smart enough to determine
-        # the staticmethods have a __func__ attribute.
-        ('torch._tensor', '_rebuild_from_type_v2'): getattr(rebuild_from_type_v2, '__func__'),
-        ('torch._utils', '_rebuild_tensor_v2'): getattr(lazy_rebuild_tensor_v2, '__func__'),
-        ('torch', 'BFloat16Storage'): LazyStorageKind(DT_BF16),
-        ('torch', 'HalfStorage'): LazyStorageKind(DT_F16),
-        ('torch', 'FloatStorage'): LazyStorageKind(DT_F32),
-        ('torch', 'IntStorage'): LazyStorageKind(DT_I32),
-        ('torch', 'Tensor'): LazyTensor,
-    }
-
-    def find_class(self, module: str, name: str) -> Any:
-        if not module.startswith('torch'):
-            return super().find_class(module, name)
-        return self.CLASSES[(module, name)]
-
-
-def lazy_load_torch_file(outer_fp: IO[bytes], path: Path) -> ModelPlus:
-    zf = zipfile.ZipFile(outer_fp)
-    pickle_paths = [name for name in zf.namelist() if name.endswith('.pkl')]
-    assert len(pickle_paths) == 1, pickle_paths
-    pickle_fp = zf.open(pickle_paths[0], 'r')
-    unpickler = LazyUnpickler(pickle_fp,
-                              data_base_path=pickle_paths[0][:-4],
-                              zip_file=zf)
-    model = unpickler.load()
-    if 'model' in model: model = model['model']
-    as_dict = dict(model.items())
-    return ModelPlus(model=as_dict, paths=[path], format='torch', vocab=None)
-
-
 def lazy_load_safetensors_file(fp: IO[bytes], path: Path) -> ModelPlus:
     header_size, = struct.unpack('<Q', fp.read(8))
     header: dict[str, dict[str, Any]] = json.loads(fp.read(header_size))
@@ -1156,14 +1062,11 @@ def lazy_load_file(path: Path) -> ModelPlus:
     fp = open(path, 'rb')
     first8 = fp.read(8)
     fp.seek(0)
-    if first8[:2] == b'PK':
-        # A zip file, i.e. PyTorch format
-        return lazy_load_torch_file(fp, path)
-    elif struct.unpack('<Q', first8)[0] < 16 * 1024 * 1024:
-        # Probably safetensors
+    if struct.unpack('<Q', first8)[0] < 16 * 1024 * 1024:
+        # Safetensors format
         return lazy_load_safetensors_file(fp, path)
     else:
-        raise ValueError(f"unknown format: {path}")
+        raise ValueError(f"unknown format: {path}. Only safetensors format is supported.")
 
 
 In = TypeVar('In')
@@ -1491,7 +1394,8 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
     #             tmp[f"layers.{i_l}.feed_forward.experts.w{w}.weight"] = pack_experts_lazy(experts)
     # tmp[f"rope.freqs"] = part_lazy_rope(1.0 / (torch.tensor(500000) ** (torch.arange(0, 128, 2).float().to("cpu") / 128)))
     # 1.0 / (self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim))
-    rope_ndarray = (1.0 / (torch.tensor(500000.0) ** (torch.arange(0, 128, 2).float() / 128))).numpy().astype(np.float32)
+    # Use pure NumPy instead of torch to avoid NumPy compatibility issues
+    rope_ndarray = (1.0 / (np.float32(500000.0) ** (np.arange(0, 128, 2, dtype=np.float32) / 128))).astype(np.float32)
     # print(rope_ndarray)
     
 
@@ -1583,7 +1487,7 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
 
     out: LazyModel = {}
     for name, lazy_tensor in model.items():
-        tensor_type, name_new = tmap.get_type_and_name(name, try_suffixes = (".weight", ".bias")) or (None, None)
+        tensor_type, name_new = tmap.get_type_and_name(name, try_suffixes = (".weight", ".bias", ".weight_scale")) or (None, None)
         if name_new is None:
             if skip_unknown:
                 logger.info(f"Unexpected tensor name: {name} - skipping")
@@ -1644,15 +1548,11 @@ def load_some_model(path: Path) -> ModelPlus:
     '''Load a model of any supported format.'''
     # Be extra-friendly and accept either a file or a directory:
     if path.is_dir():
-        # Check if it's a set of safetensors files first
-        globs = ["model-00001-of-*.safetensors", "model.safetensors", "consolidated.safetensors", "model-int2.pth"]
+        # Check if it's a set of safetensors files
+        globs = ["model-00001-of-*.safetensors", "model.safetensors", "consolidated.safetensors"]
         files = [file for glob in globs for file in path.glob(glob)]
         if not files:
-            # Try the PyTorch patterns too, with lower priority
-            globs = ["consolidated.00.pth", "pytorch_model-00001-of-*.bin", "*.pt", "pytorch_model.bin"]
-            files = [file for glob in globs for file in path.glob(glob)]
-        if not files:
-            raise FileNotFoundError(f"Can't find model in directory {path}")
+            raise FileNotFoundError(f"Can't find safetensors model in directory {path}")
         if len(files) > 1:
             raise ValueError(f"Found multiple models in {path}, not sure which to pick: {files}")
         path = files[0]
@@ -1744,7 +1644,7 @@ def do_dump_model(model_plus: ModelPlus) -> None:
 
 def main(args_in: list[str] | None = None) -> None:
     output_choices = ["f32", "f16", "i2"]
-    if np.uint32(1) == np.uint32(1).newbyteorder("<"):
+    if sys.byteorder == "little":
         # We currently only support Q8_0 output on little endian systems.
         output_choices.append("q8_0")
     parser = argparse.ArgumentParser(description="Convert a LLaMA model to a GGML compatible file")
