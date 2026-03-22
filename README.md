@@ -1,5 +1,6 @@
 # bitnet.cpp
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![gitcgr](https://gitcgr.com/badge/microsoft/BitNet.svg)](https://gitcgr.com/microsoft/BitNet)
 ![version](https://img.shields.io/badge/version-1.0-blue)
 
 [<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
