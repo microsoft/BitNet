@@ -1208,6 +1208,9 @@ class OutputFile:
     def add_meta_vocab(self, vocab: Vocab) -> None:
         # Ensure that tokenizer_model is added to the GGUF model
         self.gguf.add_tokenizer_model(vocab.tokenizer_model)
+        # Add pre-tokenizer type for BPE models (required for correct tokenization)
+        if vocab.tokenizer_model == "gpt2":
+            self.gguf.add_token_pre_type("gpt-2")
         # Extract model vocabulary for model conversion
         tokens, scores, toktypes = self.extract_vocabulary_from_model(vocab)
 
