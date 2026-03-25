@@ -31,6 +31,7 @@ from sentencepiece import SentencePieceProcessor
 if 'NO_LOCAL_GGUF' not in os.environ:
     sys.path.insert(1, str(Path(__file__).parent / 'gguf-py'))
 import gguf
+from convert_utils import permute
 
 if TYPE_CHECKING:
     from typing_extensions import Self, TypeAlias
@@ -690,16 +691,7 @@ class LlamaHfVocab(Vocab):
 
 #
 # data loading
-# TODO: reuse (probably move to gguf.py?)
 #
-
-
-def permute(weights: NDArray, n_head: int, n_head_kv: int) -> NDArray:
-    if n_head_kv is not None and n_head != n_head_kv:
-        n_head = n_head_kv
-    return (weights.reshape(n_head, 2, weights.shape[0] // n_head // 2, *weights.shape[1:])
-            .swapaxes(1, 2)
-            .reshape(weights.shape))
 
 
 class Tensor(ABC):
