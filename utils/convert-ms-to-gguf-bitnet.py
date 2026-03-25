@@ -1595,10 +1595,14 @@ class VocabFactory:
             vocab = NoVocab()
         else:
             vocab = self._create_vocab_by_path(vocab_types)
-        # FIXME: Respect --vocab-dir?
+
+        vocab_path = self.path
+        if not vocab_path.is_dir():
+            vocab_path = vocab_path.parent
+
         special_vocab = self._create_special_vocab(
             vocab,
-            model_parent_path,
+            vocab_path,
         )
         return vocab, special_vocab
 
