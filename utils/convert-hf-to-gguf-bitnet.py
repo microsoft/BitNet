@@ -184,12 +184,8 @@ class Model(ABC):
             if self.ftype == 0 and data_dtype == np.float16:
                 data = data.astype(np.float32)
 
-            # TODO: Why cant we use these float16 as-is? There should be not reason to store float16 as float32
-            if self.ftype == 1 and data_dtype == np.float16 and (n_dims == 1 or new_name.endswith("_norm.weight")):
-                data = data.astype(np.float32)
-
             # if f16 desired, convert any float32 2-dim weight tensors to float16
-            if self.ftype == 1 and data_dtype == np.float32 and name.endswith(".weight") and n_dims == 2:
+            if self.ftype == 1 and data_dtype == np.float32 and name.endswith(".weight") and n_dims >= 1:
                 data = data.astype(np.float16)
 
             logger.info(f"{new_name}, n_dims = {n_dims}, {old_dtype} --> {data.dtype}")
@@ -771,8 +767,6 @@ class LlamaModel(Model):
                 # Conditions should closely match those in llama_model_quantize_internal in llama.cpp
                 extra_f32 = any(cond for cond in (
                     extra_f32,
-                    n_dims == 1,
-                    new_name.endswith("_norm.weight"),
                 ))
 
                 # Some tensor types are always in float32
@@ -789,7 +783,7 @@ class LlamaModel(Model):
                 # if f16 desired, convert any float32 2-dim weight tensors to float16
                 extra_f16 = any(cond for cond in (
                     extra_f16,
-                    (name.endswith(".weight") and n_dims >= 2),
+                    (name.endswith(".weight") and n_dims >= 1),
                 ))
 
                 suit_i2 = True
@@ -1021,8 +1015,6 @@ class BitnetModel(Model):
                 # Conditions should closely match those in llama_model_quantize_internal in llama.cpp
                 extra_f32 = any(cond for cond in (
                     extra_f32,
-                    n_dims == 1,
-                    new_name.endswith("_norm.weight"),
                 ))
 
                 # Some tensor types are always in float32
@@ -1039,7 +1031,7 @@ class BitnetModel(Model):
                 # if f16 desired, convert any float32 2-dim weight tensors to float16
                 extra_f16 = any(cond for cond in (
                     extra_f16,
-                    (name.endswith(".weight") and n_dims >= 2),
+                    (name.endswith(".weight") and n_dims >= 1),
                 ))
 
                 suit_i2 = True
