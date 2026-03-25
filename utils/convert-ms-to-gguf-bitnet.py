@@ -228,6 +228,8 @@ class Params:
     # path to the directory containing the model files
     path_model: Path | None = None
 
+    model_name: str | None = None
+
     @staticmethod
     def guessed(model: LazyModel) -> Params:
         # try transformer naming first
@@ -318,6 +320,7 @@ class Params:
             f_rope_scale      = f_rope_scale,
             n_orig_ctx        = n_orig_ctx,
             rope_finetuned    = rope_finetuned,
+            model_name        = config.get("_name_or_path"),
         )
 
     # LLaMA v2 70B params.json
@@ -1150,8 +1153,9 @@ class OutputFile:
     def add_meta_arch(self, params: Params) -> None:
         name = "bitnet"
 
-        # TODO: better logic to determine model name
-        if params.n_ctx == 4096:
+        if params.model_name:
+            name = params.model_name
+        elif params.n_ctx == 4096:
             name = "bitnet2b_2501"
         elif params.path_model is not None:
             name = str(params.path_model.parent).split('/')[-1]
@@ -1662,6 +1666,7 @@ def main(args_in: list[str] | None = None) -> None:
     parser.add_argument("--big-endian",   action="store_true",    help="model is executed on big endian machine")
     parser.add_argument("--pad-vocab",    action="store_true",    help="add pad tokens when model vocab expects more than tokenizer metadata provides")
     parser.add_argument("--skip-unknown", action="store_true",    help="skip unknown tensor names instead of failing")
+    parser.add_argument("--model-name",   type=str, default=None, help="name of the model")
     parser.add_argument("--verbose",      action="store_true",    help="increase output verbosity")
 
     args = parser.parse_args(args_in)
@@ -1713,6 +1718,9 @@ def main(args_in: list[str] | None = None) -> None:
             "i2" : GGMLFileType.MostlyI2,
             "q8_0": GGMLFileType.MostlyQ8_0,
         }[args.outtype]
+
+    if args.model_name:
+        params.model_name = args.model_name
 
     logger.info(f"params = {params}")
 
