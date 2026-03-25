@@ -422,9 +422,11 @@ class BpeVocab(Vocab):
                 self.vocab = json.load(f)
 
             try:
-                # FIXME: Verify that added tokens here _cannot_ overlap with the main vocab.
                 with open(base_path / ADDED_TOKENS_FILE, encoding="utf-8") as f:
                     added_tokens = json.load(f)
+
+                if overlap := set(added_tokens.keys()) & set(self.vocab.keys()):
+                    raise ValueError(f"Added tokens contain duplicates with the main vocabulary: {overlap}")
             except FileNotFoundError:
                 pass
         else:
