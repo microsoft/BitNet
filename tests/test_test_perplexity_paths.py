@@ -1,6 +1,8 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -77,6 +79,32 @@ class TestPerplexityPathTests(unittest.TestCase):
             self.assertEqual(tester.llama_perplexity_bin, expected_bin)
             self.assertEqual(tester.quantize_bin, expected_quant)
             self.assertEqual(tester.data_dir, expected_data)
+
+    def test_main_uses_constructor_default_paths(self):
+        module = load_test_perplexity_module()
+        captured = {}
+
+        class FakeTester:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+            def run_all_tests(self, **kwargs):
+                captured["run_all_tests"] = kwargs
+
+        with (
+            mock.patch.object(module, "PerplexityTester", FakeTester),
+            mock.patch.object(
+                sys, "argv", ["test_perplexity.py", "--model", "model.gguf"]
+            ),
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(
+            captured["llama_perplexity_bin"], module.DEFAULT_LLAMA_PERPLEXITY
+        )
+        self.assertEqual(captured["quantize_bin"], module.DEFAULT_QUANTIZE_BIN)
+        self.assertEqual(captured["data_dir"], module.DEFAULT_DATA_DIR)
 
 
 if __name__ == "__main__":

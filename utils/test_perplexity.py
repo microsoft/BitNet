@@ -18,6 +18,9 @@ import statistics
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_LLAMA_PERPLEXITY = "../build/bin/llama-perplexity"
+DEFAULT_QUANTIZE_BIN = "../build/bin/llama-quantize"
+DEFAULT_DATA_DIR = "../data"
 
 
 def resolve_default_path(raw_path, default_relative):
@@ -32,22 +35,20 @@ class PerplexityTester:
     def __init__(
         self,
         model_path,
-        llama_perplexity_bin="../build/bin/llama-perplexity",
-        data_dir="../data",
+        llama_perplexity_bin=DEFAULT_LLAMA_PERPLEXITY,
+        data_dir=DEFAULT_DATA_DIR,
         output_dir="perplexity_results",
         quick_mode=False,
-        quantize_bin="../build/bin/llama-quantize",
+        quantize_bin=DEFAULT_QUANTIZE_BIN,
         test_embeddings=False,
         csv_output=None,
     ):
         self.model_path = Path(model_path)
         self.llama_perplexity_bin = resolve_default_path(
-            llama_perplexity_bin, "../build/bin/llama-perplexity"
+            llama_perplexity_bin, DEFAULT_LLAMA_PERPLEXITY
         )
-        self.quantize_bin = resolve_default_path(
-            quantize_bin, "../build/bin/llama-quantize"
-        )
-        self.data_dir = resolve_default_path(data_dir, "../data")
+        self.quantize_bin = resolve_default_path(quantize_bin, DEFAULT_QUANTIZE_BIN)
+        self.data_dir = resolve_default_path(data_dir, DEFAULT_DATA_DIR)
         self.output_dir = Path(output_dir)
         self.quick_mode = quick_mode
         self.test_embeddings = test_embeddings
@@ -605,8 +606,8 @@ def main():
     parser.add_argument(
         "--data-dir",
         "-d",
-        default="data",
-        help="Directory containing dataset folders (default: data)",
+        default=DEFAULT_DATA_DIR,
+        help=f"Directory containing dataset folders (default: {DEFAULT_DATA_DIR})",
     )
     parser.add_argument(
         "--threads", "-t", type=int, default=16, help="Number of threads (default: 16)"
@@ -622,8 +623,8 @@ def main():
     )
     parser.add_argument(
         "--llama-perplexity",
-        default="./build/bin/llama-perplexity",
-        help="Path to llama-perplexity binary (default: ./build/bin/llama-perplexity)",
+        default=DEFAULT_LLAMA_PERPLEXITY,
+        help=f"Path to llama-perplexity binary (default: {DEFAULT_LLAMA_PERPLEXITY})",
     )
     parser.add_argument(
         "--quick",
@@ -643,8 +644,8 @@ def main():
     )
     parser.add_argument(
         "--quantize-bin",
-        default="./build/bin/llama-quantize",
-        help="Path to llama-quantize binary (default: ./build/bin/llama-quantize)",
+        default=DEFAULT_QUANTIZE_BIN,
+        help=f"Path to llama-quantize binary (default: {DEFAULT_QUANTIZE_BIN})",
     )
 
     args = parser.parse_args()
