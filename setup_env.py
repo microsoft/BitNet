@@ -82,7 +82,9 @@ ARCH_ALIAS = {
 }
 
 def system_info():
-    return platform.system(), ARCH_ALIAS[platform.machine()]
+    machine = platform.machine()
+    arch = ARCH_ALIAS.get(machine, machine)
+    return platform.system(), arch
 
 def get_model_name():
     if args.hf_repo:
@@ -104,7 +106,7 @@ def run_command(command, shell=False, log_step=None):
             subprocess.run(command, shell=shell, check=True)
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while running command: {e}")
-        sys.exit(1)
+            sys.exit(1)
 
 def prepare_model():
     _, arch = system_info()
@@ -149,7 +151,10 @@ def prepare_model():
     else:
         logging.info(f"GGUF model already exists at {gguf_path}")
 
-def setup_gguf():
+def setup_gguf(skip=False):
+    if skip:
+        logging.info("Skipping GGUF pip installation (--skip-gguf flag set)")
+        return
     # Install the pip package
     run_command([sys.executable, "-m", "pip", "install", "3rdparty/llama.cpp/gguf-py"], log_step="install_gguf")
 
@@ -209,20 +214,23 @@ def compile():
     _, arch = system_info()
     if arch not in COMPILER_EXTRA_ARGS.keys():
         logging.error(f"Arch {arch} is not supported yet")
-        exit(0)
+        sys.exit(1)
     logging.info("Compiling the code using CMake.")
     run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"], log_step="generate_build_files")
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
 def main():
-    setup_gguf()
+    setup_gguf(skip=args.skip_gguf)
     gen_code()
     compile()
     prepare_model()
     
 def parse_args():
     _, arch = system_info()
+    if arch not in SUPPORTED_QUANT_TYPES:
+        logging.error(f"Architecture {arch} is not supported")
+        sys.exit(1)
     parser = argparse.ArgumentParser(description='Setup the environment for running the inference')
     parser.add_argument("--hf-repo", "-hr", type=str, help="Model used for inference", choices=SUPPORTED_HF_MODELS.keys())
     parser.add_argument("--model-dir", "-md", type=str, help="Directory to save/load the model", default="models")
@@ -230,6 +238,7 @@ def parse_args():
     parser.add_argument("--quant-type", "-q", type=str, help="Quantization type", choices=SUPPORTED_QUANT_TYPES[arch], default="i2_s")
     parser.add_argument("--quant-embd", action="store_true", help="Quantize the embeddings to f16")
     parser.add_argument("--use-pretuned", "-p", action="store_true", help="Use the pretuned kernel parameters")
+    parser.add_argument("--skip-gguf", action="store_true", help="Skip GGUF pip installation")
     return parser.parse_args()
 
 def signal_handler(sig, frame):
