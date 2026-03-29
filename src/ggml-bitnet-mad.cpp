@@ -808,7 +808,7 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
             accu[iy] = _mm256_setzero_si256();
         }
 
-        int8_t * y_col = y + col * by;
+        const int8_t * y_col = y + col * by;
         
         for (int i = 0; i < group32_num; i++) {
             const uint8_t *px = x + i * 1024;
