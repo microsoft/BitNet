@@ -1,0 +1,103 @@
+diff --git a/common/common.cpp b/common/common.cpp
+index 451307b5..20542501 100644
+--- a/common/common.cpp
++++ b/common/common.cpp
+@@ -16,6 +16,7 @@
+ #include <cmath>
+ #include <codecvt>
+ #include <cstdarg>
++#include <chrono>
+ #include <cstring>
+ #include <ctime>
+ #include <fstream>
+diff --git a/common/log.cpp b/common/log.cpp
+index 04c7c0ed..aea209fc 100644
+--- a/common/log.cpp
++++ b/common/log.cpp
+@@ -1,5 +1,6 @@
+ #include "log.h"
+ 
++#include <chrono>
+ #include <condition_variable>
+ #include <cstdarg>
+ #include <cstdio>
+diff --git a/examples/imatrix/imatrix.cpp b/examples/imatrix/imatrix.cpp
+index d1ff3e8b..bb4f8d9a 100644
+--- a/examples/imatrix/imatrix.cpp
++++ b/examples/imatrix/imatrix.cpp
+@@ -3,6 +3,7 @@
+ #include "log.h"
+ #include "llama.h"
+ 
++#include <chrono>
+ #include <cmath>
+ #include <cstdio>
+ #include <cstring>
+diff --git a/examples/perplexity/perplexity.cpp b/examples/perplexity/perplexity.cpp
+index efb41b80..2f821e0c 100644
+--- a/examples/perplexity/perplexity.cpp
++++ b/examples/perplexity/perplexity.cpp
+@@ -6,6 +6,7 @@
+ #include <algorithm>
+ #include <array>
+ #include <atomic>
++#include <chrono>
+ #include <cmath>
+ #include <cstdio>
+ #include <cstring>
+diff --git a/ggml/CMakeLists.txt b/ggml/CMakeLists.txt
+index 1b425ede..dad3dfff 100644
+--- a/ggml/CMakeLists.txt
++++ b/ggml/CMakeLists.txt
+@@ -186,7 +186,7 @@ endif()
+ set(CMAKE_C_STANDARD 11)
+ set(CMAKE_C_STANDARD_REQUIRED true)
+ 
+-if (GGML_SYCL)
++if (GGML_SYCL OR GGML_BITNET_X86_TL2)
+     set(CMAKE_CXX_STANDARD 17)
+ else()
+     set(CMAKE_CXX_STANDARD 11)
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index 121f72da..bad7f8d4 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -12686,7 +12686,7 @@ static void ggml_compute_forward_mul_mat(
+ 
+         struct bitnet_tensor_extra * wt = src0->extra;
+         char * cur_wdata = wdata;
+-        bitnet_float_type * bitnet_f_ptr = wdata;
++        bitnet_float_type * bitnet_f_ptr = (bitnet_float_type *) wdata;
+         if (sizeof(bitnet_float_type) == 2) {
+             cur_wdata = wdata + MAX(ne10, ne01) * ne11 * sizeof(bitnet_float_type);
+         };
+@@ -12705,7 +12705,7 @@ static void ggml_compute_forward_mul_mat(
+             GGML_ASSERT(src1->type == GGML_TYPE_F32);
+             bitnet_float_type * act_input;
+             if (sizeof(bitnet_float_type) == 2) {
+-                ggml_fp32_to_fp16_row(src1->data, bitnet_f_ptr, ne10 * ne11);
++                ggml_fp32_to_fp16_row(src1->data, (ggml_fp16_t *)bitnet_f_ptr, ne10 * ne11);
+                 act_input = bitnet_f_ptr;
+             } else {
+                 act_input = src1->data;
+@@ -12760,9 +12760,9 @@ static void ggml_compute_forward_mul_mat(
+         // src1: activation, ne10 = k, ne11 = m
+         char * wdata = params->wdata;
+ 
+-        struct bitnet_tensor_extra * wt = src0->extra;
++        struct bitnet_tensor_extra * wt = (struct bitnet_tensor_extra *) src0->extra;
+         char * cur_wdata = wdata;
+-        bitnet_float_type * bitnet_f_ptr = wdata;
++        bitnet_float_type * bitnet_f_ptr = (bitnet_float_type *) wdata;
+         if (sizeof(bitnet_float_type) == 2) {
+             cur_wdata = wdata + MAX(ne10, ne01) * ne11 * sizeof(bitnet_float_type);
+         };
+@@ -12787,7 +12787,7 @@ static void ggml_compute_forward_mul_mat(
+             GGML_ASSERT(src1->type == GGML_TYPE_F32);
+             bitnet_float_type * act_input;
+             if (sizeof(bitnet_float_type) == 2) {
+-                ggml_fp32_to_fp16_row(src1->data, bitnet_f_ptr, ne10 * ne11);
++                ggml_fp32_to_fp16_row(src1->data, (ggml_fp16_t *)bitnet_f_ptr, ne10 * ne11);
+                 act_input = bitnet_f_ptr;
+             } else {
+                 act_input = src1->data;
