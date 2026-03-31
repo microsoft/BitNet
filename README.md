@@ -162,6 +162,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - python>=3.9
 - cmake>=3.22
 - clang>=18
+- huggingface_hub>=0.20.0
     - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options(this also automatically installs the required additional tools like CMake):
         -  Desktop-development with C++
         -  C++-CMake Tools for Windows
