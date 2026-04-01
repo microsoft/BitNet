@@ -1,0 +1,71 @@
+{
+  "BitNet-2B-4T": [
+    {
+      "discipline": "logic_math",
+      "score": 50,
+      "time_s": 5.55,
+      "ram_cost_mb": 118.96,
+      "output": "ilk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4 cup of sugar\n1/4 cup of butter\n1/4 cup of milk\n1/4 cup of flour\n1/4"
+    },
+    {
+      "discipline": "json_extraction",
+      "score": 100,
+      "time_s": 5.55,
+      "ram_cost_mb": 106.04,
+      "output": " ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ``` ```"
+    },
+    {
+      "discipline": "coding_python",
+      "score": 75,
+      "time_s": 5.48,
+      "ram_cost_mb": -110.23,
+      "output": "(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```python\ndef reverse_1(s):\n    return s[::-1]\n````\n```"
+    }
+  ],
+  "Llama3-8B": [
+    {
+      "discipline": "logic_math",
+      "score": 50,
+      "time_s": 12.32,
+      "ram_cost_mb": -293.15,
+      "output": " country is going to have a new president and a new Congress. The country is also going to have a new Supreme Court. The country is going to have a new president and a new Congress. The country is also going to have a new Supreme Court. The country is going to have a new president and a new Congress. The country is also going to have a new Supreme Court. The country is going to have a new president and a new Congress. The country is also going to have a new Supreme Court. The country is going to"
+    },
+    {
+      "discipline": "json_extraction",
+      "score": 0,
+      "time_s": 11.78,
+      "ram_cost_mb": 685.79,
+      "output": "ple' is stored in the object 'people' in the form 'people.people = 'My name is ' + people.name + ' years old.' 6. The object 'people' is stored in the object 'people' in the form 'people.people = 'My name is ' + people.name + ' years old.' 7. The object 'people' is stored in the object 'people' in the form 'people.people = 'My name is ' + people.name + ' years old.' 8. The object 'people' is stored in the object 'people' in the form 'people.people = 'My name is ' + people.name + ' years old.' 9."
+    },
+    {
+      "discipline": "coding_python",
+      "score": 100,
+      "time_s": 12.02,
+      "ram_cost_mb": -215.45,
+      "output": "return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return s[::-1] def reverse_string(s): return"
+    }
+  ],
+  "Falcon3-10B": [
+    {
+      "discipline": "logic_math",
+      "score": 50,
+      "time_s": 13.76,
+      "ram_cost_mb": -102.5,
+      "output": "**Eating an Apple:**\n   - You eat 1 apple.\n   - After eating, you have: \\(2 - 1 = 1\\) apple left.\n\nSo, after giving 1 apple to John and eating 1 apple, you have 1 apple left.\n\nLet's confirm this with a simple Python code:\n\n```python\n# Initial number of apples\ninitial_apples = 3\n\n# Apples given to John\napples_given_to_john = 1\n\n# Apples eaten\napples_eaten = 1\n\n# Calculate remaining apples\nremaining_apples = initial_apples - apples_given_to_john - apples_eaten\nprint(remaining_apples)\n```\n```output"
+    },
+    {
+      "discipline": "json_extraction",
+      "score": 100,
+      "time_s": 2.44,
+      "ram_cost_mb": -312.33,
+      "output": "<|assistant|>\n```json\n{\n  \"name\": \"Carlos\",\n  \"age\": 34\n}\n``` [end of text]"
+    },
+    {
+      "discipline": "coding_python",
+      "score": 100,
+      "time_s": 1.81,
+      "ram_cost_mb": 264.61,
+      "output": "<|assistant|>\ndef reverse_string(s):\n    return s[::-1] [end of text]"
+    }
+  ]
+}

@@ -117,7 +117,7 @@ def prepare_model():
         model_dir = os.path.join(model_dir, SUPPORTED_HF_MODELS[hf_url]["model_name"])
         Path(model_dir).mkdir(parents=True, exist_ok=True)
         logging.info(f"Downloading model {hf_url} from HuggingFace to {model_dir}...")
-        run_command(["huggingface-cli", "download", hf_url, "--local-dir", model_dir], log_step="download_model")
+        run_command(["uvx", "huggingface-cli", "download", hf_url, "--local-dir", model_dir], log_step="download_model")
     elif not os.path.exists(model_dir):
         logging.error(f"Model directory {model_dir} does not exist.")
         sys.exit(1)
@@ -127,18 +127,24 @@ def prepare_model():
     if not os.path.exists(gguf_path) or os.path.getsize(gguf_path) == 0:
         logging.info(f"Converting HF model to GGUF format...")
         if quant_type.startswith("tl"):
-            run_command([sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", quant_type, "--quant-embd"], log_step="convert_to_tl")
+            cmd = [sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", quant_type, "--quant-embd"]
+            if args.use_temp_file:
+                cmd.append("--use-temp-file")
+            run_command(cmd, log_step="convert_to_tl")
         else: # i2s
-            # convert to f32
-            run_command([sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", "f32"], log_step="convert_to_f32_gguf")
-            f32_model = os.path.join(model_dir, "ggml-model-f32.gguf")
+            # convert to f16 (safe for 32GB RAM)
+            cmd = [sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", "f16"]
+            if args.use_temp_file:
+                cmd.append("--use-temp-file")
+            run_command(cmd, log_step="convert_to_f16_gguf")
+            f16_model = os.path.join(model_dir, "ggml-model-f16.gguf")
             i2s_model = os.path.join(model_dir, "ggml-model-i2_s.gguf")
-            # quantize to i2s
+            # quantize to i2s using f16 as input
             if platform.system() != "Windows":
                 if quant_embd:
-                    run_command(["./build/bin/llama-quantize", "--token-embedding-type", "f16", f32_model, i2s_model, "I2_S", "1", "1"], log_step="quantize_to_i2s")
+                    run_command(["./build/bin/llama-quantize", "--token-embedding-type", "f16", f16_model, i2s_model, "I2_S", "1", "1"], log_step="quantize_to_i2s")
                 else:
-                    run_command(["./build/bin/llama-quantize", f32_model, i2s_model, "I2_S", "1"], log_step="quantize_to_i2s")
+                    run_command(["./build/bin/llama-quantize", f16_model, i2s_model, "I2_S", "1"], log_step="quantize_to_i2s")
             else:
                 if quant_embd:
                     run_command(["./build/bin/Release/llama-quantize", "--token-embedding-type", "f16", f32_model, i2s_model, "I2_S", "1", "1"], log_step="quantize_to_i2s")
@@ -230,6 +236,7 @@ def parse_args():
     parser.add_argument("--quant-type", "-q", type=str, help="Quantization type", choices=SUPPORTED_QUANT_TYPES[arch], default="i2_s")
     parser.add_argument("--quant-embd", action="store_true", help="Quantize the embeddings to f16")
     parser.add_argument("--use-pretuned", "-p", action="store_true", help="Use the pretuned kernel parameters")
+    parser.add_argument("--use-temp-file", action="store_true", help="Use the tempfile library while processing (helpful when running out of memory, process killed)")
     return parser.parse_args()
 
 def signal_handler(sig, frame):
