@@ -6,7 +6,7 @@
 
 Try it out via this [demo](https://demo-bitnet-h0h8hcfqeqhrf5gf.canadacentral-01.azurewebsites.net/), or build and run it on your own [CPU](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) or [GPU](https://github.com/microsoft/BitNet/blob/main/gpu/README.md).
 
-bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU and GPU (NPU support will coming next).
+bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU (x86/ARM), GPU (CUDA), and Apple Silicon (Metal) (NPU support will coming next).
 
 The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger models experiencing greater performance gains. Additionally, it reduces energy consumption by **55.4%** to **70.0%**, further boosting overall efficiency. On x86 CPUs, speedups range from **2.37x** to **6.17x** with energy reductions between **71.9%** to **82.2%**. Furthermore, bitnet.cpp can run a 100B BitNet b1.58 model on a single CPU, achieving speeds comparable to human reading (5-7 tokens per second), significantly enhancing the potential for running LLMs on local devices. Please refer to the [technical report](https://arxiv.org/abs/2410.16144) for more details.
 
@@ -22,6 +22,7 @@ A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
 https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
 
 ## What's New:
+- 04/03/2026 [BitNet Metal Backend for Apple Silicon](https://github.com/microsoft/BitNet/blob/main/gpu/metal_kernels/README.md) - Up to 24x speedup on Apple Silicon with optimized Metal kernels ![NEW](https://img.shields.io/badge/NEW-red)
 - 01/15/2026 [BitNet CPU Inference Optimization](https://github.com/microsoft/BitNet/blob/main/src/README.md) ![NEW](https://img.shields.io/badge/NEW-red)
 - 05/20/2025 [BitNet Official GPU inference kernel](https://github.com/microsoft/BitNet/blob/main/gpu/README.md)
 - 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
@@ -44,6 +45,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <th rowspan="2">Parameters</th>
         <th rowspan="2">CPU</th>
         <th colspan="3">Kernel</th>
+        <th rowspan="2">GPU</th>
     </tr>
     <tr>
         <th>I2_S</th>
@@ -57,6 +59,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#9989;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/README.md">CUDA</a>, <a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -76,6 +79,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <th rowspan="2">Parameters</th>
         <th rowspan="2">CPU</th>
         <th colspan="3">Kernel</th>
+        <th rowspan="2">GPU</th>
     </tr>
     <tr>
         <th>I2_S</th>
@@ -89,6 +93,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#9989;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -103,6 +108,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#10060;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/README.md">CUDA</a>, <a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -117,6 +123,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#9989;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/README.md">CUDA</a>, <a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -131,6 +138,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#9989;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/README.md">CUDA</a>, <a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -145,6 +153,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>&#9989;</td>
         <td>&#10060;</td>
         <td>&#9989;</td>
+        <td rowspan="2"><a href="./gpu/metal_kernels/README.md">Metal</a></td>
     </tr>
     <tr>
         <td>ARM</td>
