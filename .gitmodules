@@ -1,4 +1,4 @@
 [submodule "3rdparty/llama.cpp"]
 	path = 3rdparty/llama.cpp
-	url = https://github.com/Eddie-Wang1120/llama.cpp.git
-	branch = merge-dev
+	url = https://github.com/octo-patch/llama.cpp.git
+	branch = fix/issue-530-unsupported-param-crash
