@@ -418,7 +418,7 @@ if __name__ == "__main__":
 
     output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "include")
 
-    with open(''.join([output_dir, "/bitnet-lut-kernels.h"]), 'w') as f:
+    with open(os.path.join(output_dir, "bitnet-lut-kernels.h"), 'w') as f:
         f.write(''.join("#if defined(GGML_BITNET_ARM_TL1)"))
         f.write(''.join(ctor_code))
         for code in tbl_impl_code:
@@ -432,11 +432,11 @@ if __name__ == "__main__":
 
     for i in range(len(kernel_shapes)):
         config.add_section('Kernels_{}'.format(i))
-        config.set('Kernels_{}'.format(i), 'M'.format(i), str(kernel_shapes[i][0]))
-        config.set('Kernels_{}'.format(i), 'K'.format(i), str(kernel_shapes[i][1]))
-        config.set('Kernels_{}'.format(i), 'BM'.format(i), str(BM_list[i]))
-        config.set('Kernels_{}'.format(i), 'BK'.format(i), str(BK_list[i]))
-        config.set('Kernels_{}'.format(i), 'bmm'.format(i), str(bm_list[i]))
+        config.set('Kernels_{}'.format(i), 'M', str(kernel_shapes[i][0]))
+        config.set('Kernels_{}'.format(i), 'K', str(kernel_shapes[i][1]))
+        config.set('Kernels_{}'.format(i), 'BM', str(BM_list[i]))
+        config.set('Kernels_{}'.format(i), 'BK', str(BK_list[i]))
+        config.set('Kernels_{}'.format(i), 'bmm', str(bm_list[i]))
 
-    with open(''.join([output_dir, "/kernel_config.ini"]), 'w') as configfile:
+    with open(os.path.join(output_dir, "kernel_config.ini"), 'w') as configfile:
         config.write(configfile)

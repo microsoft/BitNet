@@ -1,9 +1,9 @@
 #include <vector>
 #include <type_traits>
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
 
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
