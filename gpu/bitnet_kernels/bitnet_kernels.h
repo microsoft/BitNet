@@ -2,7 +2,6 @@
 #include <math_constants.h>
 #include <math.h>
 #include <mma.h>
-#include <iostream>
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
@@ -15,9 +14,9 @@
 #endif
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ == 800
-#define TVM_ENBALE_EFFICIENT_SMEM_PTR_CAST 1
+#define TVM_ENABLE_EFFICIENT_SMEM_PTR_CAST 1
 #else
-#define TVM_ENBALE_EFFICIENT_SMEM_PTR_CAST 0
+#define TVM_ENABLE_EFFICIENT_SMEM_PTR_CAST 0
 #endif
 
 template <typename T1, typename T2>

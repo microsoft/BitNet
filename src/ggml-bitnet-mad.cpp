@@ -1,6 +1,6 @@
 #include <vector>
 #include <type_traits>
-#include <assert.h>
+#include <cassert>
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
 #include "gemm-config.h"
