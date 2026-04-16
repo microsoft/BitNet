@@ -1,9 +1,9 @@
 # Intelligence Benchmark: BitNet (Sovereign Minion)
 
-import os
-import time
-import subprocess
 import json
+import os
+import subprocess
+import time
 
 MODELS = {
     "BitNet-2B-4T": "models/2B-4T/ggml-model-i2_s.gguf",
@@ -45,9 +45,9 @@ def check_memory():
 def run_model(model_name, model_path, prompt_data):
     if not os.path.exists(model_path):
         return {"error": f"Model {model_path} not found"}
-    
+
     print(f"\n[{model_name}] Ejecutando: {prompt_data['description']}")
-    
+
     # Executing via llama-cli directly
     cmd = [
         "./build/bin/llama-cli",
@@ -58,32 +58,32 @@ def run_model(model_name, model_path, prompt_data):
         "-c", "1024",
         "--temp", "0.2"
     ]
-    
+
     start_mem = check_memory()
     start_time = time.time()
-    
+
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate()
-    
+
     end_time = time.time()
     end_mem = check_memory()
-    
+
     mem_diff = start_mem - end_mem if start_mem and end_mem else 0
     time_taken = end_time - start_time
-    
+
     # Extracting the actual generated response between markers
     response = stdout
     if "generate:" in response:
         response = response.split("generate:", 1)[-1].split("\n", 1)[-1]
     if "llama_perf_sampler_print:" in response:
         response = response.split("llama_perf_sampler_print:")[0]
-        
+
     response = response.replace(prompt_data["prompt"], "").strip()
     score = 0
     for kw in prompt_data["expected_keywords"]:
         if kw.lower() in response.lower():
             score += (100 / len(prompt_data["expected_keywords"]))
-            
+
     return {
         "discipline": prompt_data["id"],
         "score": round(score),
@@ -99,10 +99,10 @@ def main():
         for p in PROMPTS:
             res = run_model(m_name, m_path, p)
             results[m_name].append(res)
-            
+
     print("\n\n=== BENCHMARK RESULTS ===")
     print(json.dumps(results, indent=2))
-    
+
     with open("benchmark_results.json", "w") as f:
         json.dump(results, f, indent=2)
 

@@ -1,11 +1,11 @@
-import subprocess
-import signal
-import sys
-import os
-import platform
 import argparse
 import logging
+import os
+import platform
 import shutil
+import signal
+import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("setup_env")
@@ -125,7 +125,7 @@ def prepare_model():
         logging.info(f"Loading model from directory {model_dir}.")
     gguf_path = os.path.join(model_dir, "ggml-model-" + quant_type + ".gguf")
     if not os.path.exists(gguf_path) or os.path.getsize(gguf_path) == 0:
-        logging.info(f"Converting HF model to GGUF format...")
+        logging.info("Converting HF model to GGUF format...")
         if quant_type.startswith("tl"):
             cmd = [sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", quant_type, "--quant-embd"]
             if args.use_temp_file:
@@ -161,7 +161,7 @@ def setup_gguf():
 
 def gen_code():
     _, arch = system_info()
-    
+
     llama3_f3_models = set([model['model_name'] for model in SUPPORTED_HF_MODELS.values() if model['model_name'].startswith("Falcon") or model['model_name'].startswith("Llama")])
 
     if arch == "arm64":
@@ -201,7 +201,7 @@ def gen_code():
         elif get_model_name() == "bitnet_b1_58-3B":
             run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "96,96,96", "--bm", "32,32,32"], log_step="codegen")
         elif get_model_name() == "BitNet-b1.58-2B-4T":
-            run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "96,96,96", "--bm", "32,32,32"], log_step="codegen")    
+            run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-3B", "--BM", "160,320,320", "--BK", "96,96,96", "--bm", "32,32,32"], log_step="codegen")
         else:
             raise NotImplementedError()
 
@@ -226,7 +226,7 @@ def main():
     gen_code()
     compile()
     prepare_model()
-    
+
 def parse_args():
     _, arch = system_info()
     parser = argparse.ArgumentParser(description='Setup the environment for running the inference')

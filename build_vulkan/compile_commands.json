@@ -1,0 +1,398 @@
+[
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/cc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu11 -fPIC -fpermissive -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml.c",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/cc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu11 -fPIC -fpermissive -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-alloc.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-alloc.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-alloc.c",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-alloc.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-backend.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-backend.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-backend.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-backend.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/cc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu11 -fPIC -fpermissive -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-quants.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-quants.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-quants.c",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-quants.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/__/__/__/__/src/ggml-bitnet-mad.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/src/ggml-bitnet-mad.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/src/ggml-bitnet-mad.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/__/__/__/__/src/ggml-bitnet-mad.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/__/__/__/__/src/ggml-bitnet-lut.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/src/ggml-bitnet-lut.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/src/ggml-bitnet-lut.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/__/__/__/__/src/ggml-bitnet-lut.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-vulkan.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-vulkan.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-vulkan.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-vulkan.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-vulkan-shaders.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src/ggml-vulkan-shaders.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src/ggml-vulkan-shaders.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-vulkan-shaders.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/c++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu++11 -fPIC -fpermissive -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -march=native -fopenmp -o CMakeFiles/ggml.dir/llamafile/sgemm.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/llamafile/sgemm.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/llamafile/sgemm.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/llamafile/sgemm.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src",
+  "command": "/usr/bin/cc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -DGGML_USE_VULKAN -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src -O3 -DNDEBUG -std=gnu11 -fPIC -fpermissive -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -march=native -fopenmp -o CMakeFiles/ggml.dir/ggml-aarch64.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-aarch64.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/ggml-aarch64.c",
+  "output": "3rdparty/llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-aarch64.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/ggml/src/vulkan-shaders",
+  "command": "/usr/bin/c++ -DGGML_SCHED_MAX_COPIES=4 -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP  -O3 -DNDEBUG -std=gnu++11 -fpermissive -o CMakeFiles/vulkan-shaders-gen.dir/vulkan-shaders-gen.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp",
+  "output": "3rdparty/llama.cpp/ggml/src/vulkan-shaders/CMakeFiles/vulkan-shaders-gen.dir/vulkan-shaders-gen.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/llama.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/llama.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/llama-vocab.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-vocab.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-vocab.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/llama-vocab.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/llama-grammar.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-grammar.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-grammar.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/llama-grammar.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/llama-sampling.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-sampling.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/llama-sampling.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/llama-sampling.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/unicode.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/unicode.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/unicode.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/unicode.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/src",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/llama.dir/unicode-data.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/unicode-data.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/unicode-data.cpp",
+  "output": "3rdparty/llama.cpp/src/CMakeFiles/llama.dir/unicode-data.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++   -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/build_info.dir/build-info.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/build-info.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/build-info.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/build_info.dir/build-info.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/arg.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/arg.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/arg.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/arg.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/common.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/common.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/common.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/common.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/console.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/console.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/console.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/console.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/json-schema-to-grammar.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/json-schema-to-grammar.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/json-schema-to-grammar.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/json-schema-to-grammar.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/log.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/log.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/log.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/log.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/ngram-cache.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/ngram-cache.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/ngram-cache.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/ngram-cache.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/sampling.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/sampling.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/sampling.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/sampling.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/common",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fPIC -fpermissive -o CMakeFiles/common.dir/train.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/train.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/train.cpp",
+  "output": "3rdparty/llama.cpp/common/CMakeFiles/common.dir/train.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/cvector-generator",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-cvector-generator.dir/cvector-generator.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/cvector-generator/cvector-generator.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/cvector-generator/cvector-generator.cpp",
+  "output": "3rdparty/llama.cpp/examples/cvector-generator/CMakeFiles/llama-cvector-generator.dir/cvector-generator.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/baby-llama",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-baby-llama.dir/baby-llama.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/baby-llama/baby-llama.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/baby-llama/baby-llama.cpp",
+  "output": "3rdparty/llama.cpp/examples/baby-llama/CMakeFiles/llama-baby-llama.dir/baby-llama.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/batched-bench",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-batched-bench.dir/batched-bench.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/batched-bench/batched-bench.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/batched-bench/batched-bench.cpp",
+  "output": "3rdparty/llama.cpp/examples/batched-bench/CMakeFiles/llama-batched-bench.dir/batched-bench.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/batched",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-batched.dir/batched.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/batched/batched.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/batched/batched.cpp",
+  "output": "3rdparty/llama.cpp/examples/batched/CMakeFiles/llama-batched.dir/batched.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/convert-llama2c-to-ggml",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-convert-llama2c-to-ggml.dir/convert-llama2c-to-ggml.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/convert-llama2c-to-ggml/convert-llama2c-to-ggml.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/convert-llama2c-to-ggml/convert-llama2c-to-ggml.cpp",
+  "output": "3rdparty/llama.cpp/examples/convert-llama2c-to-ggml/CMakeFiles/llama-convert-llama2c-to-ggml.dir/convert-llama2c-to-ggml.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/embedding",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-embedding.dir/embedding.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/embedding/embedding.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/embedding/embedding.cpp",
+  "output": "3rdparty/llama.cpp/examples/embedding/CMakeFiles/llama-embedding.dir/embedding.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/eval-callback",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-eval-callback.dir/eval-callback.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/eval-callback/eval-callback.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/eval-callback/eval-callback.cpp",
+  "output": "3rdparty/llama.cpp/examples/eval-callback/CMakeFiles/llama-eval-callback.dir/eval-callback.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/export-lora",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-export-lora.dir/export-lora.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/export-lora/export-lora.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/export-lora/export-lora.cpp",
+  "output": "3rdparty/llama.cpp/examples/export-lora/CMakeFiles/llama-export-lora.dir/export-lora.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gbnf-validator",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-gbnf-validator.dir/gbnf-validator.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gbnf-validator/gbnf-validator.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gbnf-validator/gbnf-validator.cpp",
+  "output": "3rdparty/llama.cpp/examples/gbnf-validator/CMakeFiles/llama-gbnf-validator.dir/gbnf-validator.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf-hash",
+  "command": "/usr/bin/cc  -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -std=gnu11 -fpermissive -o CMakeFiles/xxhash.dir/deps/xxhash/xxhash.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/xxhash/xxhash.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/xxhash/xxhash.c",
+  "output": "3rdparty/llama.cpp/examples/gguf-hash/CMakeFiles/xxhash.dir/deps/xxhash/xxhash.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf-hash",
+  "command": "/usr/bin/cc  -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -std=gnu11 -fpermissive -o CMakeFiles/sha1.dir/deps/sha1/sha1.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/sha1/sha1.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/sha1/sha1.c",
+  "output": "3rdparty/llama.cpp/examples/gguf-hash/CMakeFiles/sha1.dir/deps/sha1/sha1.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf-hash",
+  "command": "/usr/bin/cc  -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -std=gnu11 -fpermissive -o CMakeFiles/sha256.dir/deps/sha256/sha256.c.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/sha256/sha256.c",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps/sha256/sha256.c",
+  "output": "3rdparty/llama.cpp/examples/gguf-hash/CMakeFiles/sha256.dir/deps/sha256/sha256.c.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf-hash",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/deps -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-gguf-hash.dir/gguf-hash.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/gguf-hash.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-hash/gguf-hash.cpp",
+  "output": "3rdparty/llama.cpp/examples/gguf-hash/CMakeFiles/llama-gguf-hash.dir/gguf-hash.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf-split",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-gguf-split.dir/gguf-split.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-split/gguf-split.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf-split/gguf-split.cpp",
+  "output": "3rdparty/llama.cpp/examples/gguf-split/CMakeFiles/llama-gguf-split.dir/gguf-split.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gguf",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-gguf.dir/gguf.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf/gguf.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gguf/gguf.cpp",
+  "output": "3rdparty/llama.cpp/examples/gguf/CMakeFiles/llama-gguf.dir/gguf.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/gritlm",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-gritlm.dir/gritlm.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gritlm/gritlm.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/gritlm/gritlm.cpp",
+  "output": "3rdparty/llama.cpp/examples/gritlm/CMakeFiles/llama-gritlm.dir/gritlm.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/imatrix",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-imatrix.dir/imatrix.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/imatrix/imatrix.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/imatrix/imatrix.cpp",
+  "output": "3rdparty/llama.cpp/examples/imatrix/CMakeFiles/llama-imatrix.dir/imatrix.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/infill",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-infill.dir/infill.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/infill/infill.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/infill/infill.cpp",
+  "output": "3rdparty/llama.cpp/examples/infill/CMakeFiles/llama-infill.dir/infill.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/llama-bench",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-bench.dir/llama-bench.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llama-bench/llama-bench.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llama-bench/llama-bench.cpp",
+  "output": "3rdparty/llama.cpp/examples/llama-bench/CMakeFiles/llama-bench.dir/llama-bench.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/llava",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../.. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../../common -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -O3 -DNDEBUG -fPIC -fpermissive -Wno-cast-qual -o CMakeFiles/llava.dir/llava.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/llava.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/llava.cpp",
+  "output": "3rdparty/llama.cpp/examples/llava/CMakeFiles/llava.dir/llava.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/llava",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -DLLAMA_BUILD -DLLAMA_SHARED -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../.. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../../common -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -O3 -DNDEBUG -fPIC -fpermissive -Wno-cast-qual -o CMakeFiles/llava.dir/clip.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/clip.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/clip.cpp",
+  "output": "3rdparty/llama.cpp/examples/llava/CMakeFiles/llava.dir/clip.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/llava",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../.. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../../common -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-llava-cli.dir/llava-cli.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/llava-cli.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/llava-cli.cpp",
+  "output": "3rdparty/llama.cpp/examples/llava/CMakeFiles/llama-llava-cli.dir/llava-cli.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/llava",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../.. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/../../common -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-minicpmv-cli.dir/minicpmv-cli.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/minicpmv-cli.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/llava/minicpmv-cli.cpp",
+  "output": "3rdparty/llama.cpp/examples/llava/CMakeFiles/llama-minicpmv-cli.dir/minicpmv-cli.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/lookahead",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-lookahead.dir/lookahead.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookahead/lookahead.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookahead/lookahead.cpp",
+  "output": "3rdparty/llama.cpp/examples/lookahead/CMakeFiles/llama-lookahead.dir/lookahead.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/lookup",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-lookup.dir/lookup.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup.cpp",
+  "output": "3rdparty/llama.cpp/examples/lookup/CMakeFiles/llama-lookup.dir/lookup.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/lookup",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-lookup-create.dir/lookup-create.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-create.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-create.cpp",
+  "output": "3rdparty/llama.cpp/examples/lookup/CMakeFiles/llama-lookup-create.dir/lookup-create.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/lookup",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-lookup-merge.dir/lookup-merge.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-merge.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-merge.cpp",
+  "output": "3rdparty/llama.cpp/examples/lookup/CMakeFiles/llama-lookup-merge.dir/lookup-merge.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/lookup",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-lookup-stats.dir/lookup-stats.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-stats.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/lookup/lookup-stats.cpp",
+  "output": "3rdparty/llama.cpp/examples/lookup/CMakeFiles/llama-lookup-stats.dir/lookup-stats.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/main",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-cli.dir/main.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/main/main.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/main/main.cpp",
+  "output": "3rdparty/llama.cpp/examples/main/CMakeFiles/llama-cli.dir/main.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/parallel",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-parallel.dir/parallel.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/parallel/parallel.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/parallel/parallel.cpp",
+  "output": "3rdparty/llama.cpp/examples/parallel/CMakeFiles/llama-parallel.dir/parallel.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/passkey",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-passkey.dir/passkey.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/passkey/passkey.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/passkey/passkey.cpp",
+  "output": "3rdparty/llama.cpp/examples/passkey/CMakeFiles/llama-passkey.dir/passkey.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/perplexity",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-perplexity.dir/perplexity.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/perplexity/perplexity.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/perplexity/perplexity.cpp",
+  "output": "3rdparty/llama.cpp/examples/perplexity/CMakeFiles/llama-perplexity.dir/perplexity.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/quantize-stats",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize-stats/../../common -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-quantize-stats.dir/quantize-stats.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize-stats/quantize-stats.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize-stats/quantize-stats.cpp",
+  "output": "3rdparty/llama.cpp/examples/quantize-stats/CMakeFiles/llama-quantize-stats.dir/quantize-stats.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/quantize",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize/../../common -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-quantize.dir/quantize.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize/quantize.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/quantize/quantize.cpp",
+  "output": "3rdparty/llama.cpp/examples/quantize/CMakeFiles/llama-quantize.dir/quantize.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/retrieval",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-retrieval.dir/retrieval.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/retrieval/retrieval.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/retrieval/retrieval.cpp",
+  "output": "3rdparty/llama.cpp/examples/retrieval/CMakeFiles/llama-retrieval.dir/retrieval.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/server",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/server -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/server -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-server.dir/server.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/server/server.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/server/server.cpp",
+  "output": "3rdparty/llama.cpp/examples/server/CMakeFiles/llama-server.dir/server.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/save-load-state",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-save-load-state.dir/save-load-state.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/save-load-state/save-load-state.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/save-load-state/save-load-state.cpp",
+  "output": "3rdparty/llama.cpp/examples/save-load-state/CMakeFiles/llama-save-load-state.dir/save-load-state.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/simple",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-simple.dir/simple.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/simple/simple.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/simple/simple.cpp",
+  "output": "3rdparty/llama.cpp/examples/simple/CMakeFiles/llama-simple.dir/simple.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/speculative",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-speculative.dir/speculative.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/speculative/speculative.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/speculative/speculative.cpp",
+  "output": "3rdparty/llama.cpp/examples/speculative/CMakeFiles/llama-speculative.dir/speculative.cpp.o"
+},
+{
+  "directory": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_vulkan/3rdparty/llama.cpp/examples/tokenize",
+  "command": "/usr/bin/c++ -DGGML_USE_VULKAN -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/. -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../include -I/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/ggml/src/../../../../include -O3 -DNDEBUG -fpermissive -o CMakeFiles/llama-tokenize.dir/tokenize.cpp.o -c /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/tokenize/tokenize.cpp",
+  "file": "/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/examples/tokenize/tokenize.cpp",
+  "output": "3rdparty/llama.cpp/examples/tokenize/CMakeFiles/llama-tokenize.dir/tokenize.cpp.o"
+}
+]

@@ -1,9 +1,10 @@
-import os
-import sys
-import signal
-import platform
 import argparse
+import os
+import platform
+import signal
 import subprocess
+import sys
+
 
 def run_command(command, shell=False):
     """Run a system command and ensure it succeeds."""

@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/llama-gguf.dir/link.d "CMakeFiles/llama-gguf.dir/gguf.cpp.o" -o ../../../../bin/llama-gguf  -Wl,-rpath,/home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/build_cuda/3rdparty/llama.cpp/ggml/src: ../../ggml/src/libggml.so

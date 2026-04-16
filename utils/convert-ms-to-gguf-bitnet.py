@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import logging
 import argparse
 import concurrent.futures
+import configparser
 import enum
 import faulthandler
 import functools
 import itertools
 import json
+import logging
 import math
 import mmap
 import os
@@ -22,9 +23,8 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, IO, Iterable, Literal, Protocol, TypeVar, runtime_checkable, Tuple
+from typing import IO, TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Protocol, Tuple, TypeVar, runtime_checkable
 
-import configparser
 import numpy as np
 from sentencepiece import SentencePieceProcessor
 
@@ -737,7 +737,7 @@ def preprocess_weights(
             kfactor = int(cf.get(sec, 'kfactor'))
             simd_n_in = int(cf.get(sec, 'simd_n_in'))
             simd_n_out = int(cf.get(sec, 'simd_n_out'))
-            break    
+            break
 
     M = M * bits
     ngroups_per_elem = 8 // g
@@ -942,6 +942,7 @@ def part_lazy(lazy_tensor: LazyTensor, n_part: int) -> LazyTensor:
     return LazyTensor(load, s, lazy_tensor.data_type, 'part ' + lazy_tensor.description)
 
 import torch
+
 
 def forward_t(x):
     dtype = x.dtype
@@ -1267,7 +1268,7 @@ class OutputFile:
             logger.info(
                 f"[{i + 1:{padi}d}/{len(model)}] Writing tensor {name:38s} | size {size:16} | type {lazy_tensor.data_type.name:4} | T+{int(elapsed):4}"
             )
-            
+
             if i2_scale is not None:
                 i2_scale = np.tile(i2_scale, 8)
                 ndarray = preprocess_weights(ndarray)
@@ -1373,9 +1374,8 @@ def convert_to_output_type(model: LazyModel, output_type: GGMLFileType) -> LazyM
 
 def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) -> LazyModel:
     tmap = gguf.TensorNameMap(ARCH, params.n_layer)
-    should_skip = set(gguf.MODEL_TENSOR_SKIP.get(ARCH, []))
+    set(gguf.MODEL_TENSOR_SKIP.get(ARCH, []))
 
-    tmp = model
 
     # merge experts into one tensor
     # if params.n_experts and params.n_experts > 0:
@@ -1397,7 +1397,7 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
     # Use pure NumPy instead of torch to avoid NumPy compatibility issues
     rope_ndarray = (1.0 / (np.float32(500000.0) ** (np.arange(0, 128, 2, dtype=np.float32) / 128))).astype(np.float32)
     # print(rope_ndarray)
-    
+
 
     def load() -> UnquantizedTensor:
         return UnquantizedTensor(rope_ndarray)
@@ -1464,7 +1464,7 @@ def convert_model_names(model: LazyModel, params: Params, skip_unknown: bool) ->
     #         break
 
     # for name, lazy_tensor in model.items():
-    #     if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight", 
+    #     if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight",
     #                       "w1.weight", "w2.weight", "w3.weight",
     #                       "wo.weight")):
     #         tmp[name] = part_lazy_weight_quant(tmp[name], name)

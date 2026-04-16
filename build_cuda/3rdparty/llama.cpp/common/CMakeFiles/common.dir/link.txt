@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcommon.a CMakeFiles/common.dir/arg.cpp.o CMakeFiles/common.dir/common.cpp.o CMakeFiles/common.dir/console.cpp.o "CMakeFiles/common.dir/json-schema-to-grammar.cpp.o" CMakeFiles/common.dir/log.cpp.o "CMakeFiles/common.dir/ngram-cache.cpp.o" CMakeFiles/common.dir/sampling.cpp.o CMakeFiles/common.dir/train.cpp.o "CMakeFiles/build_info.dir/build-info.cpp.o"
+/usr/bin/ranlib libcommon.a
