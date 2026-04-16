@@ -45,10 +45,10 @@ GGML_API void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor);
 GGML_API int ggml_bitnet_get_type_bits(enum ggml_type type);
 GGML_API void ggml_bitnet_set_n_threads(int n_threads);
 GGML_API void ggml_bitnet_mul_mat(
-    const struct ggml_compute_params * params,
     const struct ggml_tensor * src0,
     const struct ggml_tensor * src1,
     struct ggml_tensor * dst,
+    void * wdata,
     int ith, int nth);
 
 #ifdef  __cplusplus

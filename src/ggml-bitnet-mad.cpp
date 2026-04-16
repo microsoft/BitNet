@@ -217,11 +217,20 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 // BRIDGE IMPLEMENTATION
 bool ggml_bitnet_can_mul_mat(const struct ggml_tensor * src0, const struct ggml_tensor * src1, const struct ggml_tensor * dst) {
     (void)dst;
-    bool can = (src0->type == GGML_TYPE_I2_S && (src1->type == GGML_TYPE_I8_S || src1->type == GGML_TYPE_F32));
-    if (can) {
-        printf("DEBUG: BitNet MAD can_mul_mat TRUE\n");
+    return (src0->type == GGML_TYPE_I2_S && (src1->type == GGML_TYPE_I8_S || src1->type == GGML_TYPE_F32));
+}
+
+size_t ggml_bitnet_mul_mat_get_wsize(const struct ggml_tensor * src0, const struct ggml_tensor * src1, const struct ggml_tensor * dst) {
+    (void)src0;
+    (void)dst;
+    if (src1->type == GGML_TYPE_F32) {
+        // We need ne00 bytes per thread for quantization
+        // We return the MAX size needed (assuming up to GGML_MAX_NTHREADS)
+        // or just calculate it based on the current tensor size.
+        // Usually GGML calls this once. We'll provide enough for many threads.
+        return (size_t)src1->ne[0] * 128; // 128 threads max fallback safety
     }
-    return can;
+    return 0;
 }
 
 // Internal utilities matching the original BitNet fork
@@ -249,13 +258,12 @@ static void bitnet_float_act_quant(const int K, const float* B, int8_t* dst, flo
 }
 
 void ggml_bitnet_mul_mat(
-    const struct ggml_compute_params * params,
     const struct ggml_tensor * src0,
     const struct ggml_tensor * src1,
     struct ggml_tensor * dst,
+    void * wdata,
     int ith, int nth) {
     
-    (void)params;
     const int64_t ne00 = src0->ne[0];
     const int64_t ne01 = src0->ne[1];
     const int64_t ne11 = src1->ne[1];
@@ -267,12 +275,10 @@ void ggml_bitnet_mul_mat(
     const void * src0_data = ggml_bitnet_get_data(src0);
     const void * src1_data = src1->data;
 
-    // We use a fixed-size buffer for verification. 
-    // For production, we'd use thread-local storage or params->wdata.
-    int8_t local_q_static[16384]; 
-    if (ne00 > 16384) {
-        // Fallback for extremely large tensors (should not happen for BitNet 1.58b models like Falcon3 10B)
-        return; 
+    // Use wdata if available, otherwise fallback (though wdata should be there if we asked)
+    int8_t * thread_buffer = NULL;
+    if (wdata && src1->type == GGML_TYPE_F32) {
+        thread_buffer = (int8_t *)wdata + (size_t)ith * ne00;
     }
 
     float s_act;
@@ -282,10 +288,10 @@ void ggml_bitnet_mul_mat(
         const void * final_src1_col = src1_col;
 
         if (src1->type == GGML_TYPE_F32) {
-            bitnet_float_act_quant(ne00, (const float *)src1_col, local_q_static, &s_act);
-            final_src1_col = local_q_static;
+            if (thread_buffer == NULL) return; // Should not happen with proper wsize
+            bitnet_float_act_quant(ne00, (const float *)src1_col, thread_buffer, &s_act);
+            final_src1_col = thread_buffer;
             ggml_vec_dot_i2_i8_s_1xN(ne00, dst_col, sizeof(float), src0_data, nb01, final_src1_col, 0, ne01);
-            // Apply scale (Simplified, same as original hijack)
             for (int64_t i = 0; i < ne01; ++i) {
                 dst_col[i] /= s_act;
             }
