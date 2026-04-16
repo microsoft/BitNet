@@ -2,6 +2,7 @@ import argparse
 import os
 from configparser import ConfigParser
 
+
 def gen_ctor_code():
     kernel_code = "\n\
 #include \"ggml-bitnet.h\"\n\
@@ -690,11 +691,11 @@ if __name__ == "__main__":
         "Llama3-8B-1.58-100B-tokens"        : [[14336, 4096],
                                                [4096, 14336],
                                                [1024, 4096],
-                                               [4096, 4096]] 
+                                               [4096, 4096]]
     }
 
     parser = argparse.ArgumentParser(description='gen impl')
-    parser.add_argument('--model',default="input", type=str, dest="model", 
+    parser.add_argument('--model',default="input", type=str, dest="model",
                         help="choose from bitnet_b1_58-large/bitnet_b1_58-3B/Llama3-8B-1.58-100B-tokens.")
     parser.add_argument('--BM',default="input", type=str,
                         help="block length when cutting one weight (M, K) into M / BM weights (BM, K).")
@@ -722,7 +723,7 @@ if __name__ == "__main__":
         )
 
     assert(len(BM_list) == len(BK_list) == len(bm_list) == len(kernel_shapes)), "number of BM / BK / bm shoud be {}".format(len(kernel_shapes))
-    
+
     for i in range(len(kernel_shapes)):
         assert kernel_shapes[i][0] % BM_list[i] == 0, "M %% BM should be 0"
         assert (kernel_shapes[i][1] % BK_list[i]) % 32 == 0, "K %% BK %% 32 should be 0"
@@ -747,11 +748,11 @@ if __name__ == "__main__":
 
     for i in range(len(kernel_shapes)):
         config.add_section('Kernels_{}'.format(i))
-        config.set('Kernels_{}'.format(i), 'M'.format(i), str(kernel_shapes[i][0]))
-        config.set('Kernels_{}'.format(i), 'K'.format(i), str(kernel_shapes[i][1]))
-        config.set('Kernels_{}'.format(i), 'BM'.format(i), str(BM_list[i]))
-        config.set('Kernels_{}'.format(i), 'BK'.format(i), str(BK_list[i]))
-        config.set('Kernels_{}'.format(i), 'bmm'.format(i), str(bm_list[i]))
+        config.set('Kernels_{}'.format(i), 'M', str(kernel_shapes[i][0]))
+        config.set('Kernels_{}'.format(i), 'K', str(kernel_shapes[i][1]))
+        config.set('Kernels_{}'.format(i), 'BM', str(BM_list[i]))
+        config.set('Kernels_{}'.format(i), 'BK', str(BK_list[i]))
+        config.set('Kernels_{}'.format(i), 'bmm', str(bm_list[i]))
 
     with open(''.join([output_dir, "/kernel_config.ini"]), 'w') as configfile:
         config.write(configfile)

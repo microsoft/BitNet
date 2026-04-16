@@ -14,6 +14,7 @@ typedef float bitnet_float_type;
 extern "C" {
 #endif
 
+struct ggml_compute_params;
 struct bitnet_tensor_extra {
     int lut_scales_size;
     int BK;
@@ -21,6 +22,14 @@ struct bitnet_tensor_extra {
     uint8_t * qweights;
     bitnet_float_type * scales;
 };
+
+// Sovereign Data Accessor: Abstracción del campo 'extra' para BitNet I2_S
+static inline const void * ggml_bitnet_get_data(const struct ggml_tensor * tensor) {
+    if (tensor->type == GGML_TYPE_I2_S && tensor->extra) {
+        return ((struct bitnet_tensor_extra *)tensor->extra)->qweights;
+    }
+    return tensor->data;
+}
 
 GGML_API void ggml_bitnet_init(void);
 GGML_API void ggml_bitnet_free(void);
@@ -35,14 +44,12 @@ GGML_API void ggml_bitnet_mul_mat_task_compute(void * src0, void * scales, void 
 GGML_API void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor);
 GGML_API int ggml_bitnet_get_type_bits(enum ggml_type type);
 GGML_API void ggml_bitnet_set_n_threads(int n_threads);
-#if defined(GGML_BITNET_ARM_TL1)
-GGML_API void ggml_qgemm_lut(int m, int k, void* A, void* LUT, void* Scales, void* LUT_Scales, void* C);
-GGML_API void ggml_preprocessor(int m, int k, void* B, void* LUT_Scales, void* QLUT);
-#endif
-#if defined(GGML_BITNET_X86_TL2)
-GGML_API void ggml_qgemm_lut(int bs, int m, int k, int BK, void* A, void* sign, void* LUT, void* Scales, void* LUT_Scales, void* C);
-GGML_API void ggml_preprocessor(int bs, int m, int three_k, int two_k, void* B, void* LUT_Scales, void* Three_QLUT, void* Two_QLUT);
-#endif
+GGML_API void ggml_bitnet_mul_mat(
+    const struct ggml_tensor * src0,
+    const struct ggml_tensor * src1,
+    struct ggml_tensor * dst,
+    void * wdata,
+    int ith, int nth);
 
 #ifdef  __cplusplus
 }

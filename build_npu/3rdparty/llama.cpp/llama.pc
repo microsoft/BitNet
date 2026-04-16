@@ -1,0 +1,10 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: llama
+Description: Port of Facebook's LLaMA model in C/C++
+Version: 
+Libs: -L${libdir} -lllama
+Cflags: -I${includedir}

@@ -1,0 +1,19 @@
+# Hashes of file build rules.
+f85e30d7c572b2016d4b2c89b7b2e6f3 /home/joan/Documents/IA/sharing/3rdparty/BitNet-1.58b/3rdparty/llama.cpp/common/build-info.cpp
+dbf99ebf9f43b664eaa675fa4ff431ea 3rdparty/llama.cpp/examples/server/colorthemes.css.hpp
+ed85b3d659fdc7b0293f36dde235ee48 3rdparty/llama.cpp/examples/server/completion.js.hpp
+3a367602dd6813fe551ecafcd1ac4d63 3rdparty/llama.cpp/examples/server/index-new.html.hpp
+ace62e462bfc98faa9ce607572787d19 3rdparty/llama.cpp/examples/server/index.html.hpp
+adfdc5cfcca081a7874ef2e250ba3bfa 3rdparty/llama.cpp/examples/server/index.js.hpp
+2951966776388ed217663cf9e8ca0d94 3rdparty/llama.cpp/examples/server/json-schema-to-grammar.mjs.hpp
+a692d24c5c8d5846fa7536a45cfa6257 3rdparty/llama.cpp/examples/server/loading.html.hpp
+53d94ffc186287b7bfd388fffc1ce58b 3rdparty/llama.cpp/examples/server/prompt-formats.js.hpp
+c1fce9c1a19d798d8b51094d2bef8e9b 3rdparty/llama.cpp/examples/server/style.css.hpp
+d6d3878731d876a3b5d5a897b3973089 3rdparty/llama.cpp/examples/server/system-prompts.js.hpp
+829e097059a907572e5dd5cb70903b3d 3rdparty/llama.cpp/examples/server/theme-beeninorder.css.hpp
+334855c41c8f84563d0dd4eaeb902ecc 3rdparty/llama.cpp/examples/server/theme-ketivah.css.hpp
+d7c9e596f843189d178c485c5d439ef3 3rdparty/llama.cpp/examples/server/theme-mangotango.css.hpp
+91e3c87026c736a56b34e223f5dda386 3rdparty/llama.cpp/examples/server/theme-playground.css.hpp
+1e01c83982c75010928b7289554f260b 3rdparty/llama.cpp/examples/server/theme-polarnight.css.hpp
+36ce28eb783a9b5cd2c46eece472bccb 3rdparty/llama.cpp/examples/server/theme-snowstorm.css.hpp
+c9a934d6e9365f6ec19180e110ded8ae 3rdparty/llama.cpp/ggml/src/ggml-vulkan-shaders.hpp

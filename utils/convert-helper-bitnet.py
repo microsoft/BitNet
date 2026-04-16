@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
-import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
 
 def run_command(command_list, cwd=None, check=True):
     print(f"Executing: {' '.join(map(str, command_list))}")
@@ -34,7 +34,7 @@ def main():
 
     preprocess_script = utils_dir / "preprocess-huggingface-bitnet.py"
     convert_script = utils_dir / "convert-ms-to-gguf-bitnet.py"
-    
+
     llama_quantize_binary = project_root_dir / "build" / "bin" / "llama-quantize"
 
     input_file = model_dir / "model.safetensors"
@@ -108,14 +108,14 @@ def main():
                 preprocessed_output_file.unlink()
             except OSError as e:
                 print(f"Warning: Could not remove {preprocessed_output_file}: {e}")
-        
+
         # if gguf_f32_output.exists():
         #     print(f"Removing f32 GGUF: {gguf_f32_output}")
         #     try:
         #         gguf_f32_output.unlink()
         #     except OSError as e:
         #         print(f"Warning: Could not remove {gguf_f32_output}: {e}")
-        
+
         if input_backup_file.exists():
             if not input_file.exists():
                 print(f"Restoring original '{input_file}' from '{input_backup_file}'")

@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/vulkan-shaders-gen.dir/link.d "CMakeFiles/vulkan-shaders-gen.dir/vulkan-shaders-gen.cpp.o" -o ../../../../../bin/vulkan-shaders-gen

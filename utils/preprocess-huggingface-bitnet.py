@@ -1,6 +1,7 @@
+import torch
 from safetensors import safe_open
 from safetensors.torch import save_file
-import torch
+
 
 def quant_weight_fp16(weight):
     weight = weight.to(torch.float)
@@ -16,8 +17,8 @@ def quant_model(input, output):
             tensors[name] = f.get_tensor(name)
 
             keyword_list = [
-                'q_proj.weight', 
-                'k_proj.weight', 
+                'q_proj.weight',
+                'k_proj.weight',
                 'v_proj.weight',
                 'o_proj.weight',
                 'gate_proj.weight',
@@ -28,10 +29,10 @@ def quant_model(input, output):
             if any(keyword in name for keyword in keyword_list):
                 print(f'[INFO] Quantizing {name}')
                 tensors[name] = quant_weight_fp16(tensors[name])
-    
+
     print(f'[INFO] Saving to {output}\nThis may take a while.')
     save_file(tensors, output)
-                
+
 
 if __name__ == "__main__":
     import argparse

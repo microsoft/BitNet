@@ -1,9 +1,10 @@
-import os
-import sys
-import logging
 import argparse
+import logging
+import os
 import platform
 import subprocess
+import sys
+
 
 def run_command(command, shell=False, log_step=None):
     """Run a system command and ensure it succeeds."""
@@ -31,7 +32,7 @@ def run_benchmark():
     else:
         bench_path = os.path.join(build_dir, "bin", "llama-bench")
     if not os.path.exists(bench_path):
-        logging.error(f"Benchmark binary not found, please build first.")
+        logging.error("Benchmark binary not found, please build first.")
         sys.exit(1)
     command = [
         f'{bench_path}',
