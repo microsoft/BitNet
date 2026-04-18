@@ -349,12 +349,23 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
                 accu32 = vmlal_s8(accu32, vget_high_s8(q8_2), vget_high_s8(yq8_2));
                 accu32 = vmlal_s8(accu32, vget_low_s8(q8_3), vget_low_s8(yq8_3));
                 accu32 = vmlal_s8(accu32, vget_high_s8(q8_3), vget_high_s8(yq8_3));
+                // Drain int16 accumulator into int32 every 4 iterations to
+                // prevent overflow.  Each iteration adds 8 vmlal products
+                // (max |product| = 3*128 = 384), so 4 iters can reach
+                // 4*8*384 = 12288 per lane — safe for int16 (±32767).
+                if ((j & 3) == 3) {
+                    accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accu32)));
+                    accu = vaddq_s32(accu, vmovl_high_s16(accu32));
+                    accu32 = vdupq_n_s16(0);
+                }
 #endif
             }
 
 #if defined(__ARM_FEATURE_DOTPROD)
 
 #else
+            // Drain any residual iterations (32 is divisible by 4, so this
+            // is a no-op for the group32 path, but kept for correctness).
             accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accu32)));
             accu = vaddq_s32(accu, vmovl_high_s16(accu32));
 #endif
@@ -396,6 +407,11 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
                 accula = vmlal_s8(accula, vget_high_s8(q8_2), vget_high_s8(yq8_2));
                 accula = vmlal_s8(accula, vget_low_s8(q8_3), vget_low_s8(yq8_3));
                 accula = vmlal_s8(accula, vget_high_s8(q8_3), vget_high_s8(yq8_3));
+                if ((j & 3) == 3) {
+                    accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accula)));
+                    accu = vaddq_s32(accu, vmovl_high_s16(accula));
+                    accula = vdupq_n_s16(0);
+                }
 #endif
             }
 #if defined(__ARM_FEATURE_DOTPROD)
@@ -704,6 +720,15 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
 #endif
                     px[rb] += 16;
                 }
+#if !defined(__ARM_FEATURE_DOTPROD)
+                if ((j & 3) == 3) {
+                    for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
+                        accu[rb] = vaddq_s32(accu[rb], vmovl_s16(vget_low_s16(accu32[rb])));
+                        accu[rb] = vaddq_s32(accu[rb], vmovl_high_s16(accu32[rb]));
+                        accu32[rb] = vdupq_n_s16(0);
+                    }
+                }
+#endif
             }
 
 #if defined(__ARM_FEATURE_DOTPROD)
@@ -767,6 +792,15 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
 #endif
                     px[rb] += 16;
                 }
+#if !defined(__ARM_FEATURE_DOTPROD)
+                if ((j & 3) == 3) {
+                    for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
+                        accu[rb] = vaddq_s32(accu[rb], vmovl_s16(vget_low_s16(accula[rb])));
+                        accu[rb] = vaddq_s32(accu[rb], vmovl_high_s16(accula[rb]));
+                        accula[rb] = vdupq_n_s16(0);
+                    }
+                }
+#endif
             }
 
 #if defined(__ARM_FEATURE_DOTPROD)
@@ -956,6 +990,14 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
                 px += 16;
                 py += 64;
+#if !defined(__ARM_FEATURE_DOTPROD)
+                if ((j & 3) == 3) {
+                    for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
+                        accu[iy] = vaddq_s32(accu[iy], vaddq_s32(vmovl_high_s16(accu32[iy]), vmovl_s16(vget_low_s16(accu32[iy]))));
+                        accu32[iy] = vdupq_n_s16(0);
+                    }
+                }
+#endif
             }
 
 #if defined(__ARM_FEATURE_DOTPROD)
@@ -1019,6 +1061,14 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
                 px += 16;
                 py += 64;
+#if !defined(__ARM_FEATURE_DOTPROD)
+                if ((j & 3) == 3) {
+                    for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
+                        accu[iy] = vaddq_s32(accu[iy], vaddq_s32(vmovl_high_s16(accula[iy]), vmovl_s16(vget_low_s16(accula[iy]))));
+                        accula[iy] = vdupq_n_s16(0);
+                    }
+                }
+#endif
             }
 
 #if defined(__ARM_FEATURE_DOTPROD)
