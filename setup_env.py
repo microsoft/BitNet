@@ -239,6 +239,8 @@ def signal_handler(sig, frame):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     args = parse_args()
+    if args.quant_type == "tl2":
+        COMPILER_EXTRA_ARGS["x86_64"] = ["-DBITNET_X86_TL2=ON"]
     Path(args.log_dir).mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO)
     main()
