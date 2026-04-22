@@ -190,6 +190,8 @@ def gen_code():
             shutil.copyfile(os.path.join(pretuned_kernels, "bitnet-lut-kernels-tl2.h"), "include/bitnet-lut-kernels.h")
         if get_model_name() == "bitnet_b1_58-large":
             run_command([sys.executable, "utils/codegen_tl2.py", "--model", "bitnet_b1_58-large", "--BM", "256,128,256", "--BK", "96,192,96", "--bm", "32,32,32"], log_step="codegen")
+        elif get_model_name().startswith("Falcon3"):
+            run_command([sys.executable, "utils/codegen_tl2.py", "--model", get_model_name(), "--BM", "256,128,256,128", "--BK", "96,96,96,96", "--bm", "32,32,32,32"], log_step="codegen")
         elif get_model_name() in llama3_f3_models:
             run_command([sys.executable, "utils/codegen_tl2.py", "--model", "Llama3-8B-1.58-100B-tokens", "--BM", "256,128,256,128", "--BK", "96,96,96,96", "--bm", "32,32,32,32"], log_step="codegen")
         elif get_model_name() == "bitnet_b1_58-3B":
@@ -239,6 +241,8 @@ def signal_handler(sig, frame):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     args = parse_args()
+    if args.quant_type == "tl2":
+        COMPILER_EXTRA_ARGS["x86_64"] = ["-DBITNET_X86_TL2=ON"]
     Path(args.log_dir).mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO)
     main()
