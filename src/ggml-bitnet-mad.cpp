@@ -410,6 +410,43 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         int sumi = vaddlvq_s32(accu);
         s[row] = (float)sumi;
     }
+    #else
+    // ====================================================================
+    // 순수 C++ 스칼라 폴백 (Scalar Fallback for ARM/Exynos)
+    // 가속기가 없는 환경에서 비트 연산으로 직접 계산합니다.
+    // ====================================================================
+    const uint8_t * x_ptr = (const uint8_t *)vx;
+    const int8_t  * y_ptr = (const int8_t  *)vy;
+
+    const int qk = QK_I2_S;
+    const int nb = n / qk; 
+
+    for (int row = 0; row < nrc; row++) {
+        int sumi = 0;
+        const uint8_t * x_row = x_ptr + row * (bx / 4);
+
+        for (int b = 0; b < nb; b++) {
+            const uint8_t * px = x_row + b * (qk / 4);
+            const int8_t  * py = y_ptr + b * qk;
+
+            for (int k = 0; k < (qk / 4); k++) {
+                uint8_t xb = px[k];
+
+                // 1바이트 내의 2비트 데이터 4개를 각각 추출
+                int v0 = (xb >> 6) & 0x03;
+                int v1 = (xb >> 4) & 0x03;
+                int v2 = (xb >> 2) & 0x03;
+                int v3 =  xb       & 0x03;
+
+                // [중요] 비트 값(0, 1, 2)을 실제 가중치(-1, 0, 1)로 매핑하여 곱함
+                sumi += (v0 - 1) * py[k * 4 + 0];
+                sumi += (v1 - 1) * py[k * 4 + 1];
+                sumi += (v2 - 1) * py[k * 4 + 2];
+                sumi += (v3 - 1) * py[k * 4 + 3];
+            }
+        }
+        s[row] = (float)sumi;
+    }
 #endif
 }
 
