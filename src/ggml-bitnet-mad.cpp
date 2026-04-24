@@ -12,6 +12,8 @@
 #define QK_I2_S 128
 #elif defined(__ARM_NEON)
 #define QK_I2_S 64
+#else
+#define QK_I2_S 128  // 가속기가 없을 때 사용할 기본값 추가
 #endif
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
@@ -1041,6 +1043,8 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
 
 void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+#if defined(__AVX2__) || defined(__ARM_NEON)
+    // 가속기가 있을 때만 실행되는 구간
     if (nrc % PARALLEL_SIZE == 0)
     {
 #if defined(ACT_PARALLEL)
@@ -1053,4 +1057,8 @@ void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t b
     {
         ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
     }
+#else
+    // 가속기가 없는 스칼라(우리 상황)에서는 무조건 1x1 함수로 연결
+    ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
+#endif
 }
