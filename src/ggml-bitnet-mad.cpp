@@ -410,15 +410,16 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         int sumi = vaddlvq_s32(accu);
         s[row] = (float)sumi;
     }
-    #else
+#else
     // ====================================================================
     // 순수 C++ 스칼라 폴백 (Scalar Fallback for ARM/Exynos)
-    // 가속기가 없는 환경에서 비트 연산으로 직접 계산합니다.
+    // [경고] 절대 GPT/Grok의 말처럼 (v-1) 매핑이나 Scale을 넣지 마십시오!
     // ====================================================================
     const uint8_t * x_ptr = (const uint8_t *)vx;
     const int8_t  * y_ptr = (const int8_t  *)vy;
 
-    const int qk = QK_I2_S;
+    // PC에서 변환된 GGUF는 무조건 QK_I2_S = 128 로 패킹되어 있습니다.
+    const int qk = 128; 
     const int nb = n / qk; 
 
     for (int row = 0; row < nrc; row++) {
@@ -426,26 +427,28 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         const uint8_t * x_row = x_ptr + row * (bx / 4);
 
         for (int b = 0; b < nb; b++) {
-            const uint8_t * px = x_row + b * (qk / 4);
-            const int8_t  * py = y_ptr + b * qk;
+            const uint8_t * px = x_row + b * 32;     // 1블록(128개 텐서) = 32 바이트
+            const int8_t  * py = y_ptr + b * 128;    // 1블록 = 128 활성화 값
 
-            for (int k = 0; k < (qk / 4); k++) {
+            for (int k = 0; k < 32; k++) {
                 uint8_t xb = px[k];
 
-                // 1바이트 내의 2비트 데이터 4개를 각각 추출
-                int v0 = (xb >> 6) & 0x03;
-                int v1 = (xb >> 4) & 0x03;
-                int v2 = (xb >> 2) & 0x03;
-                int v3 =  xb       & 0x03;
+                // AVX2의 _mm256_srli_epi16 추출 순서와 100% 동일하게 분할
+                int v0 = (xb >> 6) & 0x03; // 비트 6,7
+                int v1 = (xb >> 4) & 0x03; // 비트 4,5
+                int v2 = (xb >> 2) & 0x03; // 비트 2,3
+                int v3 =  xb       & 0x03; // 비트 0,1
 
-                // [중요] 비트 값(0, 1, 2)을 실제 가중치(-1, 0, 1)로 매핑하여 곱함
-                sumi += (v0 - 1) * py[k * 4 + 0];
-                sumi += (v1 - 1) * py[k * 4 + 1];
-                sumi += (v2 - 1) * py[k * 4 + 2];
-                sumi += (v3 - 1) * py[k * 4 + 3];
+                // [핵심] AVX2 커널은 -1을 빼지 않고 0, 1, 2를 그대로 곱합니다!
+                // [핵심] AVX2는 32칸씩 건너뛰는(Interleaving) 배열 구조를 사용합니다!
+                sumi += v0 * py[k];
+                sumi += v1 * py[k + 32];
+                sumi += v2 * py[k + 64];
+                sumi += v3 * py[k + 96];
             }
         }
-        s[row] = (float)sumi;
+        // [핵심] 스케일은 상위 프레임워크(ggml_mul_mat)가 처리하므로 그대로 실수 반환!
+        s[row] = (float)sumi; 
     }
 #endif
 }
