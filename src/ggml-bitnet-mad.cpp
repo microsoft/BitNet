@@ -297,157 +297,121 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         s[row] = (float)sumi;
     }
 #elif defined(__ARM_NEON)
-    const uint8_t *    x = (uint8_t *)vx;
-    const int8_t  *    y = (int8_t *)vy;
+    // ====================================================================
+    // [Path 2] Mobile Environment: ARM NEON / DotProd Acceleration
+    // ====================================================================
+    const uint8_t * x = (uint8_t *)vx;
+    const int8_t  * y = (int8_t *)vy;
 
-    const int nb = n / QK_I2_S;
-    const int group32_num = nb / 32;
-    const int la_num = nb % 32;
-    const int groupla_num = nb % 32 != 0 ? 1 : 0;
+    // [Core Fix] GGUF files are typically packed on x86, which enforces QK=128.
+    // Removed the previous hardcoded loop unrolling (group32_num, la_num) 
+    // that assumed QK=64, preventing memory offset corruption (Word Salad bug).
+    // Refactored to a clean block-level loop (nb) to strictly match the 128 format.
+    const int QK = 128; 
+    const int nb = n / QK;
 
-    const uint8x16_t mask = vdupq_n_u8(3);
+    const uint8x16_t mask = vdupq_n_u8(0x03);
 
-    // 处理多列，nrc表示要处理的列数
     for (int row = 0; row < nrc; row++) {
         int32x4_t accu = vdupq_n_s32(0);
+        const uint8_t * x_row = x + row * (bx / 4);
 
-        // 计算当前行的x指针偏移
-        const uint8_t * x_row = x + row * bx / 4;
+        for (int b = 0; b < nb; b++) {
+            // Based on QK=128: 1 block weight = 32 bytes, 1 block activation (y) = 128 bytes
+            const uint8_t * px = x_row + b * 32;
+            const int8_t  * py = y + b * QK;
 
-        for (int i=0; i < group32_num; i++) {
+            // Split the 32-byte weights into two 16-byte chunks to fit NEON registers.
+            for (int j = 0; j < 2; j++) {
+                int k = j * 16;
+                uint8x16_t xb = vld1q_u8(px + k);
 
-#if defined(__ARM_FEATURE_DOTPROD)
+                // Extract 2-bits from MSB to LSB (100% identical to AVX2 unpacking logic)
+                int8x16_t v0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xb, 6), mask));
+                int8x16_t v1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xb, 4), mask));
+                int8x16_t v2 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xb, 2), mask));
+                int8x16_t v3 = vreinterpretq_s8_u8(vandq_u8(xb, mask));
 
-#else
-            int16x8_t accu32 = vdupq_n_s16(0);
-#endif
-            for (int j=0; j < 32; j++) {
-                uint8x16_t xq8_3 = vld1q_u8(x_row + i * 32 * 16 + j * 16);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                const int8x16_t yq8_0 = vld1q_s8(y + i * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + i * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + i * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + i * 32 * 64 + j * 64 + 48);
+                // Interleaved memory fetch jumping by 32 (Matching AVX2 layout)
+                int8x16_t y0 = vld1q_s8(py + k +  0*32);
+                int8x16_t y1 = vld1q_s8(py + k +  1*32);
+                int8x16_t y2 = vld1q_s8(py + k +  2*32);
+                int8x16_t y3 = vld1q_s8(py + k +  3*32);
 
 #if defined(__ARM_FEATURE_DOTPROD)
-                accu = vdotq_s32(accu, q8_0, yq8_0);
-                accu = vdotq_s32(accu, q8_1, yq8_1);
-                accu = vdotq_s32(accu, q8_2, yq8_2);
-                accu = vdotq_s32(accu, q8_3, yq8_3);
+                // Hardware Acceleration (Devices supporting DotProd)
+                accu = vdotq_s32(accu, v0, y0);
+                accu = vdotq_s32(accu, v1, y1);
+                accu = vdotq_s32(accu, v2, y2);
+                accu = vdotq_s32(accu, v3, y3);
 #else
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_3), vget_high_s8(yq8_3));
-#endif
-            }
+                // FMA Fallback for devices without DotProd support
+                int16x8_t accula = vdupq_n_s16(0);
+                accula = vmlal_s8(accula, vget_low_s8(v0), vget_low_s8(y0));
+                accula = vmlal_s8(accula, vget_high_s8(v0), vget_high_s8(y0));
+                accula = vmlal_s8(accula, vget_low_s8(v1), vget_low_s8(y1));
+                accula = vmlal_s8(accula, vget_high_s8(v1), vget_high_s8(y1));
+                accula = vmlal_s8(accula, vget_low_s8(v2), vget_low_s8(y2));
+                accula = vmlal_s8(accula, vget_high_s8(v2), vget_high_s8(y2));
+                accula = vmlal_s8(accula, vget_low_s8(v3), vget_low_s8(y3));
+                accula = vmlal_s8(accula, vget_high_s8(v3), vget_high_s8(y3));
 
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accu32)));
-            accu = vaddq_s32(accu, vmovl_high_s16(accu32));
-#endif
-        }
-
-        for (int i = 0; i < groupla_num; i++){
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            int16x8_t accula = vdupq_n_s16(0);
-#endif
-            for (int j = 0; j < la_num; j++) {
-                uint8x16_t xq8_3 = vld1q_u8(x_row + group32_num * 32 * 16 + j * 16);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                const int8x16_t yq8_0 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 48);
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                accu = vdotq_s32(accu, q8_0, yq8_0);
-                accu = vdotq_s32(accu, q8_1, yq8_1);
-                accu = vdotq_s32(accu, q8_2, yq8_2);
-                accu = vdotq_s32(accu, q8_3, yq8_3);
-#else
-                accula = vmlal_s8(accula, vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                accula = vmlal_s8(accula, vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                accula = vmlal_s8(accula, vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                accula = vmlal_s8(accula, vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                accula = vmlal_s8(accula, vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                accula = vmlal_s8(accula, vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                accula = vmlal_s8(accula, vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                accula = vmlal_s8(accula, vget_high_s8(q8_3), vget_high_s8(yq8_3));
+                accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accula)));
+                accu = vaddq_s32(accu, vmovl_high_s16(accula));
 #endif
             }
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accula)));
-            accu = vaddq_s32(accu, vmovl_high_s16(accula));
-#endif
         }
-        int sumi = vaddlvq_s32(accu);
-        s[row] = (float)sumi;
+        int32_t sumi = vaddvq_s32(accu);
+        s[row] = (float)sumi; 
     }
 #else
     // ====================================================================
-    // 순수 C++ 스칼라 폴백 (Scalar Fallback for ARM/Exynos)
-    // [경고] 절대 GPT/Grok의 말처럼 (v-1) 매핑이나 Scale을 넣지 마십시오!
+    // [Path 3] Pure C++ Scalar Fallback
+    // Environment: No hardware acceleration or explicitly disabled (-U__ARM_NEON)
     // ====================================================================
     const uint8_t * x_ptr = (const uint8_t *)vx;
     const int8_t  * y_ptr = (const int8_t  *)vy;
 
-    // PC에서 변환된 GGUF는 무조건 QK_I2_S = 128 로 패킹되어 있습니다.
+    // [Core Fix] Strictly enforce QK=128 to match the x86 GGUF packing standard.
+    // This prevents memory misalignment and out-of-bounds access that occurs
+    // when falling back to a scalar path that falsely assumes QK=64.
     const int qk = 128; 
     const int nb = n / qk; 
 
     for (int row = 0; row < nrc; row++) {
-        int sumi = 0;
+        // Use int32_t for the accumulator to safely prevent 16-bit overflow
+        int32_t sumi = 0;
         const uint8_t * x_row = x_ptr + row * (bx / 4);
 
         for (int b = 0; b < nb; b++) {
-            const uint8_t * px = x_row + b * 32;     // 1블록(128개 텐서) = 32 바이트
-            const int8_t  * py = y_ptr + b * 128;    // 1블록 = 128 활성화 값
+            const uint8_t * px = x_row + b * 32;     // 1 block of i2_s weights = 32 bytes
+            const int8_t  * py = y_ptr + b * 128;    // 1 block of activations = 128 bytes
 
             for (int k = 0; k < 32; k++) {
                 uint8_t xb = px[k];
 
-                // AVX2의 _mm256_srli_epi16 추출 순서와 100% 동일하게 분할
-                int v0 = (xb >> 6) & 0x03; // 비트 6,7
-                int v1 = (xb >> 4) & 0x03; // 비트 4,5
-                int v2 = (xb >> 2) & 0x03; // 비트 2,3
-                int v3 =  xb       & 0x03; // 비트 0,1
+                // Unpack 2-bit values from MSB to LSB.
+                // This extraction order is 100% mathematically identical to 
+                // the '_mm256_srli_epi16' logical shifts used in the AVX2 kernel.
+                int v0 = (xb >> 6) & 0x03; // bits 7-6
+                int v1 = (xb >> 4) & 0x03; // bits 5-4
+                int v2 = (xb >> 2) & 0x03; // bits 3-2
+                int v3 =  xb       & 0x03; // bits 1-0
 
-                // [핵심] AVX2 커널은 -1을 빼지 않고 0, 1, 2를 그대로 곱합니다!
-                // [핵심] AVX2는 32칸씩 건너뛰는(Interleaving) 배열 구조를 사용합니다!
-                sumi += v0 * py[k];
-                sumi += v1 * py[k + 32];
-                sumi += v2 * py[k + 64];
-                sumi += v3 * py[k + 96];
+                // [Crucial Math Alignment]
+                // 1. Directly multiply the extracted values (0, 1, 2) without applying 
+                //    a (-1) offset. The zero-mean property of the activations allows 
+                //    the offset correction to be handled implicitly in upper layers.
+                // 2. Fetch 'y' using a 32-stride interleaving layout to match the 
+                //    AVX2 packing standard.
+                sumi += v0 * py[k + 0*32];
+                sumi += v1 * py[k + 1*32];
+                sumi += v2 * py[k + 2*32];
+                sumi += v3 * py[k + 3*32];
             }
         }
-        // [핵심] 스케일은 상위 프레임워크(ggml_mul_mat)가 처리하므로 그대로 실수 반환!
+        // Do NOT apply the dequantization scale here. 
+        // The scale is applied later in the ggml_mul_mat graph node.
         s[row] = (float)sumi; 
     }
 #endif
