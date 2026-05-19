@@ -1,10 +1,106 @@
+diff --git a/examples/server/server.cpp b/examples/server/server.cpp
+index 18bcad3..520b558 100644
+--- a/examples/server/server.cpp
++++ b/examples/server/server.cpp
+@@ -3007,8 +3007,90 @@ int main(int argc, char ** argv) {
+
+             ctx_server.queue_results.remove_waiting_task_ids(task_ids);
+         } else {
+-            const auto chunked_content_provider = [task_ids, &ctx_server, completion_id](size_t, httplib::DataSink & sink) {
++            const bool stream_tools = data.contains("__oaicompat_tools");
++            const auto chunked_content_provider = [task_ids, &ctx_server, completion_id, stream_tools](size_t, httplib::DataSink & sink) {
++                std::string tool_stream_content;
++                bool sent_tool_role = false;
++
+                 ctx_server.receive_cmpl_results_stream(task_ids, [&](const server_task_result & result) -> bool {
++                    if (stream_tools) {
++                        std::time_t t = std::time(0);
++                        const std::string modelname = json_value(result.data, "model", std::string(DEFAULT_OAICOMPAT_MODEL));
++
++                        if (!sent_tool_role) {
++                            json role_chunk = json{
++                                {"choices", json::array({json{
++                                    {"finish_reason", nullptr},
++                                    {"index", 0},
++                                    {"delta", json{{"role", "assistant"}}}
++                                }})},
++                                {"created", t},
++                                {"id", completion_id},
++                                {"model", modelname},
++                                {"object", "chat.completion.chunk"}
++                            };
++                            if (!server_sent_event(sink, "data", role_chunk)) {
++                                return false;
++                            }
++                            sent_tool_role = true;
++                        }
++
++                        tool_stream_content += json_value(result.data, "content", std::string());
++
++                        const bool stopped_word  = json_value(result.data, "stopped_word",  false);
++                        const bool stopped_eos   = json_value(result.data, "stopped_eos",   false);
++                        const bool stopped_limit = json_value(result.data, "stopped_limit", false);
++                        if (!stopped_word && !stopped_eos && !stopped_limit) {
++                            return true;
++                        }
++
++                        std::string finish_reason = stopped_limit ? "length" : "stop";
++                        json tool_calls = parse_tool_calls_from_content(tool_stream_content, completion_id);
++                        if (!tool_calls.empty()) {
++                            finish_reason = "tool_calls";
++                            json tool_chunk = json{
++                                {"choices", json::array({json{
++                                    {"finish_reason", nullptr},
++                                    {"index", 0},
++                                    {"delta", json{{"tool_calls", tool_calls}}}
++                                }})},
++                                {"created", t},
++                                {"id", completion_id},
++                                {"model", modelname},
++                                {"object", "chat.completion.chunk"}
++                            };
++                            if (!server_sent_event(sink, "data", tool_chunk)) {
++                                return false;
++                            }
++                        } else if (!tool_stream_content.empty()) {
++                            json content_chunk = json{
++                                {"choices", json::array({json{
++                                    {"finish_reason", nullptr},
++                                    {"index", 0},
++                                    {"delta", json{{"content", tool_stream_content}}}
++                                }})},
++                                {"created", t},
++                                {"id", completion_id},
++                                {"model", modelname},
++                                {"object", "chat.completion.chunk"}
++                            };
++                            if (!server_sent_event(sink, "data", content_chunk)) {
++                                return false;
++                            }
++                        }
++
++                        json final_chunk = json{
++                            {"choices", json::array({json{{"finish_reason", finish_reason},
++                                                           {"index", 0},
++                                                           {"delta", json::object()}}})},
++                            {"created", t},
++                            {"id", completion_id},
++                            {"model", modelname},
++                            {"object", "chat.completion.chunk"}
++                        };
++                        return server_sent_event(sink, "data", final_chunk);
++                    }
++
+                     std::vector<json> result_array = format_partial_response_oaicompat(result.data, completion_id);
+                     for (auto & event_data : result_array) {
+                         if (event_data.empty()) {
 diff --git a/examples/server/utils.hpp b/examples/server/utils.hpp
-index 69519ef9..2f4e4866 100644
+index 69519ef..b5d5eea 100644
 --- a/examples/server/utils.hpp
 +++ b/examples/server/utils.hpp
 @@ -65,9 +65,21 @@ inline std::string format_chat(const struct llama_model * model, const std::stri
          std::string role = json_value(curr_msg, "role", std::string(""));
- 
+
          std::string content;
 -        if (curr_msg.contains("content")) {
 +        if (role == "tool") {
@@ -35,7 +131,7 @@ index 69519ef9..2f4e4866 100644
          } else {
              throw std::runtime_error("Missing 'content' (ref: https://github.com/ggerganov/llama.cpp/issues/8367)");
          }
- 
+
 +        if (json_value(curr_msg, "role", std::string("")) == "tool") {
 +            content += "\n\nUse the tool result above to answer the user's request now. "
 +                       "Do not call another tool. Do not output a tool name, an Input line, "
@@ -44,11 +140,11 @@ index 69519ef9..2f4e4866 100644
 +
          chat.push_back({role, content});
      }
- 
-@@ -316,6 +336,152 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
+
+@@ -316,6 +336,151 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
      return sink.write(str.c_str(), str.size());
  }
- 
+
 +static std::string trim(const std::string & str) {
 +    const auto first = str.find_first_not_of(" \t\n\r");
 +    if (first == std::string::npos) {
@@ -197,9 +293,9 @@ index 69519ef9..2f4e4866 100644
  //
  // OAI utils
  //
-@@ -329,7 +495,13 @@ static json oaicompat_completion_params_parse(
+@@ -329,7 +494,13 @@ static json oaicompat_completion_params_parse(
      llama_params["__oaicompat"] = true;
- 
+
      // Apply chat template to the list of messages
 -    llama_params["prompt"] = format_chat(model, chat_template, body.at("messages"));
 +    json messages = body.at("messages");
@@ -209,19 +305,19 @@ index 69519ef9..2f4e4866 100644
 +        llama_params["__oaicompat_tools"] = body["tools"];
 +    }
 +    llama_params["prompt"] = format_chat(model, chat_template, messages);
- 
+
      // Handle "stop" field
      if (body.contains("stop") && body.at("stop").is_string()) {
-@@ -367,7 +539,7 @@ static json oaicompat_completion_params_parse(
+@@ -367,7 +538,7 @@ static json oaicompat_completion_params_parse(
      }
- 
+
      // Params supported by OAI but unsupported by llama.cpp
 -    static const std::vector<std::string> unsupported_params { "tools", "tool_choice" };
 +    static const std::vector<std::string> unsupported_params {};
      for (const auto & param : unsupported_params) {
          if (body.contains(param)) {
              throw std::runtime_error("Unsupported param: " + param);
-@@ -378,6 +550,9 @@ static json oaicompat_completion_params_parse(
+@@ -378,6 +549,9 @@ static json oaicompat_completion_params_parse(
      // This allows user to use llama.cpp-specific params like "mirostat", "tfs_z",... via OAI endpoint.
      // See "launch_slot_with_task()" for a complete list of params supported by llama.cpp
      for (const auto & item : body.items()) {
@@ -231,10 +327,10 @@ index 69519ef9..2f4e4866 100644
          // Exception: if "n_predict" is present, we overwrite the value specified earlier by "max_tokens"
          if (!llama_params.contains(item.key()) || item.key() == "n_predict") {
              llama_params[item.key()] = item.value();
-@@ -399,14 +574,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
+@@ -399,14 +573,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
          finish_reason = "stop";
      }
- 
+
 -    json choices =
 -        streaming ? json::array({json{{"finish_reason", finish_reason},
 -                                        {"index", 0},
@@ -270,6 +366,5 @@ index 69519ef9..2f4e4866 100644
 +                                            {"message", json{{"content", content},
 +                                                             {"role", "assistant"}}}}});
 +    }
- 
+
      std::time_t t = std::time(0);
- 

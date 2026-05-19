@@ -131,6 +131,11 @@ def parse_unified_patch(patch: Path) -> Optional[list[FilePatch]]:
                 if line.startswith("\\ No newline"):
                     i += 1
                     continue
+                if line == "":
+                    old_lines.append("")
+                    new_lines.append("")
+                    i += 1
+                    continue
 
                 marker = line[:1]
                 value = line[1:]
