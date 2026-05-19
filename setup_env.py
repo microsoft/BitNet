@@ -215,7 +215,11 @@ def compile():
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
+def apply_local_patches():
+    run_command([sys.executable, "utils/apply_local_patches.py"], log_step="apply_local_patches")
+
 def main():
+    apply_local_patches()
     setup_gguf()
     gen_code()
     compile()
