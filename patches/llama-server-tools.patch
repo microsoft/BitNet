@@ -45,7 +45,7 @@ index 69519ef9..2f4e4866 100644
          chat.push_back({role, content});
      }
  
-@@ -316,6 +336,143 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
+@@ -316,6 +336,152 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
      return sink.write(str.c_str(), str.size());
  }
  
@@ -125,6 +125,14 @@ index 69519ef9..2f4e4866 100644
 +        return json::array();
 +    }
 +
++    if (parsed.is_string()) {
++        try {
++            parsed = json::parse(trim(parsed.get<std::string>()));
++        } catch (const json::parse_error &) {
++            return json::array();
++        }
++    }
++
 +    if (!parsed.is_object()) {
 +        return json::array();
 +    }
@@ -189,7 +197,7 @@ index 69519ef9..2f4e4866 100644
  //
  // OAI utils
  //
-@@ -329,7 +486,13 @@ static json oaicompat_completion_params_parse(
+@@ -329,7 +495,13 @@ static json oaicompat_completion_params_parse(
      llama_params["__oaicompat"] = true;
  
      // Apply chat template to the list of messages
@@ -204,7 +212,7 @@ index 69519ef9..2f4e4866 100644
  
      // Handle "stop" field
      if (body.contains("stop") && body.at("stop").is_string()) {
-@@ -367,7 +530,7 @@ static json oaicompat_completion_params_parse(
+@@ -367,7 +539,7 @@ static json oaicompat_completion_params_parse(
      }
  
      // Params supported by OAI but unsupported by llama.cpp
@@ -213,7 +221,7 @@ index 69519ef9..2f4e4866 100644
      for (const auto & param : unsupported_params) {
          if (body.contains(param)) {
              throw std::runtime_error("Unsupported param: " + param);
-@@ -378,6 +541,9 @@ static json oaicompat_completion_params_parse(
+@@ -378,6 +550,9 @@ static json oaicompat_completion_params_parse(
      // This allows user to use llama.cpp-specific params like "mirostat", "tfs_z",... via OAI endpoint.
      // See "launch_slot_with_task()" for a complete list of params supported by llama.cpp
      for (const auto & item : body.items()) {
@@ -223,7 +231,7 @@ index 69519ef9..2f4e4866 100644
          // Exception: if "n_predict" is present, we overwrite the value specified earlier by "max_tokens"
          if (!llama_params.contains(item.key()) || item.key() == "n_predict") {
              llama_params[item.key()] = item.value();
-@@ -399,14 +565,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
+@@ -399,14 +574,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
          finish_reason = "stop";
      }
  
