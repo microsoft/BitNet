@@ -45,7 +45,7 @@ index 69519ef9..2f4e4866 100644
          chat.push_back({role, content});
      }
  
-@@ -316,6 +336,134 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
+@@ -316,6 +336,137 @@ static bool server_sent_event(httplib::DataSink & sink, const char * event, cons
      return sink.write(str.c_str(), str.size());
  }
  
@@ -126,11 +126,15 @@ index 69519ef9..2f4e4866 100644
 +    }
 +
 +    json calls = json::array();
++    json normalized_tool_calls = json::array();
 +    const json * tool_calls_json = nullptr;
 +    if (parsed.contains("tool_calls") && parsed["tool_calls"].is_array()) {
 +        tool_calls_json = &parsed["tool_calls"];
 +    } else if (parsed.contains("tool_call") && parsed["tool_call"].is_array()) {
 +        tool_calls_json = &parsed["tool_call"];
++    } else if (parsed.contains("tool_call") && parsed["tool_call"].is_object()) {
++        normalized_tool_calls.push_back(parsed["tool_call"]);
++        tool_calls_json = &normalized_tool_calls;
 +    }
 +
 +    if (tool_calls_json != nullptr) {
@@ -166,7 +170,7 @@ index 69519ef9..2f4e4866 100644
 +    ss << body["tools"].dump(2) << "\n\n";
 +    ss << "If a tool is required, respond only with strict JSON in this exact shape:\n";
 +    ss << "{\"tool_calls\":[{\"name\":\"tool_name\",\"arguments\":{\"arg\":\"value\"}}]}\n";
-+    ss << "The key must be exactly \"tool_calls\". Do not use \"tool_call\".\n";
++    ss << "Prefer the \"tool_calls\" array key. A single \"tool_call\" object is accepted for compatibility.\n";
 +    ss << "Do not include markdown or explanatory text around a tool call. ";
 +    ss << "If no tool is required, answer normally.";
 +
@@ -180,7 +184,7 @@ index 69519ef9..2f4e4866 100644
  //
  // OAI utils
  //
-@@ -329,7 +477,13 @@ static json oaicompat_completion_params_parse(
+@@ -329,7 +480,13 @@ static json oaicompat_completion_params_parse(
      llama_params["__oaicompat"] = true;
  
      // Apply chat template to the list of messages
@@ -195,7 +199,7 @@ index 69519ef9..2f4e4866 100644
  
      // Handle "stop" field
      if (body.contains("stop") && body.at("stop").is_string()) {
-@@ -367,7 +521,7 @@ static json oaicompat_completion_params_parse(
+@@ -367,7 +524,7 @@ static json oaicompat_completion_params_parse(
      }
  
      // Params supported by OAI but unsupported by llama.cpp
@@ -204,7 +208,7 @@ index 69519ef9..2f4e4866 100644
      for (const auto & param : unsupported_params) {
          if (body.contains(param)) {
              throw std::runtime_error("Unsupported param: " + param);
-@@ -378,6 +532,9 @@ static json oaicompat_completion_params_parse(
+@@ -378,6 +535,9 @@ static json oaicompat_completion_params_parse(
      // This allows user to use llama.cpp-specific params like "mirostat", "tfs_z",... via OAI endpoint.
      // See "launch_slot_with_task()" for a complete list of params supported by llama.cpp
      for (const auto & item : body.items()) {
@@ -214,7 +218,7 @@ index 69519ef9..2f4e4866 100644
          // Exception: if "n_predict" is present, we overwrite the value specified earlier by "max_tokens"
          if (!llama_params.contains(item.key()) || item.key() == "n_predict") {
              llama_params[item.key()] = item.value();
-@@ -399,14 +556,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
+@@ -399,14 +559,33 @@ static json format_final_response_oaicompat(const json & request, const json & r
          finish_reason = "stop";
      }
  
