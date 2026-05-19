@@ -75,7 +75,9 @@ def ensure_server_cors_patch() -> None:
         print("Failed to locate expected CORS preflight lines in server.cpp", file=sys.stderr)
         sys.exit(1)
 
-    SERVER_CPP.write_text(content[:start] + NEW_CORS_BLOCK.rstrip("\n") + content[end:], encoding="utf-8")
+    newline = "\r\n" if "\r\n" in content else "\n"
+    cors_block = NEW_CORS_BLOCK.rstrip("\n").replace("\n", newline)
+    SERVER_CPP.write_text(content[:start] + cors_block + content[end:], encoding="utf-8")
     print("Applied llama.cpp CORS patch")
 
 
@@ -98,7 +100,7 @@ def parse_unified_patch(patch: Path) -> Optional[list[FilePatch]]:
         while i < len(patch_lines) and not patch_lines[i].startswith("--- "):
             i += 1
         if i >= len(patch_lines):
-            return False
+            return None
 
         i += 1
         if i >= len(patch_lines) or not patch_lines[i].startswith("+++ b/"):
@@ -153,6 +155,7 @@ def parse_unified_patch(patch: Path) -> Optional[list[FilePatch]]:
 def simulate_file_patch(file_patch: FilePatch) -> tuple[str, Optional[str]]:
     original = file_patch.target.read_text(encoding="utf-8")
     newline = "\r\n" if "\r\n" in original else "\n"
+    has_trailing_newline = original.endswith(("\n", "\r"))
     original_lines = original.splitlines()
     patched_lines = original_lines.copy()
     apply_offset = 0
@@ -174,7 +177,10 @@ def simulate_file_patch(file_patch: FilePatch) -> tuple[str, Optional[str]]:
         already_offset += len(hunk.new_lines) - len(hunk.old_lines)
 
     if can_apply:
-        return "apply", newline.join(patched_lines) + newline
+        patched_content = newline.join(patched_lines)
+        if has_trailing_newline:
+            patched_content += newline
+        return "apply", patched_content
     if already_applied:
         return "already", None
     return "failed", None
