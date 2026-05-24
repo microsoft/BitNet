@@ -23,11 +23,17 @@ import gguf
 
 logger = logging.getLogger("convert-bitnet-embedding")
 
+# Supported architectures: model_type -> gguf arch name
+SUPPORTED_ARCHS = {
+    "qwen3":       "qwen3",
+    "gemma3_text": "gemma3",
+}
+
 # ---------------------------------------------------------------------------
 # Tensor name mapping: HuggingFace -> GGUF
 # ---------------------------------------------------------------------------
 
-def build_tensor_name_map(n_layers: int) -> dict[str, str]:
+def build_tensor_name_map(n_layers: int, arch: str) -> dict[str, str]:
     """Build HF tensor name -> GGUF tensor name mapping."""
     mapping: dict[str, str] = {
         "embed_tokens.weight": "token_embd.weight",
@@ -41,7 +47,6 @@ def build_tensor_name_map(n_layers: int) -> dict[str, str]:
         mapping.update({
             # Layer norms
             f"{pfx}.input_layernorm.weight":           f"{blk}.attn_norm.weight",
-            f"{pfx}.post_attention_layernorm.weight":   f"{blk}.ffn_norm.weight",
 
             # Self-attention projections
             f"{pfx}.self_attn.q_proj.weight":           f"{blk}.attn_q.weight",
@@ -49,7 +54,7 @@ def build_tensor_name_map(n_layers: int) -> dict[str, str]:
             f"{pfx}.self_attn.v_proj.weight":           f"{blk}.attn_v.weight",
             f"{pfx}.self_attn.o_proj.weight":           f"{blk}.attn_output.weight",
 
-            # QK head norms (standard Qwen3)
+            # QK head norms
             f"{pfx}.self_attn.q_norm.weight":           f"{blk}.attn_q_norm.weight",
             f"{pfx}.self_attn.k_norm.weight":           f"{blk}.attn_k_norm.weight",
 
@@ -70,20 +75,29 @@ def build_tensor_name_map(n_layers: int) -> dict[str, str]:
             f"{pfx}.mlp.down_proj.norm.weight":         f"{blk}.ffn_down_norm_in.weight",
         })
 
+        if arch == "qwen3":
+            mapping[f"{pfx}.post_attention_layernorm.weight"] = f"{blk}.ffn_norm.weight"
+        elif arch == "gemma3_text":
+            mapping.update({
+                f"{pfx}.post_attention_layernorm.weight":   f"{blk}.post_attention_norm.weight",
+                f"{pfx}.pre_feedforward_layernorm.weight":  f"{blk}.ffn_norm.weight",
+                f"{pfx}.post_feedforward_layernorm.weight": f"{blk}.post_ffw_norm.weight",
+            })
+
     return mapping
 
 
 # ---------------------------------------------------------------------------
-# Tokenizer handling (GPT-2 / BPE for Qwen3)
+# Tokenizer handling
 # ---------------------------------------------------------------------------
 
-def get_vocab_base_pre(tokenizer) -> str:
+def get_vocab_base_pre(tokenizer, arch: str) -> str:
     # encoding this string and hashing the resulting tokens would (hopefully) give us a unique identifier that
     # is specific for the BPE pre-tokenizer used by the model
     # we will use this unique identifier to write a "tokenizer.ggml.pre" entry in the GGUF file which we can
     # use in llama.cpp to implement the same pre-tokenizer
 
-    chktxt = '\n \n\n \n\n\n \t \t\t \t\n  \n   \n    \n     \n\U0001f680 (normal) \U0001f636‍\U0001f32b️ (multiple emojis concatenated) ✅ \U0001f999\U0001f999 3 33 333 3333 33333 333333 3333333 33333333 3.3 3..3 3...3 កាន់តែពិសេសអាច\U0001f601 ?我想在apple工作1314151天～ ------======= нещо на Български \'\'\'\'\'\'```````""""......!!!!!!?????? I\'ve been \'told he\'s there, \'RE you sure? \'M not sure I\'ll make it, \'D you like some tea? We\'Ve a\'lL'
+    chktxt = '\n \n\n \n\n\n \t \t\t \t\n  \n   \n    \n     \n\U0001f680 (normal) \U0001f636‍\U0001f32b️ (multiple emojis concatenated) ✅ \U0001f999\U0001f999 3 33 333 3333 33333 333333 3333333 33333333 3.3 3..3 3...3 កាន់តែពិសេសអាច\U0001f601 ?我想在apple工作1314151天～ ------======= нещо на Български \'\'\'\'\'\'```````""""""......!!!!!!?????? I\'ve been \'told he\'s there, \'RE you sure? \'M not sure I\'ll make it, \'D you like some tea? We\'Ve a\'lL'
 
     chktok = tokenizer.encode(chktxt)
     chkhsh = sha256(str(chktok).encode()).hexdigest()
@@ -93,27 +107,38 @@ def get_vocab_base_pre(tokenizer) -> str:
 
     res = None
 
-    # NOTE: if you get an error here, you need to update the convert_hf_to_gguf_update.py script
-    #       or pull the latest version of the model from Huggingface
-    #       don't edit the hashes manually!
-    if chkhsh == "0ef9807a4087ebef797fc749390439009c3b9eda9ad1a097abbe738f486c01e5":
-        # ref: https://huggingface.co/meta-llama/Meta-Llama-3-8B
-        res = "llama-bpe"
-    if chkhsh == "049ecf7629871e3041641907f3de7c733e4dbfdc736f57d882ba0b0845599754":
-        # ref: https://huggingface.co/deepseek-ai/deepseek-llm-7b-base
-        res = "deepseek-llm"
-    if chkhsh == "347715f544604f9118bb75ed199f68779f423cabb20db6de6f31b908d04d7821":
-        # ref: https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-base
-        res = "deepseek-coder"
-    if chkhsh == "8aeee3860c56296a157a1fe2fad249ec40aa59b1bb5709f4ade11c4e6fe652ed":
-        # ref: https://huggingface.co/tiiuae/falcon-7b
-        res = "falcon"
-    if chkhsh == "3ce83efda5659b07b1ad37ca97ca5797ea4285d9b9ab0dc679e4a720c9da7454":
-        # ref: https://huggingface.co/openai-community/gpt2
-        res = "gpt-2"
-    if chkhsh == "d4540891389ea895b53b399da6ac824becc30f2fba0e9ddbb98f92e55ca0e97c":
-        # ref: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
-        res = "qwen2"
+    if arch == "qwen3":
+        # NOTE: if you get an error here, you need to update the convert_hf_to_gguf_update.py script
+        #       or pull the latest version of the model from Huggingface
+        #       don't edit the hashes manually!
+        if chkhsh == "0ef9807a4087ebef797fc749390439009c3b9eda9ad1a097abbe738f486c01e5":
+            # ref: https://huggingface.co/meta-llama/Meta-Llama-3-8B
+            res = "llama-bpe"
+        if chkhsh == "049ecf7629871e3041641907f3de7c733e4dbfdc736f57d882ba0b0845599754":
+            # ref: https://huggingface.co/deepseek-ai/deepseek-llm-7b-base
+            res = "deepseek-llm"
+        if chkhsh == "347715f544604f9118bb75ed199f68779f423cabb20db6de6f31b908d04d7821":
+            # ref: https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-base
+            res = "deepseek-coder"
+        if chkhsh == "8aeee3860c56296a157a1fe2fad249ec40aa59b1bb5709f4ade11c4e6fe652ed":
+            # ref: https://huggingface.co/tiiuae/falcon-7b
+            res = "falcon"
+        if chkhsh == "3ce83efda5659b07b1ad37ca97ca5797ea4285d9b9ab0dc679e4a720c9da7454":
+            # ref: https://huggingface.co/openai-community/gpt2
+            res = "gpt-2"
+        if chkhsh == "d4540891389ea895b53b399da6ac824becc30f2fba0e9ddbb98f92e55ca0e97c":
+            # ref: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
+            res = "qwen2"
+        if chkhsh == "855d9fb74bb0b28ce2305e9cd037ff6d8c798f18d19381ddfc14bea3dc9c002f":
+            # ref: multilingual-e5-0.6b-260311 (Qwen3 tokenizer variant)
+            res = "qwen2"
+    elif arch == "gemma3_text":
+        if chkhsh == "fcb6bf9f20f6c40fa4aa4f7f99607bd6c106ca2348efdacacdca8152e59dcfe9":
+            # ref: multilingual-e5-270m-260311 (Gemma3 tokenizer)
+            res = "default"
+        if chkhsh == "a8594e3edff7c29c003940395316294b2c623571571fc8d3d2d6571f5571cbe6":
+            # ref: google/gemma-2-9b
+            res = "default"
 
     if res is None:
         logger.warning("\n")
@@ -146,13 +171,29 @@ def _does_token_look_special(token: str) -> bool:
     return False
 
 
-def set_vocab(gguf_writer: gguf.GGUFWriter, dir_model: Path, hparams: dict):
-    """Set GPT-2 BPE vocab for Qwen3."""
+def set_vocab(gguf_writer: gguf.GGUFWriter, dir_model: Path, hparams: dict, arch: str):
+    """Set tokenizer vocab.
+
+    - Qwen3: BPE tokenizer (tokenizer.ggml.model = "gpt2")
+    - Gemma3: SPM-compatible tokenizer from tokenizer.json (tokenizer.ggml.model = "llama")
+      Gemma uses SentencePiece-style tokenization with ▁ space prefix and byte fallback.
+      Using "llama" model type ensures llama.cpp uses the correct SPM pre-tokenizer
+      instead of the BPE regex-based pre-tokenizer which breaks CJK tokenization.
+    """
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(dir_model)
     vocab_size = hparams.get("vocab_size", len(tokenizer.vocab))
 
-    tokpre = get_vocab_base_pre(tokenizer)
+    if arch == "gemma3_text":
+        _set_vocab_gemma3(gguf_writer, dir_model, tokenizer, vocab_size)
+    else:
+        _set_vocab_bpe(gguf_writer, dir_model, tokenizer, vocab_size, arch)
+
+
+def _set_vocab_bpe(gguf_writer: gguf.GGUFWriter, dir_model: Path,
+                   tokenizer, vocab_size: int, arch: str):
+    """Set BPE vocab (for Qwen3)."""
+    tokpre = get_vocab_base_pre(tokenizer, arch)
 
     tokens: list[str] = []
     toktypes: list[int] = []
@@ -176,7 +217,6 @@ def set_vocab(gguf_writer: gguf.GGUFWriter, dir_model: Path, hparams: dict):
             if added_tokens_decoder[i].special or _does_token_look_special(token):
                 toktypes.append(gguf.TokenType.CONTROL)
             else:
-                # Pre-normalize user-defined spaces (for Gemma-style tokenizers)
                 token = token.replace(b"\xe2\x96\x81".decode("utf-8"), " ")
                 toktypes.append(gguf.TokenType.USER_DEFINED)
 
@@ -191,14 +231,105 @@ def set_vocab(gguf_writer: gguf.GGUFWriter, dir_model: Path, hparams: dict):
     gguf_writer.add_token_types(toktypes)
 
     special_vocab = gguf.SpecialVocab(dir_model, load_merges=True)
-    # Override EOS token: PyTorch tokenizer appends <|endoftext|> (151643) as the
-    # sentence-end marker, not <|im_end|> (151645). For last-token pooling to work
-    # correctly, llama.cpp must append the same token.
-    special_vocab.special_token_ids["eos"] = 151643
+
+    if arch == "qwen3":
+        # Override EOS token: PyTorch tokenizer appends <|endoftext|> (151643) as the
+        # sentence-end marker, not <|im_end|> (151645). For last-token pooling to work
+        # correctly, llama.cpp must append the same token.
+        special_vocab.special_token_ids["eos"] = 151643
+
     special_vocab.add_to_gguf(gguf_writer)
 
-    # Embedding models need EOS token appended for last-token pooling
-    gguf_writer.add_add_eos_token(True)
+    if arch == "qwen3":
+        # Embedding models need EOS token appended for last-token pooling
+        gguf_writer.add_add_eos_token(True)
+
+
+def _set_vocab_gemma3(gguf_writer: gguf.GGUFWriter, dir_model: Path,
+                      tokenizer, vocab_size: int):
+    """Set SPM-compatible vocab for Gemma3.
+
+    Gemma's tokenizer is SentencePiece-based (BPE variant with ▁ space prefix
+    and byte fallback). We read tokenizer.json to extract vocab and compute
+    BPE merge scores, then write as tokenizer.ggml.model = "llama" so llama.cpp
+    uses the SPM code path (correct pre-tokenizer behavior for CJK etc.).
+
+    Score assignment:
+      - BPE merge results get scores derived from merge rank (lower rank = higher score)
+      - Single-char / byte tokens get score 0
+      - Special / added tokens get score -1000
+    """
+    tokenizer_json_file = dir_model / "tokenizer.json"
+    if not tokenizer_json_file.exists():
+        raise FileNotFoundError(f"tokenizer.json not found in {dir_model}")
+
+    with open(tokenizer_json_file, encoding="utf-8") as f:
+        tokenizer_json = json.load(f)
+
+    bpe_vocab = tokenizer_json["model"]["vocab"]  # token_str -> token_id
+    bpe_merges = tokenizer_json["model"].get("merges", [])
+
+    # Build merge result -> rank mapping for score computation
+    # merge_scores[result_token] = -rank (lower rank = earlier merge = higher priority)
+    merge_scores: dict[str, float] = {}
+    for rank, merge in enumerate(bpe_merges):
+        if isinstance(merge, list):
+            result = "".join(merge)
+        else:
+            parts = merge.split(" ", 1)
+            result = "".join(parts)
+        if result not in merge_scores:
+            merge_scores[result] = -float(rank)
+
+    # Build token arrays
+    reverse_vocab = {v: k for k, v in bpe_vocab.items()}
+    added_tokens_decoder = tokenizer.added_tokens_decoder
+
+    tokens: list[bytes] = []
+    scores: list[float] = []
+    toktypes: list[int] = []
+
+    for i in range(vocab_size):
+        if i not in reverse_vocab:
+            tokens.append(f"[PAD{i}]".encode("utf-8"))
+            scores.append(-10000.0)
+            toktypes.append(gguf.TokenType.UNUSED)
+            continue
+
+        token_str = reverse_vocab[i]
+        token_bytes = token_str.encode("utf-8")
+
+        # Determine token type
+        if i in added_tokens_decoder:
+            tok_data = added_tokens_decoder[i]
+            if tok_data.special or _does_token_look_special(token_str):
+                toktypes.append(gguf.TokenType.CONTROL)
+            else:
+                toktypes.append(gguf.TokenType.USER_DEFINED)
+            scores.append(-1000.0)
+        elif token_str.startswith("<0x") and token_str.endswith(">") and len(token_str) == 6:
+            # Byte token: <0xHH>
+            toktypes.append(gguf.TokenType.BYTE)
+            scores.append(0.0)
+        elif token_str == "<unk>":
+            toktypes.append(gguf.TokenType.UNKNOWN)
+            scores.append(0.0)
+        else:
+            toktypes.append(gguf.TokenType.NORMAL)
+            # Score from merge rank, or 0 for single-char tokens
+            scores.append(merge_scores.get(token_str, 0.0))
+
+        tokens.append(token_bytes)
+
+    gguf_writer.add_tokenizer_model("llama")
+    gguf_writer.add_tokenizer_pre("default")
+    gguf_writer.add_token_list(tokens)
+    gguf_writer.add_token_scores(scores)
+    gguf_writer.add_token_types(toktypes)
+    gguf_writer.add_add_space_prefix(False)
+
+    special_vocab = gguf.SpecialVocab(dir_model, load_merges=False)
+    special_vocab.add_to_gguf(gguf_writer)
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +391,7 @@ def set_gguf_parameters(gguf_writer: gguf.GGUFWriter, hparams: dict, dir_model: 
         pooling_type = gguf.PoolingType.MEAN
     gguf_writer.add_pooling_type(pooling_type)
 
-    logger.info(f"  n_layers={n_layers}, n_embd={n_embd}, n_head={n_head}, n_head_kv={n_head_kv}, n_ff={n_ff}")
+    logger.info(f"  n_layers={n_layers}, n_embd={n_embd}, n_head={n_head}, n_head_kv={n_head_kv}, n_ff={n_ff}, head_dim={head_dim}")
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +497,7 @@ def quantize_to_i2_s(w: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert bitnet-embeddings to GGUF")
+    parser = argparse.ArgumentParser(description="Convert bitnet-embeddings (Qwen3/Gemma3) to GGUF")
     parser.add_argument("model", type=Path, help="Model directory")
     parser.add_argument("--outfile", type=Path, default=None, help="Output GGUF file")
     parser.add_argument("--outtype", choices=["f32", "f16", "i2_s"], default="f16",
@@ -390,9 +521,12 @@ def main():
     with open(dir_model / "config.json") as f:
         hparams = json.load(f)
 
-    arch = hparams.get("model_type", "qwen3")
-    assert arch == "qwen3", f"Expected qwen3 architecture, got {arch}"
+    arch = hparams.get("model_type", "")
+    if arch not in SUPPORTED_ARCHS:
+        logger.error(f"Unsupported model_type '{arch}'. Supported: {list(SUPPORTED_ARCHS.keys())}")
+        sys.exit(1)
 
+    gguf_arch = SUPPORTED_ARCHS[arch]
     n_layers = hparams["num_hidden_layers"]
 
     # Determine ftype
@@ -403,20 +537,20 @@ def main():
     else:  # i2_s
         ftype = 40  # LLAMA_FTYPE_MOSTLY_I2_S
 
-    logger.info(f"Converting {dir_model.name} to GGUF ({args.outtype})")
+    logger.info(f"Converting {dir_model.name} (arch={arch}) to GGUF ({args.outtype})")
 
     # Create GGUF writer
-    gguf_writer = gguf.GGUFWriter(str(args.outfile), "qwen3")
+    gguf_writer = gguf.GGUFWriter(str(args.outfile), gguf_arch)
 
     # Set parameters
     set_gguf_parameters(gguf_writer, hparams, dir_model, ftype)
 
     # Set vocab
     logger.info("Setting tokenizer/vocab...")
-    set_vocab(gguf_writer, dir_model, hparams)
+    set_vocab(gguf_writer, dir_model, hparams, arch)
 
     # Build tensor name map
-    tensor_map = build_tensor_name_map(n_layers)
+    tensor_map = build_tensor_name_map(n_layers, arch)
 
     # Process tensors
     logger.info("Processing tensors...")
@@ -473,6 +607,16 @@ def main():
 
         else:
             # norms, 1D tensors
+            # Gemma3 RMSNorm uses (1+w)*x instead of w*x; preprocess w -> w+1
+            # so llama.cpp's standard RMSNorm produces correct results.
+            # NOTE: *_norm_in weights are BitLinear standard RMSNorm (initialized ~1.0),
+            # NOT Gemma3RMSNorm (initialized ~0.0), so they must NOT get +1.
+            is_gemma3_native_norm = (arch == "gemma3_text" and is_norm
+                                     and not gguf_name.endswith("_norm_in.weight"))
+            if is_gemma3_native_norm:
+                data = data.astype(np.float32) + 1.0
+                logger.info(f"    [Gemma3 norm offset] {gguf_name}: applied w = w + 1")
+
             if args.outtype in ("f16", "i2_s"):
                 data = data.astype(np.float16)
                 logger.info(f"  {gguf_name}: {list(data_torch.shape)} {old_dtype} -> float16")
