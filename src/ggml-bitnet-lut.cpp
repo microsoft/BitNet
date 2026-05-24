@@ -5,9 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __x86_64__
+#include <immintrin.h>
+#endif
+
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
+
+#if defined(GGML_BITNET_ARM_TL1) || defined(GGML_BITNET_X86_TL2)
 #include "bitnet-lut-kernels.h"
+#endif
 
 #if defined(GGML_BITNET_ARM_TL1)
 
