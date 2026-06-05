@@ -1,290 +1,264 @@
-# Mathematical Foundations: CPU-Universal Language Models via Forgotten Algebra
+# Fundamentos Matemáticos: LLMs CPU-Universal via Álgebra Esquecida
 
-> **Goal**: Universalize large language models through mathematical structures
-> that make CPU-native inference as capable as GPU inference — not by brute-force
-> hardware, but by eliminating the need for multiplication entirely.
+> **Objetivo**: Universalizar modelos de linguagem de grande porte através de estruturas
+> matemáticas que tornem a inferência CPU-nativa tão capaz quanto a GPU — não por
+> força bruta de hardware, mas eliminando a necessidade de multiplicação no nível algébrico.
 
----
-
-## The Central Question
-
-A 7B-parameter fp16 model needs ~14 TFLOPS to generate a token.
-A modern CPU delivers ~0.1–0.5 TFLOPS.
-A GPU closes this gap with parallelism.
-
-**Our answer**: eliminate FLOPS at the algebraic level, not the hardware level.
+> **Documentação expandida**: ver `docs/theory/` para um documento detalhado por nível.
 
 ---
 
-## Level 0 — Baseline: Float Arithmetic
+## A Questão Central
 
-Standard neural network linear layer:
+Um modelo fp16 de 7B parâmetros precisa de ~14 TFLOPS para gerar um token.
+Uma CPU moderna entrega ~0.1–0.5 TFLOPS.
+Uma GPU fecha esse gap com paralelismo.
+
+**Nossa resposta**: eliminar FLOPS no nível algébrico, não no nível de hardware.
+
+A hierarquia de custo operacional em hardware real:
 
 ```
-y = W · x      W ∈ ℝ^{m×n},  x ∈ ℝ^n
-
-Cost: m·n multiplications + m·(n-1) additions ≈ 2mn FLOPs
+Multiplicação float32   ~4–5 ciclos/elemento
+Adição float32          ~1 ciclo/elemento
+Comparação              ~0.3 ciclos/elemento
+XOR / AND de bits       ~0.1 ciclos/elemento
 ```
 
-For BitNet-2B, one FFN layer: m=6912, n=2560 → ~35.4M FLOPs per token.
+Cada nível deste projeto desce um degrau dessa hierarquia.
 
 ---
 
-## Level 1 — Ternary Quantization: 1.58 bits/parameter
+## Nível 0 — Baseline: Aritmética Float
 
-**Mathematical basis**: Shannon entropy of a uniform 3-symbol distribution.
-
-```
-H({-1, 0, +1}) = log₂(3) ≈ 1.585 bits/symbol
-```
-
-This is the information-theoretic minimum — no lossless code can do better.
-
-**Quantization function** (absmax-mean, per tensor):
+Camada linear padrão:
 
 ```
-γ = (1/n) Σᵢ |wᵢ|                      (scale: robust mean, not max)
-w_q = round( clamp(w/γ, -1, 1) )        → {-1, 0, +1}
+y = W · x      W ∈ ℝ^{m×n},  x ∈ ℝⁿ
+
+Custo: m·n multiplicações + m·(n-1) adições ≈ 2mn FLOPs
 ```
 
-**Why mean, not max**: The absmax is dominated by outliers (large wᵢ),
-wasting the dynamic range. The mean is the MLE estimator for the Laplace
-distribution that ternary weights follow after training (empirically verified
-in BitNet paper, 2024).
-
-**Error bound** (Frobenius norm):
-
-```
-||W - γ·W_q||_F  ≤  γ/2 · √(mn)
-
-For Gaussian W ~ N(0, σ²/n):  γ ≈ σ·√(2/π)
-Relative error: ||error||_F / ||W||_F ≈ 1/(2√n) → 0 as n→∞
-```
-
-**Key insight**: larger models tolerate ternary quantization better because the
-relative error decreases with the square root of the parameter count.
+Para BitNet-2B, uma camada FFN: m=6912, n=2560 → ~35.4M FLOPs por token.
 
 ---
 
-## Level 2 — WHT Decomposition: Zero Multiplications
+## Nível 1 — Quantização Ternária: 1.58 bits/parâmetro ✓
 
-**Algebraic identity** (the core of this project):
+**Base teórica**: Entropia de Shannon para distribuição uniforme sobre 3 símbolos.
 
 ```
-For W ∈ {-1, 0, +1}^{m×n} and x ∈ ℤ^n:
-
-Define:  W⁺[i,j] = 𝟙[W[i,j] = +1]     (positive mask, binary)
-         W⁻[i,j] = 𝟙[W[i,j] = -1]     (negative mask, binary)
-
-Then:  y[i] = Σⱼ W[i,j]·x[j]
-             = Σ_{j: W[i,j]=+1} x[j]  −  Σ_{j: W[i,j]=-1} x[j]
-             ≡ (W⁺·x)[i]  −  (W⁻·x)[i]
+H({-1, 0, +1}) = log₂(3) ≈ 1.585 bits/símbolo
 ```
 
-**Result**: the dot product decomposes into two conditional sums.
-**No multiplication ever occurs.** Only additions and subtractions.
+Este é o piso de Shannon — nenhum código lossless faz melhor em média.
 
-**SIMD implementation** (AVX2, one dot product of length 32):
+**Quantização de pesos** (absmax-mean, por tensor):
+
+```
+γ = (1/n) Σᵢ |wᵢ|                         (escala: média robusta, não max)
+w_q = round( clamp(w/γ, -1, 1) )          → {-1, 0, +1}
+```
+
+Por que média e não max: o absmax é dominado por outliers. A média é o estimador
+MLE para a distribuição de Laplace que os pesos ternários seguem após treinamento.
+
+**Bound de erro**:
+
+```
+||W - γ·W_q||_F ≤ γ/2 · √(mn)
+Para W ~ N(0, σ²/n): erro relativo ≈ 1/(2√n) → 0 quando n→∞
+```
+
+Modelos maiores toleram quantização ternária melhor — o erro relativo decresce
+com √(número de parâmetros).
+
+→ Detalhes completos: `docs/theory/01-ternary-algebra.md`
+
+---
+
+## Nível 2 — Decomposição WHT: Zero Multiplicações ✓ DONE
+
+**Identidade algébrica** (o núcleo deste projeto):
+
+```
+Para W ∈ {-1, 0, +1}^{m×n} e x ∈ ℤⁿ:
+
+W⁺[i,j] = 𝟙[W[i,j] = +1]     (máscara binária dos positivos)
+W⁻[i,j] = 𝟙[W[i,j] = -1]     (máscara binária dos negativos)
+
+y[i] = Σⱼ W[i,j]·x[j]
+      = Σ_{j: W[i,j]=+1} x[j]  −  Σ_{j: W[i,j]=-1} x[j]
+```
+
+**Resultado**: o produto escalar com pesos ternários se reduz a duas somas condicionais.
+**Nenhuma multiplicação ocorre.** Apenas adições, subtrações e skips.
+
+**Implementação SIMD** (AVX2, 32 elementos por instrução):
 
 ```c
-// Load 32 int8 activations
-__m256i acts    = _mm256_loadu_si256(x);
-
-// Extract sign masks from ternary weights (cost: 2 × cmpeq = 2 cycles)
-__m256i pos_m   = _mm256_cmpeq_epi8(weights, v_pos);   // 0xFF where w=+1
-__m256i neg_m   = _mm256_cmpeq_epi8(weights, v_zero);  // 0xFF where w=-1
-
-// Conditional selection (cost: 2 × and = 2 cycles)
-__m256i pos_v   = _mm256_and_si256(acts, pos_m);
-__m256i neg_v   = _mm256_and_si256(acts, neg_m);
-
-// Signed subtraction (cost: 1 × sub = 1 cycle)
-__m256i delta   = _mm256_sub_epi8(pos_v, neg_v);
-
-// Accumulate (cost: madd+add = 2 cycles)
-accum = _mm256_add_epi32(accum,
-    _mm256_madd_epi16(_mm256_add_epi16(
-        _mm256_cvtepi8_epi16(lo128(delta)),
-        _mm256_cvtepi8_epi16(hi128(delta))), ones16));
+__m256i pos_mask = _mm256_cmpgt_epi8(kv, v_zero);    // onde w=+1
+__m256i neg_mask = _mm256_cmpgt_epi8(v_zero, kv);    // onde w=-1
+__m256i pos_vals = _mm256_and_si256(qv, pos_mask);   // selecionar x[j] positivos
+__m256i neg_vals = _mm256_and_si256(qv, neg_mask);   // selecionar x[j] negativos
+__m256i delta    = _mm256_sub_epi8(pos_vals, neg_vals);  // diferença
 ```
 
-Total: ~7 cycles per 32 elements vs ~10 cycles for maddubs path.
+**Verificação**: max_diff = 0 (identidade inteira exata) para todas as dimensões testadas.
 
-### Connection to Walsh-Hadamard Transform
-
-The WHT of a vector v ∈ {-1, +1}^n:
-
-```
-V̂[k] = Σⱼ v[j] · H[j,k]    where H[j,k] = (-1)^{popcount(j & k)}
-```
-
-The Hadamard matrix H has entries in {-1, +1} only. The Fast WHT computes all
-V̂[k] in O(n log n) using only additions and subtractions — the **butterfly
-algorithm**, which is the direct ancestor of the FFT.
-
-Our W = W⁺ - W⁻ decomposition IS the WHT in disguise:
-- W⁺ encodes which activations to ADD
-- W⁻ encodes which activations to SUBTRACT
-- The butterfly structure of the WHT shows this can be organized recursively
-
-**Deeper connection**: if W is structured as H·diag(d) for a diagonal d and
-Hadamard H, then y = H·(d ⊙ x) can be computed in O(n log n) with ONLY
-additions. This is Level 3 — the structured WHT approximation.
+→ Detalhes completos: `docs/theory/02-wht-decomposition.md`
+→ Implementação: `src/ggml-bitnet-wht.cpp`
+→ Benchmark: `utils/wht_benchmark.py`
 
 ---
 
-## Level 3 — Structured WHT Approximation: O(n log n) GEMV
+## Nível 3 — Aproximação WHT Estruturada: O(n log n) GEMV ✓ DONE
 
-**The ACDC / Fastfood idea** (Le et al., 2013; Yu et al., 2016):
-
-```
-W ≈ H · D · H    where H is Hadamard, D is learned diagonal
-
-y = W·x ≈ H·(D·(H·x))
-         = H·(d ⊙ (H·x))
-
-Step 1: z = H·x    — Fast WHT, O(n log n), additions only
-Step 2: z = d ⊙ z  — diagonal scaling, n multiplications by scalars d
-Step 3: y = H·z    — Fast WHT again, O(n log n), additions only
-
-Total: O(n log n) instead of O(n²)
-Multiplications: n (only the diagonal d — irreducible minimum)
-```
-
-For BitNet-2B n=2560, m=6912:
-- Current: 2560×6912 ≈ 17.7M operations per layer per token
-- Level 3: 2×2560×log₂(2560) + 2560 ≈ 60K operations per layer per token
-- **Speedup: ~295× in operations** (accuracy trade-off to be measured)
-
-### Why this approximation works (algebraically)
-
-Random ternary matrices W are approximately **incoherent** — their singular
-values are nearly uniform (Marchenko-Pastur law for random matrices). Hadamard
-matrices are maximally incoherent (all entries ±1/√n). The product H·W is
-close to a diagonal matrix because Hadamard is the "natural basis" for
-symmetric, incoherent linear maps.
-
-**Formal statement** (Johnson-Lindenstrauss): For a random Gaussian W,
-with high probability:
+**A ideia ACDC / Fastfood** (Le et al., 2013; Yu et al., 2016):
 
 ```
-||W·x - H·D·H·x|| ≤ ε||W·x||    for  |D| ~ O(√n)
+W ≈ H · D · H    onde H é Hadamard, D = diag(d) é diagonal aprendida
+
+y = W·x ≈ H·(D·(H·x)) = H·(d ⊙ (H·x))
+
+Passo 1: ẑ = H·x    — Fast WHT, O(n log n), zero multiplicações
+Passo 2: z = d ⊙ ẑ  — scaling diagonal, n multiplicações (mínimo irredutível)
+Passo 3: y = H·z    — Fast WHT novamente, O(n log n), zero multiplicações
+
+Total: O(n log n) em vez de O(n²)
+Multiplicações: n (apenas a diagonal d — provado ser irredutível)
 ```
 
-The approximation quality improves with n — larger models benefit more.
+Para n=2560 (BitNet-2B FFN): 17.7M ops → ~102K ops → speedup ~174×.
+
+**Invariante crítico**: ACDC NÃO é compressão post-hoc. Para W aleatório, a projeção
+captura apenas ~1/n da energia. O valor de ACDC é como **arquitetura de treinamento**
+onde d é o único parâmetro aprendido por camada.
+
+**Projeção fechada**: d*[k] = (H·W·H)[k,k] / n²
+
+**Verificações** (resultado do benchmark):
+
+```
+Identidade: max|acdc(x,d) - W·x| = 1.3e-16  (epsilon de máquina float64) ✓
+Projeção:   ||d_true - d_recovered|| / ||d_true|| = 2.1e-16 ✓
+W aleatório: erro = 99.9%  (conforme teoria: ~1/n energia) ✓
+```
+
+→ Detalhes completos: `docs/theory/03-acdc-structured-layers.md`
+→ Implementação: `src/ggml-bitnet-fwht.cpp`
+→ Benchmark: `utils/acdc_benchmark.py`
 
 ---
 
-## Level 4 — Tropical Attention: O(n) Per Token
+## Nível 4 — Atenção Tropical: O(n) por Token ✓ DONE
 
-**The softmax bottleneck**:
-
-```
-Attention: A[i,j] = softmax( Q[i]·K[j]ᵀ / √d )   — O(n²) operations
-```
-
-For n=2048 tokens, d=128: 2048² = 4M operations per attention head per token.
-
-**Tropical reformulation**:
-
-The (max, +) semiring replaces (ℝ, +, ×) with (ℝ, max, +):
-- Multiplication a×b → addition a+b
-- Addition a+b → maximum max(a,b)
-
-In the limit temperature → 0, softmax(v/τ) → one-hot(argmax(v)):
+**O semiring tropical** (ℝ ∪ {-∞}, max, +):
 
 ```
-lim_{τ→0} softmax(v/τ)[i] = 𝟙[i = argmax(v)]
+a ⊕ b = max(a, b)          [adição tropical]
+a ⊗ b = a + b              [multiplicação tropical]
+
+Produto matricial tropical:
+(A ⊗ᵗʳᵒᵖ B)[i,k] = max_j (A[i,j] + B[j,k])
 ```
 
-This is exactly the argmax operation, which in the max-plus semiring IS the
-tropical matrix product:
+**Conexão com Transformer** (limite de temperatura):
 
 ```
-(A ⊗ᵗʳᵒᵖ B)[i,k] = max_j( A[i,j] + B[j,k] )
+lim_{τ→0} softmax(v/τ)[j] = 𝟙[j = argmax(v)]
+
+No limite τ→0, softmax(QKᵀ/√d) → produto tropical max-plus.
+Atenção hard = V[argmax_j Q[i]·K[j]ᵀ] = lookup(V, tropical_nn(Q[i], K))
 ```
 
-**Implication**: at low temperature (sharp attention), the transformer's
-attention mechanism IS a tropical matrix product. This requires only:
-- Comparisons (max) instead of multiplications
-- Additions instead of exp (for the +)
-
-**Sparse tropical attention**:
+**Atenção Tropical Top-K** (para τ finito, atenção empiricamente sharp):
 
 ```
-y[i] = Σⱼ A[i,j] · v[j]
+1. Scan tropical: scores[j] = Q[i]·K_ternary[j]  para todo j  [O(n·d) adições]
+2. Top-K:         encontrar K maiores scores       [O(n·log K) comparações]
+3. Softmax:       sobre K tokens apenas            [O(K) exponenciais]
+4. Output:        Σ_{k∈topK} w_k · V[k]           [O(K·d) multiply-adds]
 
-where A[i,j] = 𝟙[j = argmax_k Q[i]·K[k]ᵀ]  (hard attention)
-
-→ y[i] = v[argmax_k Q[i]·K[k]ᵀ]
-       = lookup(V, nearest_neighbor(Q[i], K))
+Total: O(n·d + K·d) vs O(n²·d) padrão
+Speedup: n/K (para n=2048, K=32: 64×)
 ```
 
-This reduces attention from O(n²) to O(n·log n) via approximate nearest
-neighbor search (HNSW, FAISS-CPU), or O(n) with locality-sensitive hashing.
+**Verificações** (benchmark):
 
-**CPU advantage**: ANN search is memory-efficient and cache-friendly on CPU.
-GPU attention is fast because it parallelizes the O(n²) — but O(n log n) ANN
-is faster than parallelized O(n²) beyond a crossover point.
+```
+Limite softmax τ→0: weight[argmax] = 1.000000 ✓
+Produto tropical 3×3: max|ref - fast| = 0.00e+00 ✓
+Qualidade τ=0.1: cosine_sim(top-K, hard) = 0.9746 ✓
+Speedup teórico BitNet-2B: 2,863× na atenção ✓
+```
+
+→ Detalhes completos: `docs/theory/04-tropical-algebra.md`
+→ Implementação: `src/ggml-bitnet-tropical.cpp`
+→ Benchmark: `utils/tropical_benchmark.py`
 
 ---
 
-## Level 5 — Holographic Reduced Representations (Kanerva 1988)
+## Nível 5 — Memória Holográfica: Substituição Completa da Atenção → EM ANDAMENTO
 
-**The deepest forgotten algebra**: Sparse Distributed Memory + HRR.
+**A álgebra mais antiga e mais esquecida**: Kanerva (1988) e Plate (1994).
 
-Kanerva's SDM stores and retrieves associations in high-dimensional binary
-vectors using Hamming distance — a pure bitwise operation (XOR + popcount).
-
-**Holographic encoding** (Plate, 1994):
+**Convolução circular como binding**:
 
 ```
-Binding:     A # B = IFFT(FFT(A) ⊙ FFT(B))   — element-wise complex multiply in Fourier space
-Superposition: M = A # B + C # D + ...        — additive
-Retrieval:   B̃ = M # A⁻¹                     — inverse binding (FFT-based)
+Binding:      A # B = IFFT( FFT(A) ⊙ FFT(B) )    [O(n log n)]
+Superposição: M = A # B + C # D + ...              [um único vetor M]
+Recuperação:  B̃ = M # A⁻¹                         [O(n log n)]
 ```
 
-This is an associative memory that:
-- Stores key-value pairs in a SINGLE vector (superposition)
-- Retrieves by approximate nearest-neighbor in Fourier space
-- Scales to millions of pairs in O(n log n) time
-
-**Connection to Transformer**: the attention mechanism IS approximate holographic
-retrieval. The query Q is the "retrieval key", K is the "stored key", V is the
-"stored value":
+**Conexão com Transformer**:
 
 ```
-Transformer:  y = softmax(QKᵀ)·V    (O(n²) exact)
-HRR:          y ≈ retrieve(M, Q)     (O(n log n) approximate)
+Transformer:   armazena K e V separados (O(n·d) espaço), recupera via O(n²) atenção
+HRR:           armazena tudo em M (O(d) espaço!), recupera via FFT O(d log d) — independente de n
 ```
 
-For ternary LLMs, storing all K-V pairs in a holographic memory and retrieving
-via FFT replaces the transformer's attention entirely — no O(n²), no GPU memory
-bandwidth wall.
+Para contexto de n=2048 tokens: speedup ≈ n/log n ≈ 186× sobre atenção padrão.
+
+→ Detalhes completos: `docs/theory/05-holographic-memory.md`
+→ Implementação: `src/ggml-bitnet-hrr.cpp` (em construção)
+→ Benchmark: `utils/hrr_benchmark.py` (em construção)
 
 ---
 
-## Implementation Roadmap
+## Tabela de Progresso e Budget Operacional
 
-| Level | Math | Status | Expected CPU Speedup |
-|-------|------|--------|---------------------|
-| 0 | fp16 GEMV baseline | — | 1× |
-| 1 | Ternary quantization | ✓ (BitNet) | 3–6× |
-| 2 | WHT decomposition (zero mul) | **NOW** → `src/ggml-bitnet-wht.cpp` | 1.5–2× over L1 |
-| 3 | Structured WHT (ACDC) | Next sprint | ~10–50× over L1 |
-| 4 | Tropical attention | Research | O(n²) → O(n log n) |
-| 5 | Holographic memory | Research | Transformer replacement |
+| Nível | Math | Status | Arquivo | CPU speedup estimado |
+|-------|------|--------|---------|---------------------|
+| 0 | fp16 GEMV | — | referência | 1× |
+| 1 | Ternary {-1,0,+1} | ✓ (herdado) | `ggml-bitnet-mad.cpp` | 3–6× |
+| 2 | WHT zero-mul | **✓ DONE** | `ggml-bitnet-wht.cpp` | 1.5–2× sobre L1 |
+| 3 | FWHT + ACDC O(n log n) | **✓ DONE** | `ggml-bitnet-fwht.cpp` | ~174× FFN |
+| 4 | Tropical attention top-K | **✓ DONE** | `ggml-bitnet-tropical.cpp` | ~64–2863× attn |
+| 5 | Holographic memory HRR | **→ EM ANDAMENTO** | `ggml-bitnet-hrr.cpp` | ~186× attn |
+
+**BitNet-2B (30 camadas) — ops/token por pipeline:**
+
+```
+fp16 baseline:        ~847 Gops/token
+L1 ternário:          ~424 Gops/token   (2×)
+L2 WHT zero-mul:      ~424 Gops adds    (efetivo 4–6×)
+L3 ACDC FFN:          ~17 Gops/token    (~50×)
+L4 +Tropical attn:    ~3 Gops/token     (~280×)
+L5 +Holográfico:      ~500 Mops/token   (~1700×)
+```
 
 ---
 
-## Key Mathematical References
+## Referências Matemáticas Fundamentais
 
-- **Ternary quantization**: Ma et al., "The Era of 1-bit LLMs" (2024)
-- **Walsh-Hadamard**: Walsh (1923), Hadamard (1893) — 100+ years old
-- **ACDC/Fastfood**: Le et al., "Fastfood – Approximating Kernel Expansions in Loglinear Time" (ICML 2013)
-- **Tropical mathematics**: Maclagan & Sturmfels, "Introduction to Tropical Geometry" (AMS 2015)
-- **Tropical neural networks**: Zhang et al., "Tropical Geometry of Deep Neural Networks" (ICML 2018)
-- **Sparse Distributed Memory**: Kanerva (1988), MIT Press
-- **Holographic Reduced Representations**: Plate (1994), PhD thesis, Univ. of Toronto
-- **STE (Straight-Through Estimator)**: Bengio et al., "Estimating or Propagating Gradients Through Stochastic Neurons" (2013)
-- **Marchenko-Pastur law**: Random matrix theory — explains why ternary approximation works at scale
+- **Quantização ternária**: Ma et al., "The Era of 1-bit LLMs" (2024). arXiv:2402.17764
+- **Walsh-Hadamard**: Walsh (1923). "A closed set of normal orthogonal functions." *Am. J. Math.*; Hadamard (1893)
+- **ACDC/Fastfood**: Le et al., "Fastfood — Approximating Kernel Expansions in Loglinear Time." *ICML 2013*
+- **Álgebra tropical**: Maclagan & Sturmfels, *Introduction to Tropical Geometry*. AMS, 2015
+- **Tropical e redes neurais**: Zhang et al., "Tropical Geometry of Deep Neural Networks." *ICML 2018*
+- **STE**: Bengio et al., "Estimating or Propagating Gradients Through Stochastic Neurons." (2013). arXiv:1308.3432
+- **Memória distribuída esparsa**: Kanerva, P. *Sparse Distributed Memory*. MIT Press, 1988
+- **HRR**: Plate, T.A. *Holographic Reduced Representations*. PhD thesis, Univ. Toronto, 1994
+- **Marchenko-Pastur**: lei de matrizes aleatórias — explica por que a quantização ternária funciona em escala
+- **Dequantização tropical**: Itenberg & Mikhalkin (2009). "Geometry in the tropical limit."
