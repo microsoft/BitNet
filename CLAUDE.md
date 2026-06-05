@@ -23,11 +23,21 @@ python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 **Manual cmake build** (after kernel headers are generated):
 ```bash
+# Standard build (requires libstdc++-14-dev; or use the flags below)
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j$(nproc)
 ```
 
 **Compiler requirement**: Clang ≥ 18 is required for SIMD kernels. GCC is tolerated but requires `-fpermissive`. Never use MSVC.
+
+**Ubuntu 24.04 workaround** — Clang 18 defaults to GCC 14 headers; if only `libstdc++-13-dev` is installed (no `libstdc++-14-dev`), add these flags:
+```bash
+cmake -B build \
+  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_CXX_FLAGS="-I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/gcc/x86_64-linux-gnu/13" \
+  -DCMAKE_BUILD_TYPE=Release
+```
 
 **Submodule**: `3rdparty/llama.cpp` (fork, branch `merge-dev`) is the inference backend. Initialize with `git submodule update --init --recursive`.
 
@@ -98,7 +108,7 @@ Full mathematical theory: `docs/mathematical-foundations.md`.
 
 **Level 4 kernel**: `tropical_attention()` scans all keys with ternary dot products (zero multiplications), selects top-K, applies softmax only over K tokens. Complexity O(n·d + K·d) vs O(n²·d) standard attention.
 
-These Level 2–5 kernels are **not yet wired into CMakeLists.txt or the llama.cpp dispatch path**. They are standalone C implementations + Python verification benchmarks.
+These Level 2–5 kernels are **wired into CMakeLists.txt** as a `bitnet_math` OBJECT library (linked into the `ggml` target) via `-DBITNET_L2_WHT=ON -DBITNET_L3_ACDC=ON -DBITNET_L4_TROPICAL=ON -DBITNET_L5_HRR=ON`. The build is verified (all four `.cpp` files compile with AVX2 flags on x86_64). They are not yet connected to the **llama.cpp tensor dispatch path** (that integration is the next step).
 
 **HRR operating regime** (critical): retrieval quality requires d ≥ 10·N (d = head_dim, N = context tokens). At d=64, N=32 → capacity limit, noisy retrieval (mathematically expected — see `docs/theory/05-holographic-memory.md`). For practical attention replacement: d ≥ 640 for N=64, or use phasor keys (exact inverse) instead of Gaussian random keys.
 

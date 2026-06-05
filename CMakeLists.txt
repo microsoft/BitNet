@@ -11,10 +11,15 @@ endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# option list
-option(BITNET_ARM_TL1    "bitnet.cpp: use tl1 on arm platform"    OFF)
-option(BITNET_X86_TL2    "bitnet.cpp: use tl2 on x86 platform"    OFF)
+# ─── Level 1: kernel format ──────────────────────────────────────────────────
+option(BITNET_ARM_TL1    "bitnet.cpp: use TL1 lookup-table kernel (ARM64)"   OFF)
+option(BITNET_X86_TL2    "bitnet.cpp: use TL2 lookup-table kernel (x86_64)"  OFF)
 
+# ─── Level 2-5: math research kernels ────────────────────────────────────────
+option(BITNET_L2_WHT      "bitnet.cpp: WHT zero-mul GEMV (Level 2)"           ON)
+option(BITNET_L3_ACDC     "bitnet.cpp: FWHT+ACDC O(n log n) layers (Level 3)" ON)
+option(BITNET_L4_TROPICAL "bitnet.cpp: Tropical attention (max,+) (Level 4)"  ON)
+option(BITNET_L5_HRR      "bitnet.cpp: Holographic memory HRR (Level 5)"      ON)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
@@ -38,9 +43,25 @@ endif()
 
 find_package(Threads REQUIRED)
 
+# ─── src/ ─────────────────────────────────────────────────────────────────────
+# Compiles L2-L5 into the bitnet_math OBJECT library.
+# Sets BITNET_MATH_TARGET in this scope (empty string if no levels enabled).
 add_subdirectory(src)
+
+# ─── 3rdparty/llama.cpp ───────────────────────────────────────────────────────
+# Defines the ggml target (which already contains L1 kernels via hardcoded paths).
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
 add_subdirectory(3rdparty/llama.cpp)
+
+# ─── Wire L2-L5 into ggml ────────────────────────────────────────────────────
+# After both subdirectories are processed, both `bitnet_math` and `ggml` exist.
+# We add the OBJECT library to ggml so L2-L5 symbols are available in all
+# llama.cpp binaries (llama-cli, llama-server, llama-bench, etc.)
+# without any extra linker flags on the caller side.
+if (BITNET_MATH_TARGET)
+    target_link_libraries(ggml PUBLIC ${BITNET_MATH_TARGET})
+    message(STATUS "BitNet: L2-L5 kernels linked into ggml target")
+endif()
 
 # install
 
