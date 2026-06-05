@@ -88,7 +88,7 @@ The fork adds experimental kernels under a 5-level algebraic roadmap:
 | 2 | WHT decomposition — zero multiplications | `src/ggml-bitnet-wht.cpp`, `include/ggml-bitnet-wht.h` | Done |
 | 3 | FWHT + ACDC layer — O(n log n) GEMV | `src/ggml-bitnet-fwht.cpp`, `include/ggml-bitnet-fwht.h` | Done |
 | 4 | Tropical attention — (max,+) semiring | `src/ggml-bitnet-tropical.cpp`, `include/ggml-bitnet-tropical.h` | Done |
-| 5 | Holographic Reduced Representations | — | Planned |
+| 5 | Holographic Reduced Representations (HRR) | `src/ggml-bitnet-hrr.cpp`, `include/ggml-bitnet-hrr.h` | Done |
 
 Full mathematical theory: `docs/mathematical-foundations.md`.
 
@@ -98,7 +98,9 @@ Full mathematical theory: `docs/mathematical-foundations.md`.
 
 **Level 4 kernel**: `tropical_attention()` scans all keys with ternary dot products (zero multiplications), selects top-K, applies softmax only over K tokens. Complexity O(n·d + K·d) vs O(n²·d) standard attention.
 
-These Level 2–4 kernels are **not yet wired into CMakeLists.txt or the llama.cpp dispatch path**. They are standalone C implementations + Python verification benchmarks.
+These Level 2–5 kernels are **not yet wired into CMakeLists.txt or the llama.cpp dispatch path**. They are standalone C implementations + Python verification benchmarks.
+
+**HRR operating regime** (critical): retrieval quality requires d ≥ 10·N (d = head_dim, N = context tokens). At d=64, N=32 → capacity limit, noisy retrieval (mathematically expected — see `docs/theory/05-holographic-memory.md`). For practical attention replacement: d ≥ 640 for N=64, or use phasor keys (exact inverse) instead of Gaussian random keys.
 
 ---
 
