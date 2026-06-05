@@ -7,6 +7,9 @@
 #include "ggml-cpu-impl.h"
 #include <cmath>
 #include <cstring>
+#if defined(BITNET_L2_WHT)
+#include "ggml-bitnet-wht.h"
+#endif
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
 #define QK_I2_S 128
@@ -808,7 +811,7 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
             accu[iy] = _mm256_setzero_si256();
         }
 
-        int8_t * y_col = y + col * by;
+        const int8_t * y_col = y + col * by;
         
         for (int i = 0; i < group32_num; i++) {
             const uint8_t *px = x + i * 1024;
@@ -1041,6 +1044,36 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
 
 void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+#if defined(BITNET_L2_WHT)
+    /*
+     * L2 WHT dispatch path — zero-multiplication ternary dot product.
+     *
+     * WHT computes the TRUE ternary dot product:
+     *   true_dot = Σᵢ w_ternary[i] · x[i]   (w_ternary ∈ {-1,0,+1})
+     *
+     * ggml.c expects the MAD-encoded sum:
+     *   mad_sum  = Σᵢ e[i] · x[i]            (e ∈ {0,1,2}, e = w_ternary + 1)
+     *            = true_dot + Σᵢ x[i]
+     *
+     * So we return (true_dot + act_sum) to preserve the ggml.c dequantization
+     * formula:  result = (mad_sum − act_sums) / act_scales × w_scale
+     *                   = (true_dot + act_sum − act_sum) / act_scales × w_scale
+     *                   = true_dot / act_scales × w_scale  ✓
+     *
+     * act_sum is computed once per activation vector (shared across weight rows).
+     * Row stride for packed I2_S weights: bx/4 bytes (2 bits per weight).
+     */
+    (void)by;
+    const uint8_t * x_rows = (const uint8_t *)vx;
+    const int8_t  * y      = (const int8_t  *)vy;
+    int32_t act_sum = ggml_wht_sum_i8(n, y);
+    for (int r = 0; r < nrc; r++) {
+        const uint8_t * xr = x_rows + (size_t)r * (bx / 4);
+        int32_t td = ggml_wht_raw_dot(n, xr, y);
+        s[r] = (float)(td + act_sum);
+    }
+    return;
+#endif /* BITNET_L2_WHT */
     if (nrc % PARALLEL_SIZE == 0)
     {
 #if defined(ACT_PARALLEL)

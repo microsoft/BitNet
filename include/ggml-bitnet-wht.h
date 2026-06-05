@@ -79,6 +79,22 @@ int ggml_wht_verify(int n, const void * vx, const void * vy,
                     float weight_scale, float act_scale,
                     float tolerance);
 
+/*
+ * Raw WHT ternary dot product — returns int32 without applying any scale.
+ * Computes  Σᵢ w_ternary[i] · x[i]  where w_ternary ∈ {-1, 0, +1}.
+ *
+ * Used by the ggml dispatch layer (L2) to produce MAD-compatible output:
+ *   ggml_vec_dot_i2_i8_s returns (raw_wht + sum(vy)) to match the
+ *   dequantization formula in ggml.c:  result = (val - act_sums) / act_scales * w_scale
+ */
+int32_t ggml_wht_raw_dot(int n, const void * vx, const void * vy);
+
+/*
+ * Sum of int8 activation vector: Σᵢ vy[i] → int32.
+ * Needed to convert WHT true-ternary output to MAD-compatible format.
+ */
+int32_t ggml_wht_sum_i8(int n, const int8_t * vy);
+
 #ifdef __cplusplus
 }
 #endif

@@ -10,13 +10,19 @@ endif()
 # relative paths (../../../../src/ggml-bitnet-mad.cpp, etc.) and compiled as
 # part of the ggml OBJECT library there.  Nothing to do here for L1.
 
-# ─── L2–L5: standalone math kernels ─────────────────────────────────────────
-# Compiled as an OBJECT library: no dependency on ggml or llama.cpp headers.
-# The root CMakeLists.txt links this into the ggml target after the submodule
-# is processed.
+# ─── L2–L5: math kernels + dispatch layer ────────────────────────────────────
+# Compiled as an OBJECT library linked into the ggml target.
+#
+# The dispatch source (ggml-bitnet-dispatch.cpp) uses ggml.h types
+# (struct ggml_tensor, ggml_map_custom*).  Since dispatch.cpp compiles into
+# the same OBJECT library that is then linked INTO ggml, forward references to
+# ggml symbols are resolved at link time with no circular-dep issues.
+#
+# ggml's own headers are in 3rdparty/llama.cpp/ggml/include — added below.
 
 set(_bitnet_math_srcs)
 set(_bitnet_math_defs)
+set(_bitnet_has_dispatch OFF)
 
 if (BITNET_L2_WHT)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-wht.cpp)
@@ -27,19 +33,29 @@ endif()
 if (BITNET_L3_ACDC)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-fwht.cpp)
     list(APPEND _bitnet_math_defs BITNET_L3_ACDC)
+    set(_bitnet_has_dispatch ON)
     message(STATUS "BitNet: Level 3 FWHT+ACDC O(n log n) enabled")
 endif()
 
 if (BITNET_L4_TROPICAL)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-tropical.cpp)
     list(APPEND _bitnet_math_defs BITNET_L4_TROPICAL)
+    set(_bitnet_has_dispatch ON)
     message(STATUS "BitNet: Level 4 Tropical attention (max,+) enabled")
 endif()
 
 if (BITNET_L5_HRR)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-hrr.cpp)
     list(APPEND _bitnet_math_defs BITNET_L5_HRR)
+    set(_bitnet_has_dispatch ON)
     message(STATUS "BitNet: Level 5 Holographic memory (HRR) enabled")
+endif()
+
+# ggml-bitnet-dispatch.cpp registers custom ops (ggml_map_custom2/3) for L3-L5.
+# Compiled when at least one of L3/L4/L5 is enabled.
+if (_bitnet_has_dispatch)
+    list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-dispatch.cpp)
+    message(STATUS "BitNet: dispatch layer (L3-L5 custom ops) enabled")
 endif()
 
 if (_bitnet_math_srcs)
@@ -47,8 +63,10 @@ if (_bitnet_math_srcs)
     # other target (e.g. standalone test binaries) without duplication.
     add_library(bitnet_math OBJECT ${_bitnet_math_srcs})
 
-    target_include_directories(bitnet_math
-        PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+    target_include_directories(bitnet_math PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        # ggml.h needed by ggml-bitnet-dispatch.cpp (ggml_map_custom*, struct ggml_tensor)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/llama.cpp/ggml/include)
 
     target_compile_features(bitnet_math PUBLIC cxx_std_11)
 

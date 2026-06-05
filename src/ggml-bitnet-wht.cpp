@@ -397,3 +397,69 @@ int ggml_wht_verify(
     }
     return 1;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * DISPATCH HELPERS — raw kernels without scale, for ggml.c MAD compatibility
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* AVX2 horizontal sum of int8 array */
+#if defined(__AVX2__)
+static int32_t wht_sum_i8_avx2(int n, const int8_t * x) {
+    __m256i accum   = _mm256_setzero_si256();
+    const __m256i v1 = _mm256_set1_epi16(1);
+    int i = 0;
+    for (; i + 32 <= n; i += 32) {
+        __m256i v  = _mm256_loadu_si256((const __m256i *)(x + i));
+        __m256i lo = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(v));
+        __m256i hi = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(v, 1));
+        accum = _mm256_add_epi32(accum, _mm256_madd_epi16(lo, v1));
+        accum = _mm256_add_epi32(accum, _mm256_madd_epi16(hi, v1));
+    }
+    int32_t result = hsum_i32_avx2(accum);
+    for (; i < n; i++) result += (int32_t)x[i];
+    return result;
+}
+#endif
+
+#if defined(__ARM_NEON)
+static int32_t wht_sum_i8_neon(int n, const int8_t * x) {
+    int32x4_t accum = vdupq_n_s32(0);
+    int i = 0;
+    for (; i + 16 <= n; i += 16) {
+        int8x16_t v  = vld1q_s8(x + i);
+        int16x8_t lo = vmovl_s8(vget_low_s8(v));
+        int16x8_t hi = vmovl_s8(vget_high_s8(v));
+        accum = vaddq_s32(accum, vpaddlq_s16(vaddq_s16(lo, hi)));
+    }
+    int32_t result = (int32_t)vaddvq_s32(accum);
+    for (; i < n; i++) result += (int32_t)x[i];
+    return result;
+}
+#endif
+
+int32_t ggml_wht_raw_dot(int n, const void * vx, const void * vy) {
+    const uint8_t * packed = (const uint8_t *)vx;
+    const int8_t  * x      = (const int8_t  *)vy;
+#if defined(__AVX2__)
+    return wht_dot_avx2(n, packed, x);
+#elif defined(__ARM_NEON)
+    return wht_dot_neon(n, packed, x);
+#else
+    uint8_t enc[4096];
+    if (n > 4096) n = 4096;
+    unpack_i2s_block(packed, enc, n);
+    return wht_dot_scalar(n, enc, x);
+#endif
+}
+
+int32_t ggml_wht_sum_i8(int n, const int8_t * vy) {
+#if defined(__AVX2__)
+    return wht_sum_i8_avx2(n, vy);
+#elif defined(__ARM_NEON)
+    return wht_sum_i8_neon(n, vy);
+#else
+    int32_t sum = 0;
+    for (int i = 0; i < n; i++) sum += (int32_t)vy[i];
+    return sum;
+#endif
+}
