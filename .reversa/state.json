@@ -1,0 +1,29 @@
+{
+  "output_folder": "_reversa_sdd",
+  "doc_level": "completo",
+  "phase": "detective",
+  "last_updated": "2026-05-03",
+  "modules_analyzed": [
+    "run_inference",
+    "run_inference_server",
+    "setup_env",
+    "gpu/model",
+    "gpu/generate",
+    "gpu/tokenizer",
+    "gpu/pack_weight",
+    "gpu/convert_checkpoint",
+    "gpu/convert_safetensors",
+    "gpu/sample_utils",
+    "gpu/stats",
+    "src/ggml-bitnet-lut",
+    "src/ggml-bitnet-mad",
+    "utils/codegen_tl1",
+    "utils/codegen_tl2"
+  ],
+  "detective_artifacts": {
+    "domain_rules": 16,
+    "adrs": 7,
+    "state_machines": 4,
+    "git_commits_analyzed": 80
+  }
+}
