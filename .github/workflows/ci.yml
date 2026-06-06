@@ -59,11 +59,8 @@ jobs:
       - name: Build (compiles L1 + L2-L5 + dispatch into libggml)
         run: cmake --build build --config Release -j$(nproc)
 
-      - name: Build kernel unit tests
-        run: cmake --build build --target test_hrr_cleanup --config Release -j$(nproc)
+      - name: Build all kernel unit tests
+        run: cmake --build build --config Release -j$(nproc) --target test_wht test_acdc test_tropical test_hrr_cleanup
 
-      - name: Run test_hrr_cleanup (5/5 expected)
-        run: ./build/tests/test_hrr_cleanup
-
-      - name: ctest (runs registered add_test() targets)
+      - name: ctest (runs all add_test() targets — L2, L3, L4, L5)
         run: cd build && ctest --output-on-failure

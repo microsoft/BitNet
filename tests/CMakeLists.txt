@@ -1,10 +1,12 @@
 # ─── Kernel unit tests for bitnet.cpp ──────────────────────────────────────────
 #
-# Standalone executables that link directly against the bitnet_math OBJECT
-# library (so they exercise the same compiled objects that go into ggml).
-# No model needed; runtime < 1ms each.
+# Standalone executables that link directly against the L2-L5 math kernel
+# source files. No model needed; runtime < 1ms each. Tests verify the kernel
+# implementations against a hand-rolled reference (no ggml runtime).
 #
 # Enable with -DBITNET_BUILD_TESTS=ON (default ON).
+# Run all tests:    ctest --output-on-failure
+# Run one test:     ctest -R test_wht --output-on-failure
 
 if (NOT BITNET_BUILD_TESTS)
     return()
@@ -15,13 +17,75 @@ if (NOT BITNET_MATH_TARGET)
     return()
 endif()
 
-# ─── HRR cleanup_iter (Frady 2021) ────────────────────────────────────────────
+# Helper: per-arch SIMD flags. Mirrors src/CMakeLists.txt.
+function(bitnet_test_set_simd_flags target)
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686")
+        target_compile_options(${target} PRIVATE -mavx2 -mfma)
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        target_compile_options(${target} PRIVATE -march=armv8-a+simd)
+    endif()
+    if (UNIX AND NOT APPLE)
+        target_link_libraries(${target} PRIVATE m)
+    endif()
+endfunction()
+
+# Each test compiles ONLY the kernel source it needs (not the full dispatch
+# path, which references ggml symbols not available outside the llama.cpp
+# build).  This keeps tests self-contained and < 200KB of object code each.
+
+# ─── L2: Walsh-Hadamard Transform (zero-multiplication GEMV) ───────────────
+# 5/5 PASS: raw_dot, sum_i8, verify, dot_row, gemv.
+# (Bug found + fixed: wht_dot_avx2 had g0/g3 labels inverted relative to the
+#  library's own unpack_i2s_block — see src/ggml-bitnet-wht.cpp:186-189.)
+if (BITNET_L2_WHT)
+    add_executable(test_wht
+        ${CMAKE_SOURCE_DIR}/test_wht.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-wht.cpp)
+    target_include_directories(test_wht PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_wht PRIVATE BITNET_L2_WHT)
+    bitnet_test_set_simd_flags(test_wht)
+    set_target_properties(test_wht PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_wht COMMAND test_wht)
+endif()
+
+# ─── L3: ACDC (Fast WHT + diagonal scaling) ────────────────────────────────
+# 5/5 PASS: fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv.
+# (Bug found + fixed: acdc_forward_i8 had a stray 1/n² normalization that
+#  violated the spec in CLAUDE.md ("unnormalized — no 1/n² factors").
+#  Spec test [4] also updated: for W=I, d*[k] = 1/n, not 1.)
+if (BITNET_L3_ACDC)
+    add_executable(test_acdc
+        ${CMAKE_SOURCE_DIR}/test_acdc.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp)
+    target_include_directories(test_acdc PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_acdc PRIVATE BITNET_L3_ACDC)
+    bitnet_test_set_simd_flags(test_acdc)
+    set_target_properties(test_acdc PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_acdc COMMAND test_acdc)
+endif()
+
+# ─── L4: Tropical attention (max,+) semiring ───────────────────────────────
+# 5/5 PASS: argmax, topk, attention, gemv, zero-K edge case.
+if (BITNET_L4_TROPICAL)
+    add_executable(test_tropical
+        ${CMAKE_SOURCE_DIR}/test_tropical.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp)
+    target_include_directories(test_tropical PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_tropical PRIVATE BITNET_L4_TROPICAL)
+    bitnet_test_set_simd_flags(test_tropical)
+    set_target_properties(test_tropical PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_tropical COMMAND test_tropical)
+endif()
+
+# ─── L5: HRR (Holographic Reduced Representations) ─────────────────────────
 # 5/5 PASS: FFT roundtrip, bind vs circular_conv, phasor inverse,
 # RESIDUAL Frady 2021, NAIVE projection.
-#
-# This test exercises L5 in isolation. We compile only ggml-bitnet-hrr.cpp
-# (not the full bitnet_math OBJECT lib) to avoid pulling in ggml-bitnet-dispatch.cpp
-# which references ggml symbols not available outside the llama.cpp build.
 if (BITNET_L5_HRR)
     add_executable(test_hrr_cleanup
         ${CMAKE_SOURCE_DIR}/test_hrr_cleanup.cpp
@@ -29,15 +93,7 @@ if (BITNET_L5_HRR)
     target_include_directories(test_hrr_cleanup PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
     target_compile_definitions(test_hrr_cleanup PRIVATE BITNET_L5_HRR)
-    # Per-arch SIMD flags mirroring src/CMakeLists.txt for the kernel.
-    if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686")
-        target_compile_options(test_hrr_cleanup PRIVATE -mavx2 -mfma)
-    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        target_compile_options(test_hrr_cleanup PRIVATE -march=armv8-a+simd)
-    endif()
-    if (UNIX AND NOT APPLE)
-        target_link_libraries(test_hrr_cleanup PRIVATE m)
-    endif()
+    bitnet_test_set_simd_flags(test_hrr_cleanup)
     set_target_properties(test_hrr_cleanup PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_hrr_cleanup COMMAND test_hrr_cleanup)

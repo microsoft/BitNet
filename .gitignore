@@ -44,4 +44,5 @@ __pycache__/
 poetry.toml
 
 build/
+build_tests/
 logs/
