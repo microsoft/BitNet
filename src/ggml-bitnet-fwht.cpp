@@ -47,6 +47,7 @@
  */
 
 #include "ggml-bitnet-fwht.h"
+#include "ggml-bitnet-common.h"
 #include <cmath>
 #include <cstring>
 #include <cassert>
@@ -71,12 +72,8 @@
  * UTILITY
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-int fwht_next_pow2(int n) {
-    if (n <= 1) return 1;
-    int p = 1;
-    while (p < n) p <<= 1;
-    return p;
-}
+/* Note: fwht_next_pow2() used to be defined here; it now lives in
+ * src/ggml-bitnet-common.cpp (single source of truth for next_pow2). */
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * SCALAR BUTTERFLY (reference, used when SIMD width > len)

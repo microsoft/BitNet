@@ -24,6 +24,14 @@ set(_bitnet_math_srcs)
 set(_bitnet_math_defs)
 set(_bitnet_has_dispatch OFF)
 
+# ── Shared common (bitnet_next_pow2 + algorithm taxonomy) ────────────────────
+# Always compiled when ANY L2-L5 kernel is enabled (the wrappers in fwht.cpp
+# and hrr.cpp call bitnet_next_pow2).  See include/ggml-bitnet-common.h for
+# the rationale ("L2/L3/L5 don't share a butterfly; only next_pow2 is shared").
+if (BITNET_L2_WHT OR BITNET_L3_ACDC OR BITNET_L4_TROPICAL OR BITNET_L5_HRR)
+    list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-common.cpp)
+endif()
+
 if (BITNET_L2_WHT)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-wht.cpp)
     list(APPEND _bitnet_math_defs BITNET_L2_WHT)

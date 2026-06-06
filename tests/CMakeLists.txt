@@ -29,6 +29,24 @@ function(bitnet_test_set_simd_flags target)
     endif()
 endfunction()
 
+# ─── Shared kernel utilities (bitnet_next_pow2) ──────────────────────────
+# 5/5 PASS: basic, aliases (fwht/hrr forward to bitnet), edge cases (0/1/-1),
+# structural (no butterfly is exported — see taxonomy in the header),
+# power-of-2 inputs unchanged.
+# This test guards against accidental API drift in the shared utility.
+if (BITNET_L2_WHT OR BITNET_L3_ACDC OR BITNET_L4_TROPICAL OR BITNET_L5_HRR)
+    add_executable(test_bitnet_common
+        ${CMAKE_SOURCE_DIR}/test_bitnet_common.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_bitnet_common PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_bitnet_common PRIVATE BITNET_L2_WHT)
+    bitnet_test_set_simd_flags(test_bitnet_common)
+    set_target_properties(test_bitnet_common PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_bitnet_common COMMAND test_bitnet_common)
+endif()
+
 # Each test compiles ONLY the kernel source it needs (not the full dispatch
 # path, which references ggml symbols not available outside the llama.cpp
 # build).  This keeps tests self-contained and < 200KB of object code each.

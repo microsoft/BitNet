@@ -53,6 +53,7 @@
  */
 
 #include "ggml-bitnet-hrr.h"
+#include "ggml-bitnet-common.h"
 #include <cmath>
 #include <cstring>
 #include <cassert>
@@ -71,11 +72,8 @@
  * UTILITÁRIO: POTÊNCIA DE 2
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-int hrr_next_pow2(int n) {
-    int p = 1;
-    while (p < n) p <<= 1;
-    return p;
-}
+/* Note: hrr_next_pow2() used to be defined here; it now lives in
+ * src/ggml-bitnet-common.cpp (single source of truth for next_pow2). */
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * FFT INTERNA: COOLEY-TUKEY RADIX-2 DIF
