@@ -26,6 +26,7 @@
 
 #if defined(BITNET_L4_TROPICAL)
 #include "ggml-bitnet-tropical.h"
+#include "ggml-bitnet-kv-cache.h"
 #endif
 
 #if defined(BITNET_L5_HRR)
@@ -177,6 +178,9 @@ struct ggml_tensor * bitnet_op_acdc_gemv(
 struct tropical_ud {
     int   topk;
     float scale;
+    int   layer;   /* current transformer layer (set by KQV site via
+                    * bitnet_kv_i8_cache_set_layer, captured at ggml_map_custom3
+                    * time). Used to index the persistent K_i8 cache. */
 };
 
 /*
@@ -234,10 +238,16 @@ static void tropical_callback(
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Per-thread scratch buffers (each thread allocates independently). */
+    /* Q is per-thread (and small: d bytes); allocate per call as before.
+     * K is now sourced from the persistent K_i8 cache (see
+     * ggml-bitnet-kv-cache.h), indexed by (il, kv_head). The cache holds
+     * an int8 buffer of n_kv * d entries with a locked scale computed on
+     * the first call for that (il, kv_head); subsequent calls only
+     * quantize the new keys appended to the KV cache. This eliminates
+     * the O(n_kv * d) re-quantization on every decode step (the 3-pass K
+     * problem from SESSION_SUMMARY.md §S2.4). */
     int8_t * q_i8 = (int8_t *)malloc((size_t)d);
-    int8_t * k_i8 = (int8_t *)malloc((size_t)n_kv * d);
-    if (!q_i8 || !k_i8) { free(q_i8); free(k_i8); return; }
+    if (!q_i8) return;
 
     for (int h = ith; h < n_head; h += nth) {
         const int    kv_h    = h / gqa;
@@ -246,7 +256,21 @@ static void tropical_callback(
         const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
         float       *out_hd  = out + (size_t)h    * n_tokens * d;
 
-        float k_scale = quantize_f32_to_i8(k_head, k_i8, n_kv * d);
+        /* Incremental K_i8: only the new keys get quantized. */
+        float    k_scale = 0.0f;
+        int      last_n  = 0;
+        int      n_new   = 0;
+        int8_t * k_i8 = bitnet_kv_i8_cache_get(p->layer, kv_h, k_head, n_kv,
+                                                &k_scale, &last_n, &n_new);
+        int k_i8_owned = (k_i8 != NULL);  /* 1 = cache owns, 0 = we malloc'd */
+
+        if (!k_i8) {
+            /* Cache miss (slot not allocated, or layer out of range):
+             * fall back to per-call quant. We own this buffer. */
+            k_i8 = (int8_t *)malloc((size_t)n_kv * d);
+            if (!k_i8) continue;
+            k_scale = quantize_f32_to_i8(k_head, k_i8, n_kv * d);
+        }
 
         for (int qi = 0; qi < n_tokens; qi++) {
             float q_scale = quantize_f32_to_i8(q_head + qi * d, q_i8, d);
@@ -261,10 +285,12 @@ static void tropical_callback(
                 q_scale,
                 k_scale);
         }
+
+        /* Free only the malloc'd fallback; cache-owned k_i8 stays. */
+        if (!k_i8_owned) free(k_i8);
     }
 
     free(q_i8);
-    free(k_i8);
 }
 
 struct ggml_tensor * bitnet_op_tropical_attn(
@@ -279,6 +305,7 @@ struct ggml_tensor * bitnet_op_tropical_attn(
     struct tropical_ud * ud = (struct tropical_ud *)malloc(sizeof(*ud));
     ud->topk  = topk;
     ud->scale = scale;
+    ud->layer = bitnet_kv_i8_current_layer();  /* -1 if unset → cache miss */
     return ggml_map_custom3(ctx, q, k, v, tropical_callback, GGML_N_TASKS_MAX, ud);
 }
 

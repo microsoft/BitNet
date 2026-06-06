@@ -14,9 +14,9 @@
 #   inacessíveis para clones novos, quebrando o build.
 #
 #   Para tornar o build reproduzível, esta abordagem vendoriza os
-#   dois patches em patches/llama.cpp/ e os aplica após o submodule
+#   três patches em patches/llama.cpp/ e os aplica após o submodule
 #   init. Os patches são idempotentes (verificam se já estão aplicados
-#   via `git apply --reverse --check`).
+#   via sentinelas de grep).
 #
 # Uso:
 #   ./scripts/apply-dispatch-patches.sh           # aplica
@@ -28,8 +28,9 @@
 #   - patches/llama.cpp/*.patch existem
 #
 # Saída:
-#   - Aplica patches em ordem (L3 primeiro, L5 depois — L5 depende
-#     do guard #if adicionado pelo L3)
+#   - Aplica patches em ordem (L3 → L5 → L4 cache — L4 cache
+#     depende do guard #if que L3 adiciona, e do bloco tropical
+#     que L3 também adiciona)
 #   - Idempotente: detecta se já aplicado e sai 0
 #   - Falha com mensagem clara se patch não aplicar (sai 1)
 
@@ -42,6 +43,7 @@ PATCHES_DIR="$REPO_ROOT/patches/llama.cpp"
 
 L3_PATCH="$PATCHES_DIR/01-L3-ACDC-FFN-dispatch.patch"
 L5_PATCH="$PATCHES_DIR/02-L5-HRR-cleanup-dispatch.patch"
+L4_PATCH="$PATCHES_DIR/03-L4-TROPICAL-KI8-cache.patch"
 
 # Cores
 RED='\033[0;31m'
@@ -59,7 +61,7 @@ if [ ! -d "$SUBMODULE" ]; then
     err "rode 'git submodule update --init --recursive' antes"
     exit 1
 fi
-if [ ! -f "$L3_PATCH" ] || [ ! -f "$L5_PATCH" ]; then
+if [ ! -f "$L3_PATCH" ] || [ ! -f "$L5_PATCH" ] || [ ! -f "$L4_PATCH" ]; then
     err "patches não encontrados em $PATCHES_DIR"
     exit 1
 fi
@@ -77,7 +79,7 @@ echo "submodule HEAD: $CURRENT_HEAD"
 is_applied() {
     # Detecção de "já aplicado" via sentinela: procura a string
     # característica que o patch adiciona. Se presente, patch já aplicado.
-    # Argumento: tag identificadora (L3 ou L5).
+    # Argumento: tag identificadora (L3, L5 ou L4).
     case "$1" in
         L3)
             # L3 adiciona "#  include \"ggml-bitnet-dispatch.h\""
@@ -87,6 +89,10 @@ is_applied() {
             # L5 muda o guard para incluir BITNET_L5_HRR
             grep -qF 'BITNET_L4_TROPICAL) || defined(BITNET_L3_ACDC) || defined(BITNET_L5_HRR)' src/llama.cpp
             ;;
+        L4)
+            # L4 cache adiciona include do kv-cache header
+            grep -qF '#  include "ggml-bitnet-kv-cache.h"' src/llama.cpp
+            ;;
         *)
             return 1
             ;;
@@ -95,17 +101,22 @@ is_applied() {
 
 case "$MODE" in
     check)
-        if is_applied L3 && is_applied L5; then
-            ok "ambos patches aplicados (L3 + L5)"
+        if is_applied L3 && is_applied L5 && is_applied L4; then
+            ok "todos os 3 patches aplicados (L3 + L5 + L4 cache)"
             exit 0
         else
             warn "patches não totalmente aplicados"
             is_applied L3 && ok "L3 aplicado" || warn "L3 NÃO aplicado"
             is_applied L5 && ok "L5 aplicado" || warn "L5 NÃO aplicado"
+            is_applied L4 && ok "L4 cache aplicado" || warn "L4 cache NÃO aplicado"
             exit 1
         fi
         ;;
     reverse)
+        if is_applied L4; then
+            git apply --reverse "$L4_PATCH"
+            ok "L4 cache revertido"
+        fi
         if is_applied L5; then
             git apply --reverse "$L5_PATCH"
             ok "L5 revertido"
@@ -118,7 +129,8 @@ case "$MODE" in
         exit 0
         ;;
     apply)
-        # L3 primeiro (L5 depende do guard que L3 adiciona)
+        # L3 primeiro (L5 depende do guard que L3 adiciona;
+        # L4 cache depende do bloco tropical que L3 também adiciona)
         if is_applied L3; then
             ok "L3 já aplicado (idempotente)"
         else
@@ -138,6 +150,16 @@ case "$MODE" in
                 exit 1
             fi
             ok "L5 aplicado"
+        fi
+        if is_applied L4; then
+            ok "L4 cache já aplicado (idempotente)"
+        else
+            echo "aplicando L4 TROPICAL K_I8 cache dispatch..."
+            if ! git apply "$L4_PATCH"; then
+                err "L4 cache patch falhou — verifique que L3+L5 foram aplicados"
+                exit 1
+            fi
+            ok "L4 cache aplicado"
         fi
         ok "dispatch patches prontos"
         exit 0

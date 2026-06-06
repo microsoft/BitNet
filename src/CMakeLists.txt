@@ -47,9 +47,11 @@ endif()
 
 if (BITNET_L4_TROPICAL)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-tropical.cpp)
+    list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-kv-cache.cpp)
     list(APPEND _bitnet_math_defs BITNET_L4_TROPICAL)
     set(_bitnet_has_dispatch ON)
     message(STATUS "BitNet: Level 4 Tropical attention (max,+) enabled")
+    message(STATUS "BitNet: K_i8 KV cache (incremental quantization) enabled")
 endif()
 
 if (BITNET_L5_HRR)

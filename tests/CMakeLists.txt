@@ -116,6 +116,25 @@ if (BITNET_L4_TROPICAL)
     set_target_properties(test_sparse_attention PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_sparse_attention COMMAND test_sparse_attention)
+
+    # ─── L4 cache: K_i8 persistent cache for tropical attention ────────────
+    # 11/11 PASS: init noop, realloc on shape change, first-call quantizes
+    # all, incremental quantizes only new entries, no-new-keys is idempotent,
+    # out-of-range returns NULL, capacity grows on demand, capacity capped at
+    # max_n_kv, thread-safety (2 threads racing on same slot → 0 errors),
+    # reset clears state, set_layer/current_layer roundtrip.
+    # This guards the K_i8 cache that bitnet_op_tropical_attn uses to avoid
+    # re-quantizing all K on every decode step (Phase C).
+    add_executable(test_kv_i8_cache
+        ${CMAKE_SOURCE_DIR}/test_kv_i8_cache.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-kv-cache.cpp)
+    target_include_directories(test_kv_i8_cache PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_kv_i8_cache PRIVATE BITNET_L4_TROPICAL)
+    bitnet_test_set_simd_flags(test_kv_i8_cache)
+    set_target_properties(test_kv_i8_cache PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_kv_i8_cache COMMAND test_kv_i8_cache)
 endif()
 
 # ─── L5: HRR (Holographic Reduced Representations) ─────────────────────────
