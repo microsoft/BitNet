@@ -368,6 +368,83 @@ cleanup:
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * FLOAT SPARSE ATTENTION: top-K com scoring float puro
+ *
+ * Variante de atenção esparsa que usa dot products float32 para selecionar
+ * os K tokens mais relevantes e agrega apenas esses valores.
+ *
+ * Vantagem vs tropical ternário: elimina a conversão float→int8 das keys,
+ * reduzindo de 3 passes sobre K (F32→I8→score) para 1 passe (F32→score).
+ * Para modelos não treinados com pesos ternários na atenção, o scoring float
+ * é mais correto E mais rápido.
+ *
+ * Complexidade: O(n·d) scoring + O(n·log K) sort + O(K·d) aggregation.
+ * Para K=32, n=168, d=128: ~22K ops vs padrão ~43K ops → ~50% speedup.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+void sparse_attention_float(
+    float       * output,
+    const float * q,
+    const float * K,
+    const float * V,
+    int           n_keys,
+    int           head_dim,
+    int           K_top)
+{
+    const int K_actual = (K_top < n_keys) ? K_top : n_keys;
+    if (K_actual <= 0) { memset(output, 0, head_dim * sizeof(float)); return; }
+
+    float * scores  = (float *)malloc((size_t)n_keys * sizeof(float));
+    int   * idx     = (int   *)malloc((size_t)n_keys * sizeof(int));
+    float * weights = (float *)malloc((size_t)K_actual * sizeof(float));
+    if (!scores || !idx || !weights) goto sparse_cleanup;
+
+    /* 1. Float dot product scoring with 1/√d scaling (single pass over K) */
+    {
+        float inv_sqrt_d = 1.0f / sqrtf((float)head_dim);
+        for (int i = 0; i < n_keys; i++) {
+            const float * ki = K + (size_t)i * head_dim;
+            float dot = 0.0f;
+            for (int j = 0; j < head_dim; j++) dot += q[j] * ki[j];
+            scores[i] = dot * inv_sqrt_d;
+            idx[i] = i;
+        }
+    }
+
+    /* 2. Find top-K (partial sort on indices by score, descending) */
+    std::partial_sort(idx, idx + K_actual, idx + n_keys,
+        [scores](int a, int b){ return scores[a] > scores[b]; });
+
+    /* 3. Stable softmax over top-K scores */
+    {
+        float max_s = scores[idx[0]];
+        for (int k = 1; k < K_actual; k++)
+            if (scores[idx[k]] > max_s) max_s = scores[idx[k]];
+
+        float sum_exp = 0.0f;
+        for (int k = 0; k < K_actual; k++) {
+            weights[k] = expf(scores[idx[k]] - max_s);
+            sum_exp += weights[k];
+        }
+        float inv_sum = 1.0f / sum_exp;
+        for (int k = 0; k < K_actual; k++) weights[k] *= inv_sum;
+    }
+
+    /* 4. Weighted sum of top-K value vectors */
+    memset(output, 0, (size_t)head_dim * sizeof(float));
+    for (int k = 0; k < K_actual; k++) {
+        const float * vk = V + (size_t)idx[k] * head_dim;
+        float w = weights[k];
+        for (int j = 0; j < head_dim; j++) output[j] += w * vk[j];
+    }
+
+sparse_cleanup:
+    free(scores);
+    free(idx);
+    free(weights);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * TROPICAL GEMV: produto matricial tropical (max-plus)
  *
  * (A ⊗ᵗʳᵒᵖ x)[i] = max_j (A[i,j] + x[j])

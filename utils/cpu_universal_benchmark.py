@@ -10,6 +10,7 @@ default L1 kernel), this script exercises the per-level dispatch paths:
   L1 baseline       : no env var (default I2_S GEMV)
   L3 ACDC FFN       : BITNET_ACDC_FFN=1
   L4 Tropical attn  : BITNET_TROPICAL_TOPK=32
+  L4 Sparse float   : BITNET_SPARSE_TOPK=32   (single-pass float scoring, no int8 K buffer)
   L5 HRR raw        : BITNET_HRR_ATTN=1, BITNET_HRR_ATTN_CLEANUP=0
   L5 HRR + cleanup  : BITNET_HRR_ATTN=1, BITNET_HRR_ATTN_CLEANUP=8
 
@@ -44,7 +45,7 @@ def run_with_env(model, prompt, n_tokens, threads, env_extra, run_inference):
         "-m", model, "-p", prompt, "-n", str(n_tokens), "-t", str(threads),
     ]
     try:
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, env=env, capture_output=True, timeout=300)
     except subprocess.TimeoutExpired:
         return None, "TIMEOUT"
     if result.returncode != 0:
@@ -55,7 +56,9 @@ def run_with_env(model, prompt, n_tokens, threads, env_extra, run_inference):
     #   "       total time = ... (    4,89 tokens per second)"  <-- this is what we want
     # (note: European decimal comma on pt_BR locale).  We want the LAST
     # "tokens per second" in the output (that's the overall rate).
-    text = result.stdout + "\n" + result.stderr
+    # Use errors="replace" to handle non-UTF8 escape sequences from llama-cli.
+    text = (result.stdout.decode("utf-8", errors="replace") + "\n" +
+            result.stderr.decode("utf-8", errors="replace"))
     matches = re.findall(r"(\d+[.,]\d+)\s*tokens per second", text)
     if matches:
         # Last match is the overall rate
@@ -88,6 +91,8 @@ def main():
         ("L3 ACDC FFN (env BITNET_ACDC_FFN=1)", {"BITNET_ACDC_FFN": "1"}),
         ("L4 Tropical top-K=32 (env BITNET_TROPICAL_TOPK=32)",
                                           {"BITNET_TROPICAL_TOPK": "32"}),
+        ("L4 Sparse float top-K=32 (env BITNET_SPARSE_TOPK=32)",
+                                          {"BITNET_SPARSE_TOPK": "32"}),
         ("L5 HRR raw (env BITNET_HRR_ATTN=1)",
                                           {"BITNET_HRR_ATTN": "1",
                                            "BITNET_HRR_ATTN_CLEANUP": "0"}),

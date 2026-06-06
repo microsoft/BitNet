@@ -111,6 +111,33 @@ GGML_API struct ggml_tensor * bitnet_op_tropical_attn(
     float                 scale);
 
 /*
+ * L4 variant — Float sparse top-K attention (no ternary quantization)
+ *
+ * Uses float32 dot products for scoring — single pass over K, no int8 buffer.
+ * Eliminates the 3-pass memory bottleneck of tropical_attn (F32→I8→score).
+ *
+ * When K << n_kv: aggregation over K values is much cheaper than full n_kv.
+ * Expected speedup: ~50% at K=32, n_kv=168, d=128.
+ *
+ * Activated by env var BITNET_SPARSE_TOPK=K.
+ *
+ * @param ctx   ggml context
+ * @param q     query  [head_dim, n_queries, n_head]  (GGML_TYPE_F32)
+ * @param k     keys   [head_dim, n_kv, n_head_kv]   (GGML_TYPE_F32)
+ * @param v     values [head_dim, n_kv, n_head_kv]   (GGML_TYPE_F32)
+ * @param topk  number of top-K keys to include
+ * @param scale unused (kept for API symmetry with tropical_attn)
+ * @return      output [head_dim, n_queries, n_head]  (GGML_TYPE_F32)
+ */
+GGML_API struct ggml_tensor * bitnet_op_sparse_attn(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                   topk,
+    float                 scale);
+
+/*
  * L5 — HRR attention via holographic reduced representations
  *
  * Replaces standard attention with circular-convolution memory:

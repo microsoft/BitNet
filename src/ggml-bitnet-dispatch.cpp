@@ -282,9 +282,85 @@ struct ggml_tensor * bitnet_op_tropical_attn(
     return ggml_map_custom3(ctx, q, k, v, tropical_callback, GGML_N_TASKS_MAX, ud);
 }
 
+/* ─── L4 variant: Float sparse top-K attention ───────────────────────────
+ *
+ * Uses float32 dot products for scoring — no ternary quantization.
+ * Single pass over K (vs 3 passes in tropical_callback).
+ * Activated by BITNET_SPARSE_TOPK env var.
+ * Same thread-parallel head-strided layout as tropical_callback.
+ */
+static void sparse_float_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * q_t,
+    const struct ggml_tensor * k_t,
+    const struct ggml_tensor * v_t,
+    int ith, int nth, void * userdata)
+{
+    const struct tropical_ud * p = (const struct tropical_ud *)userdata;
+
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
+
+    const float * q_f = (const float *)q_t->data;
+    const float * k_f = (const float *)k_t->data;
+    const float * v_f = (const float *)v_t->data;
+    float       * out = (float *)dst->data;
+
+    /* Thread ith handles heads ith, ith+nth, ... No scratch buffers needed. */
+    for (int h = ith; h < n_head; h += nth) {
+        const int    kv_h   = h / gqa;
+        const float *q_head = q_f + (size_t)h    * n_tokens * d;
+        const float *k_head = k_f + (size_t)kv_h * n_kv     * d;
+        const float *v_head = v_f + (size_t)kv_h * n_kv     * d;
+        float       *out_hd = out + (size_t)h    * n_tokens * d;
+
+        for (int qi = 0; qi < n_tokens; qi++) {
+            sparse_attention_float(
+                out_hd + qi * d,
+                q_head + qi * d,
+                k_head,
+                v_head,
+                n_kv,
+                d,
+                p->topk);
+        }
+    }
+}
+
+struct ggml_tensor * bitnet_op_sparse_attn(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                   topk,
+    float                 scale)
+{
+    (void)scale;
+    struct tropical_ud * ud = (struct tropical_ud *)malloc(sizeof(*ud));
+    ud->topk  = topk;
+    ud->scale = scale;
+    return ggml_map_custom3(ctx, q, k, v, sparse_float_callback, GGML_N_TASKS_MAX, ud);
+}
+
 #else /* BITNET_L4_TROPICAL not defined */
 
 struct ggml_tensor * bitnet_op_tropical_attn(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                   topk,
+    float                 scale)
+{
+    (void)ctx; (void)k; (void)v; (void)topk; (void)scale;
+    return q;
+}
+
+struct ggml_tensor * bitnet_op_sparse_attn(
     struct ggml_context * ctx,
     struct ggml_tensor  * q,
     struct ggml_tensor  * k,

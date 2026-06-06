@@ -149,6 +149,40 @@ void tropical_attention(
     float          q_scale,
     float          k_scale);
 
+/* ─── Float sparse attention ──────────────────────────────────────────── */
+
+/*
+ * sparse_attention_float: top-K attention with float32 scoring (no quantization)
+ *
+ * Computes attention restricting softmax to the K highest-scoring keys.
+ * Uses standard float dot products (no ternary tricks) — single pass over K.
+ *
+ * This is faster than tropical_attention for current BitNet models because:
+ *   - Eliminates float→int8 K quantization (the dominant memory bottleneck)
+ *   - Single pass over K_f32 instead of 3 passes (F32→I8→score)
+ *   - Compiler-vectorized float dot products
+ *
+ * Quality for K << n_keys: produces sparse attention approximation.
+ * Quality is model-dependent — best when attention is naturally sparse
+ * (validated empirically for trained LLMs, see Zhang et al. 2023).
+ *
+ * @param output    result [head_dim floats]
+ * @param q         query vector [head_dim floats]
+ * @param K         key matrix [n_keys × head_dim floats]
+ * @param V         value matrix [n_keys × head_dim floats]
+ * @param n_keys    number of available keys (KV cache size)
+ * @param head_dim  dimension per attention head
+ * @param K_top     maximum keys to include (clamped to n_keys if larger)
+ */
+void sparse_attention_float(
+    float       * output,
+    const float * q,
+    const float * K,
+    const float * V,
+    int           n_keys,
+    int           head_dim,
+    int           K_top);
+
 /* ─── Tropical GEMV ───────────────────────────────────────────────────── */
 
 /*
