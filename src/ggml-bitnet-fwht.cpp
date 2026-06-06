@@ -287,20 +287,17 @@ void acdc_forward_i8(float * y, const int8_t * x, const float * d, int n) {
     fwht_i8_to_i32(x, z32, n);
 
     /* Step 2: z = d ⊙ ẑ  (n multiplications — irreducible minimum)
-     * Also converts int32 → float32 for subsequent WHT */
-    float inv_n = 1.0f / (float)n;
+     * Also converts int32 → float32 for subsequent WHT.
+     * Per spec (CLAUDE.md): NO 1/n² normalization. The forward pass is
+     * y = H · (d ⊙ (H · x)), unnormalized. The diagonal d absorbs the scale
+     * when learned during training. */
     for (int i = 0; i < n; i++) {
-        zf[i] = (float)z32[i] * d[i] * inv_n;
+        zf[i] = (float)z32[i] * d[i];
     }
 
     /* Step 3: y = H · z  (float butterfly, additions only) */
     memcpy(y, zf, n * sizeof(float));
     fwht_f32(y, n);
-
-    /* Normalize: divide by n (second H application) */
-    for (int i = 0; i < n; i++) {
-        y[i] *= inv_n;
-    }
 
     free(z32);
     free(zf);
