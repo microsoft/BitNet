@@ -66,6 +66,85 @@ struct ggml_tensor * bitnet_op_acdc(
     return ggml_map_custom2(ctx, x, d, acdc_callback, /*n_tasks=*/1, NULL);
 }
 
+/* ── ACDC GEMV (rectangular, K blocks + linear projection) ──────────────── */
+
+struct acdc_gemv_ud {
+    int     m;             /* output dim (original model dim)            */
+    int     n;             /* ACDC block dim (power of 2)                */
+    int     K;             /* number of ACDC blocks (K*n ≥ m)            */
+    int     n_orig;        /* original input dim (first n_orig of x)     */
+    float * D;             /* K*n learned diagonals (zero-initialized)   */
+    float * proj;          /* m * K*n projection (partial identity)      */
+    int8_t * x_i8;         /* scratch buffer for int8 quantized x [n]    */
+    bool    initialized;   /* lazy init flag                             */
+};
+
+static void acdc_gemv_init_buffers(struct acdc_gemv_ud * p) {
+    const int Kn = p->K * p->n;
+    p->D     = (float *)calloc((size_t)Kn, sizeof(float));
+    p->proj  = (float *)calloc((size_t)p->m * Kn, sizeof(float));
+    p->x_i8  = (int8_t *)calloc((size_t)p->n, sizeof(int8_t));
+    /*
+     * Partial identity: proj[i * Kn + i] = 1.0 for i in [0, m).
+     * Since Kn ≥ m (by K definition), this preserves the first m components
+     * of the ACDC stacked output as-is, effectively truncating to m.
+     * D is all zeros (model not trained with ACDC; P6 unvalidated).
+     */
+    for (int i = 0; i < p->m; i++) {
+        p->proj[i * Kn + i] = 1.0f;
+    }
+    p->initialized = true;
+}
+
+static void acdc_gemv_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * a,
+    int ith, int nth, void * userdata)
+{
+    (void)nth;
+    if (ith != 0) return;
+
+    struct acdc_gemv_ud * p = (struct acdc_gemv_ud *)userdata;
+    if (!p->initialized) acdc_gemv_init_buffers(p);
+
+    const int batch = (int)(ggml_nelements(a) / p->n_orig);
+    const float * x = (const float *)a->data;
+    float       * y = (float *)dst->data;
+
+    for (int b = 0; b < batch; b++) {
+        const float * xb = x + b * p->n_orig;
+
+        /* Per-sample int8 quantization (per-row scale for tight range) */
+        float mx = 1e-6f;
+        for (int i = 0; i < p->n_orig; i++) mx = fmaxf(mx, fabsf(xb[i]));
+        float s = 127.0f / mx;
+        for (int i = 0; i < p->n_orig; i++) {
+            float v = xb[i] * s;
+            if (v >  127.0f) v =  127.0f;
+            if (v < -128.0f) v = -128.0f;
+            p->x_i8[i] = (int8_t)(int)v;
+        }
+        /* Positions [n_orig, n) remain zero (calloc-initialized) — padding */
+
+        acdc_gemv(y + b * p->m, p->x_i8, p->D, p->proj, p->m, p->n, p->K);
+    }
+}
+
+struct ggml_tensor * bitnet_op_acdc_gemv(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n,
+    int                   K,
+    int                   n_orig)
+{
+    struct acdc_gemv_ud * ud = (struct acdc_gemv_ud *)malloc(sizeof(*ud));
+    ud->m = m; ud->n = n; ud->K = K; ud->n_orig = n_orig;
+    ud->D = NULL; ud->proj = NULL; ud->x_i8 = NULL;
+    ud->initialized = false;
+    return ggml_map_custom1(ctx, x, acdc_gemv_callback, /*n_tasks=*/1, ud);
+}
+
 #else /* BITNET_L3_ACDC not defined */
 
 struct ggml_tensor * bitnet_op_acdc(
@@ -74,6 +153,18 @@ struct ggml_tensor * bitnet_op_acdc(
     struct ggml_tensor  * d)
 {
     (void)ctx; (void)d;
+    return x;
+}
+
+struct ggml_tensor * bitnet_op_acdc_gemv(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n,
+    int                   K,
+    int                   n_orig)
+{
+    (void)ctx; (void)m; (void)n; (void)K; (void)n_orig;
     return x;
 }
 
@@ -118,37 +209,59 @@ static void tropical_callback(
 
     const struct tropical_ud * p = (const struct tropical_ud *)userdata;
 
-    const int d    = (int)q_t->ne[0];   /* head_dim */
-    const int n_q  = (int)q_t->ne[1];   /* number of query tokens */
-    const int n_kv = (int)k_t->ne[1];   /* number of key-value tokens */
+    /*
+     * Tensor layout (after ggml_permute in llm_build_kqv, cast to F32):
+     *   q:   [head_dim, n_tokens, n_head]     — F32 contiguous
+     *   k:   [head_dim, n_kv,     n_head_kv]  — F32 contiguous
+     *   v:   [head_dim, n_kv,     n_head_kv]  — F32 contiguous
+     *   dst: same shape as q
+     *
+     * Within each head h, data layout is token-major:
+     *   data[h * n_tok * d + tok * d + j] = value at (head=h, token=tok, dim=j)
+     * This is exactly the [n_kv × d] row-major layout tropical_attention expects.
+     *
+     * GQA: n_head_q may be > n_head_kv; head h_q maps to kv head h_q / gqa_ratio.
+     */
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
 
     const float * q_f = (const float *)q_t->data;
     const float * k_f = (const float *)k_t->data;
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Quantize Q and K to int8 for the tropical scan (zero multiplications). */
-    int8_t * q_i8 = (int8_t *)malloc((size_t)n_q  * d);
+    /* Single int8 buffer per KV block; re-quantize K once per head. */
+    int8_t * q_i8 = (int8_t *)malloc((size_t)d);
     int8_t * k_i8 = (int8_t *)malloc((size_t)n_kv * d);
 
-    float q_scale = quantize_f32_to_i8(q_f, q_i8, n_q  * d);
-    float k_scale = quantize_f32_to_i8(k_f, k_i8, n_kv * d);
+    for (int h = 0; h < n_head; h++) {
+        const int    kv_h    = h / gqa;
+        const float *q_head  = q_f + (size_t)h    * n_tokens * d;
+        const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
+        const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
+        float       *out_hd  = out + (size_t)h    * n_tokens * d;
 
-    /*
-     * tropical_attention processes ONE query vector against n_kv keys.
-     * For multiple queries we loop; the query scale stays constant.
-     */
-    for (int qi = 0; qi < n_q; qi++) {
-        tropical_attention(
-            out + qi * d,          /* output for this query */
-            q_i8 + qi * d,         /* one query row */
-            k_i8,                  /* all n_kv key rows */
-            v_f,                   /* float values */
-            n_kv,                  /* number of keys */
-            d,                     /* head_dim */
-            p->topk,               /* top-K budget */
-            q_scale,               /* query int8 scale */
-            k_scale);              /* key int8 scale */
+        /* Quantize the entire key block once per query head. */
+        float k_scale = quantize_f32_to_i8(k_head, k_i8, n_kv * d);
+
+        for (int qi = 0; qi < n_tokens; qi++) {
+            /* Per-query quantization keeps scale tight for each token. */
+            float q_scale = quantize_f32_to_i8(q_head + qi * d, q_i8, d);
+            tropical_attention(
+                out_hd  + qi * d,   /* output: dim vector for this query */
+                q_i8,               /* one quantized query vector [d] */
+                k_i8,               /* all n_kv key rows [n_kv × d] */
+                v_head,             /* float values [n_kv × d] */
+                n_kv,
+                d,
+                p->topk,
+                q_scale,
+                k_scale);
+        }
     }
 
     free(q_i8);
@@ -220,27 +333,50 @@ static void hrr_callback(
     (void)nth; (void)userdata;
     if (ith != 0) return;
 
-    const int d    = (int)q_t->ne[0];  /* head_dim (must be power of 2 ≥ 64) */
-    const int n_q  = (int)q_t->ne[1];  /* query tokens */
-    const int n_kv = (int)k_t->ne[1];  /* key-value tokens */
+    /*
+     * Same 3D multi-head layout as tropical_callback (see comments there).
+     * Tensor shapes after ggml_permute + cast to F32:
+     *   q:   [head_dim, n_tokens, n_head]     contiguous
+     *   k:   [head_dim, n_kv,     n_head_kv]  contiguous
+     *   v:   [head_dim, n_kv,     n_head_kv]  contiguous
+     *
+     * hrr_attention_full expects row-major [n_tok × d] layout per head,
+     * which matches since data[h*n*d + t*d + j] = (head=h, token=t, dim=j).
+     *
+     * HRR retrieval quality requires d ≥ 10·n_kv.  For d=128 n_kv=2048,
+     * output is noisy — this is expected without HRR-trained weights.
+     */
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
 
     const float * q_f = (const float *)q_t->data;
     const float * k_f = (const float *)k_t->data;
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Derive ternary key approximation (avoids needing a 4th tensor input) */
+    /* Ternary key buffer — derived once per KV head */
     int8_t * k_tern = (int8_t *)malloc((size_t)n_kv * d);
-    derive_ternary_keys(k_f, k_tern, n_kv * d);
+    if (!k_tern) return;
 
-    /*
-     * hrr_attention_full builds holographic memory M = Σᵢ kᵢ ⊛ vᵢ then
-     * retrieves ṽq = M ⊛ q⁻¹ for each query.  Complexity O(n_kv·d + n_q·d)
-     * with all convolutions done via FFT in O(d log d) each.
-     *
-     * Reliability requires d ≥ 10·n_kv (see docs/theory/05-holographic-memory.md).
-     */
-    hrr_attention_full(out, q_f, k_f, k_tern, v_f, n_q, n_kv, d);
+    for (int h = 0; h < n_head; h++) {
+        const int    kv_h    = h / gqa;
+        const float *q_head  = q_f + (size_t)h    * n_tokens * d;
+        const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
+        const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
+        float       *out_hd  = out + (size_t)h    * n_tokens * d;
+
+        /* Ternary approximation: threshold at 0.5 * mean|K| per head */
+        derive_ternary_keys(k_head, k_tern, n_kv * d);
+
+        /* hrr_attention_full: build holographic memory + retrieve all queries.
+         * O(n_kv·d·log d) build  +  O(n_tokens·d·log d) retrieve. */
+        hrr_attention_full(out_hd, q_head, k_head, k_tern, v_head,
+                           n_tokens, n_kv, d);
+    }
 
     free(k_tern);
 }

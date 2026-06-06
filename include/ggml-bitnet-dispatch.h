@@ -51,6 +51,40 @@ GGML_API struct ggml_tensor * bitnet_op_acdc(
     struct ggml_tensor  * d);
 
 /*
+ * L3 — ACDC GEMV (rectangular, K blocks + linear projection)
+ *
+ * Computes y[m] = proj · [H(d₀⊙(H·x)); H(d₁⊙(H·x)); ...; H(d_{K-1}⊙(H·x))]
+ * where H is the unnormalized WHT.  Input x is zero-padded from n_orig to n
+ * (must be next_pow2(n_orig)), and quantized to int8 inside the callback.
+ *
+ * Used for retangular projections (FFN up/down: 2560→6912, 6912→2560 in
+ * BitNet 2B).  Pads:
+ *   up:   n_orig=2560 → n=4096, m=6912, K=⌈6912/4096⌉=2
+ *   down: n_orig=6912 → n=8192, m=2560, K=⌈2560/8192⌉=1
+ *
+ * The projection matrix and diagonals are statically allocated by the
+ * callback (partial identity + zeros) on first use.  This produces
+ * garbage output (P6: model wasn't trained with ACDC) but exercises
+ * the kernel in the real dispatch path.  Use the env var
+ * BITNET_ACDC_FFN=1 to activate.
+ *
+ * @param ctx    ggml context
+ * @param x      input activations  [n_orig]  (F32)
+ * @param m      output dim (the original model dim, not power-of-2)
+ * @param n      ACDC block dim (power of 2 ≥ n_orig)
+ * @param K      number of ACDC blocks (K*n ≥ m)
+ * @param n_orig original input dim before padding to n
+ * @return       output tensor [m]  (F32)
+ */
+GGML_API struct ggml_tensor * bitnet_op_acdc_gemv(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n,
+    int                   K,
+    int                   n_orig);
+
+/*
  * L4 — Tropical attention (max,+) semiring with top-K scan
  *
  * Replaces standard softmax attention:

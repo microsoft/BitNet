@@ -274,6 +274,10 @@ void tropical_attn_topk(
     float          q_scale,
     float          k_scale)
 {
+    /* Clamp K_top to available keys — handles early decode / warmup where n_keys < topk */
+    const int K_actual = (K_top < n_keys) ? K_top : n_keys;
+    if (K_actual <= 0) return;
+
     /* Passo 1: computar todos os escores — O(n·d), adições puras */
     float * scores = (float *)malloc(n_keys * sizeof(float));
     if (!scores) return;
@@ -284,11 +288,11 @@ void tropical_attn_topk(
     if (!idx) { free(scores); return; }
     for (int i = 0; i < n_keys; i++) idx[i] = i;
 
-    /* nth_element: O(n) expected, O(n log n) worst */
-    std::partial_sort(idx, idx + K_top, idx + n_keys,
+    /* partial_sort requires middle ≤ last — K_actual guarantees this */
+    std::partial_sort(idx, idx + K_actual, idx + n_keys,
         [scores](int a, int b){ return scores[a] > scores[b]; });
 
-    for (int k = 0; k < K_top; k++) {
+    for (int k = 0; k < K_actual; k++) {
         top_idx[k]    = idx[k];
         top_scores[k] = scores[idx[k]];
     }
@@ -321,33 +325,37 @@ void tropical_attention(
     float          q_scale,
     float          k_scale)
 {
-    int * top_idx    = (int   *)malloc(K_top * sizeof(int));
-    float * top_s    = (float *)malloc(K_top * sizeof(float));
-    float * weights  = (float *)malloc(K_top * sizeof(float));
+    /* Clamp to available keys so we never read uninitialized top_idx/top_s entries */
+    const int K_actual = (K_top < n_keys) ? K_top : n_keys;
+    if (K_actual <= 0) { memset(output, 0, head_dim * sizeof(float)); return; }
+
+    int   * top_idx = (int   *)malloc(K_actual * sizeof(int));
+    float * top_s   = (float *)malloc(K_actual * sizeof(float));
+    float * weights = (float *)malloc(K_actual * sizeof(float));
     if (!top_idx || !top_s || !weights) goto cleanup;
 
-    /* 1. Top-K via tropical max */
+    /* 1. Top-K via tropical max — fills exactly K_actual entries */
     tropical_attn_topk(top_idx, top_s, q, K, n_keys, head_dim,
-                        K_top, q_scale, k_scale);
+                        K_actual, q_scale, k_scale);
 
     /* 2. Softmax over top-K (log-sum-exp stable) */
     {
         float max_s = top_s[0];
-        for (int k = 1; k < K_top; k++)
+        for (int k = 1; k < K_actual; k++)
             if (top_s[k] > max_s) max_s = top_s[k];
 
         float sum_exp = 0.0f;
-        for (int k = 0; k < K_top; k++) {
+        for (int k = 0; k < K_actual; k++) {
             weights[k] = expf(top_s[k] - max_s);
             sum_exp += weights[k];
         }
         float inv_sum = 1.0f / sum_exp;
-        for (int k = 0; k < K_top; k++) weights[k] *= inv_sum;
+        for (int k = 0; k < K_actual; k++) weights[k] *= inv_sum;
     }
 
     /* 3. Weighted sum of top-K values */
     memset(output, 0, head_dim * sizeof(float));
-    for (int k = 0; k < K_top; k++) {
+    for (int k = 0; k < K_actual; k++) {
         const float * vk = V + top_idx[k] * head_dim;
         float w = weights[k];
         for (int i = 0; i < head_dim; i++) output[i] += w * vk[i];
