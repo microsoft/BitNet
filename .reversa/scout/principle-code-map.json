@@ -355,17 +355,38 @@
 
   "kernel_unit_test_suite": {
     "completed": "2026-06-05",
-    "scope": "Standalone C++ unit tests for L2-L5 math kernels, wired into CMake/ctest + GitHub Actions CI",
+    "scope": "Standalone C++ unit tests for L2-L5 math kernels + shared utilities, wired into CMake/ctest + GitHub Actions CI",
     "test_files": {
-      "test_wht.cpp":        "L2 — 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
-      "test_acdc.cpp":       "L3 — 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
-      "test_tropical.cpp":   "L4 — 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero_K",
-      "test_hrr_cleanup.cpp":"L5 — 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE"
+      "test_bitnet_common.cpp":"shared — 5/5 PASS (commit cdce725): next_pow2, aliases, edge cases, no-butterfly, pow2 unchanged",
+      "test_wht.cpp":         "L2 — 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
+      "test_acdc.cpp":        "L3 — 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
+      "test_tropical.cpp":    "L4 — 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero_K",
+      "test_hrr_cleanup.cpp": "L5 — 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE",
+      "test_hrr_attention.cpp":"L5 — 5/5 PASS (commit e8d45f1): single-query finite, multi-query independent, phasor SNR, gaussian finite, build+retrieve consistent with hrr_attention_full"
     },
-    "total": "20/20 PASS",
-    "ctest_runtime_local": "0.04 sec (4 executables, all in build/tests/)",
+    "total": "30/30 PASS across 6 suites",
+    "ctest_runtime_local": "0.05 sec (6 executables, all in build/tests/)",
     "cmake_wiring": "tests/CMakeLists.txt with bitnet_test_set_simd_flags() helper (per-arch SIMD flags + libm link)",
     "ci_wiring": ".github/workflows/ci.yml runs ctest after cmake build (ubuntu-24.04 + clang-18 + libstdc++-14-dev)"
+  },
+
+  "cpu_universal_benchmark": {
+    "completed": "2026-06-05",
+    "scope": "utils/cpu_universal_benchmark.py — systematic smoke benchmark across L1-L5 (one fixed prompt/tokens/threads, 5 env-var combinations)",
+    "results_bitnet_2b": {
+      "model": "models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf",
+      "prompt": "'The capital of France is'",
+      "n_tokens": 32,
+      "threads": 4,
+      "rows": [
+        {"config": "L1 baseline (I2_S GEMV)",                 "tok_per_sec": 4.97, "delta_pct": 0.0},
+        {"config": "L3 ACDC FFN",                              "tok_per_sec": 4.83, "delta_pct": -2.8},
+        {"config": "L4 Tropical top-K=32",                    "tok_per_sec": 4.60, "delta_pct": -7.4},
+        {"config": "L5 HRR raw",                              "tok_per_sec": 1.85, "delta_pct": -62.8},
+        {"config": "L5 HRR + cleanup 8 iters",                "tok_per_sec": 1.87, "delta_pct": -62.4}
+      ],
+      "interpretation": "L3-L5 show no speedup over L1 because the model was NOT trained with ACDC/HRR/tropical architectures (P6 unvalidated). L5 -62% is the expected cost of FFT for head_dim=128. Cleanup overhead is negligible (8 iters × small d)."
+    }
   },
 
   "kernel_bugs_found_and_fixed": {
@@ -383,6 +404,17 @@
       "fix_commit": "ed6fbde",
       "test_coverage": "test_acdc.cpp 5/5 PASS after fix; test [4] expectation also corrected (d*[k]=1/n for W=I, not 1)"
     }
+  },
+
+  "v0_1_0_release": {
+    "date": "2026-06-05",
+    "status": "release candidate",
+    "summary": "CPU-Universal fork ready for Caminho C (P6 retraining). All kernels verified, all dispatch paths integrated, all unit tests passing, smoke benchmark reproducible.",
+    "git_tag": "v0.1.0-cpu-universal",
+    "commits_since_fork": "18 (since 129557d = 18 new commits, 4 new test files, 2 new source files, 1 new env-var benchmark, 1 DRY refactor)",
+    "test_coverage": "30/30 subtests across 6 ctest suites (test_bitnet_common, test_wht, test_acdc, test_tropical, test_hrr_cleanup, test_hrr_attention) — runs in 0.05s",
+    "ci_status": "GitHub Actions: ubuntu-24.04 + clang-18 + libstdc++-14-dev + ctest (auto-runs on every push and PR)",
+    "smoke_benchmark": "utils/cpu_universal_benchmark.py reproduces the 5-row L1-L5 table in ~30s on a single CPU"
   },
 
   "P2_L5_hrr_refinement": {

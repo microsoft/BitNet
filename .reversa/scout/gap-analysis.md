@@ -2,7 +2,7 @@
 
 > Matriz de aderência entre os 7 princípios transversais e o estado real do código.
 > Gerado em 2026-06-05 pelo `reversa-scout`.
-> **Atualizado 2026-06-05 22:50** com 4 novos commits (a884036, 8509cff, ed6fbde, e7edb21), 2 bugs reais encontrados nos kernels, e 20/20 testes unitários C++ PASS.
+> **Atualizado 2026-06-05 23:20** com 6 novos commits desde `129557d` (cdce725 DRY refactor, e8d45f1 test_hrr_attention, 3f8166a cpu_universal_benchmark, + 3 anteriores), 6/6 ctest suites (30/30 subtests), tabela sistemática de smoke benchmark L1-L5.
 > Serve como entrada priorizada para próximos agentes (archaeologist, detective, forward).
 
 ---

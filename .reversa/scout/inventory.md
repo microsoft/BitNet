@@ -12,7 +12,7 @@
 | Remoto | https://github.com/peder1981/BitNet.git |
 | Licença | MIT |
 | Branch atual | main |
-| Último commit | `a884036` — *build(tests): wire all 4 kernel unit tests into CMake + CI* (2026-06-05 22:45) |
+| Último commit | `3f8166a` — *feat(bench): add cpu_universal_benchmark.py for systematic L1-L5 smoke tests* (2026-06-05 23:20) |
 | Working tree | clean (único untracked: `_reversa_sdd/session-2025-06-05-tropical-attn.md`, imutável) |
 | Propósito | Inferência CPU de LLMs com pesos ternários {-1, 0, +1} + extensões algébricas (WHT, ACDC, tropical, HRR) |
 
