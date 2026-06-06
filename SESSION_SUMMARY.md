@@ -4,7 +4,7 @@
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits na sessão:** 19
+**Total de commits na sessão:** 20
 
 ---
 
@@ -31,6 +31,7 @@ que requer GPU e 2-6 semanas.
 ## 2. Commits da sessão (cronológico inverso)
 
 ```
+b693d94  fix(ci): vendor L3/L5 dispatch patches — Eddie-Wang1120 force-pushed merge-dev
 18fcf75  docs(scout): v0.1.0 CPU-Universal release candidate + 6-test suite
 3f8166a  feat(bench): add cpu_universal_benchmark.py for systematic L1-L5 smoke tests
 e8d45f1  test(hrr-attn): add dispatch-kernel validation for hrr_attention_full
@@ -274,10 +275,11 @@ conversa inicial.
 
 ---
 
-## 13. Verificação final (commit `18fcf75`)
+## 13. Verificação final (commit `b693d94`)
 
 ```
-$ git log --oneline -10
+$ git log --oneline -5
+b693d94 fix(ci): vendor L3/L5 dispatch patches — Eddie-Wang1120 force-pushed merge-dev
 18fcf75 docs(scout): v0.1.0 CPU-Universal release candidate + 6-test suite
 3f8166a feat(bench): add cpu_universal_benchmark.py for systematic L1-L5 smoke tests
 e8d45f1 test(hrr-attn): add dispatch-kernel validation for hrr_attention_full
@@ -295,8 +297,86 @@ $ ctest --test-dir build --output-on-failure
 Total Test time (real) =   0.05 sec
 ```
 
+### 13.1 Fresh-clone smoke test (commit `b693d94`)
+
+Para validar o fix de CI, simulei um clone completamente fresh em `/tmp`:
+
+```bash
+git clone --depth=1 --recurse-submodules --shallow-submodules \
+    https://github.com/peder1981/BitNet.git /tmp/test-clone
+cd /tmp/test-clone
+./scripts/apply-dispatch-patches.sh
+cmake -B build -G Ninja \
+    -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_CXX_FLAGS="-I/usr/include/c++/13 -I/usr/include/x86_64-linux-gnu/c++/13" \
+    -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/gcc/x86_64-linux-gnu/13" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/lib/gcc/x86_64-linux-gnu/13" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBITNET_L2_WHT=ON -DBITNET_L3_ACDC=ON \
+    -DBITNET_L4_TROPICAL=ON -DBITNET_L5_HRR=ON \
+    -DBITNET_BUILD_TESTS=ON
+cmake --build build --target test_bitnet_common test_wht test_acdc \
+    test_tropical test_hrr_cleanup test_hrr_attention
+cd build && ctest
+```
+
+Resultado: **6/6 PASS, 0,05 s** — o fix reproduz o build em clone zerado.
+
+---
+
+## 14. Pós-sessão: correção de CI quebrado (commit `b693d94`)
+
+Após marcar `v0.1.0-cpu-universal`, o CI reportou falha:
+
+```
+Error: fatal: remote error: upload-pack: not our ref
+3dfc2dfa4e5f54810fcfeee362c1f2aa86aeb3da
+Error: fatal: Fetched in submodule path '3rdparty/llama.cpp', but it did
+not contain 3dfc2dfa4e5f54810fcfeee362c1f2aa86aeb3da.
+```
+
+**Causa raiz:** o fork `Eddie-Wang1120/llama.cpp` (onde o submodule
+aponta) reescreveu (force-push) a branch `merge-dev` entre esta
+sessão e a anterior, fazendo com que os commits `707f316` (L3 ACDC
+dispatch) e `3dfc2df` (L5 HRR cleanup dispatch) ficassem órfãos
+— ainda presentes no object DB local, mas inacessíveis via ref
+remota alguma.
+
+**Solução aplicada** (commit `b693d94`):
+
+1. **`patches/llama.cpp/01-L3-ACDC-FFN-dispatch.patch`** (162 linhas, só `src/llama.cpp`) — exportado via `git format-patch` do commit `707f316`.
+2. **`patches/llama.cpp/02-L5-HRR-cleanup-dispatch.patch`** (16 linhas, só `src/llama.cpp`) — exportado via `git format-patch` do commit `3dfc2df`.
+3. **`patches/llama.cpp/README.md`** — documentação dos patches e ordem de aplicação.
+4. **`scripts/apply-dispatch-patches.sh`** — script idempotente (com sentinelas via `grep`) que aplica L3 primeiro, depois L5, após `git submodule update --init`. Suporta `--check` e `--reverse`.
+5. **Submodule pointer** atualizado de `3dfc2df` (órfão) para `1f86f05` (tip da branch `merge-dev` no fork upstream, alcançável).
+6. **`.github/workflows/ci.yml`** — passo novo "Apply dispatch patches" logo após o `actions/checkout@v4` com submodules.
+
+Verificação:
+- Os dois patches aplicam limpos em `1f86f05` (validado com `git apply --check`).
+- O build inteiro compila (100%, todos os binários do llama.cpp gerados).
+- Os 6 testes unitários passam em 0,05 s.
+- Fresh-clone em `/tmp` reproduz o resultado (ver §13.1).
+
+**Trade-off conhecido:** o submodule agora aponta para um estado do
+`merge-dev` que **não** tem nosso dispatch. Sem os patches, ele compila
+mas os env vars `BITNET_ACDC_FFN`, `BITNET_HRR_ATTN`,
+`BITNET_HRR_ATTN_CLEANUP`, `BITNET_TROPICAL_TOPK` não têm efeito — o
+código de dispatch em `src/llama.cpp` é o que os intercepta. O CI
+sempre aplica os patches; builds locais que rodem sem o script não
+terão o dispatch ativo.
+
+**Mitigação futura:** se o fork for reescrito novamente, regenerar
+os patches com:
+```bash
+cd 3rdparty/llama.cpp
+git checkout <commit-original>
+git format-patch -1 <sha> -o /tmp/new-patches/
+```
+(Os commits órfãos `707f316` e `3dfc2df` continuam no object DB local
+enquanto o repo existir; só o remote é que perdeu o acesso.)
+
 ---
 
 **Sessão encerrada em 2026-06-05.**
-**Estado entregue:** v0.1.0-cpu-universal — release candidate pronto para
-Caminho C.
+**Estado entregue:** v0.1.0-cpu-universal — release candidate pronto
+para Caminho C, com CI reproduzível.
