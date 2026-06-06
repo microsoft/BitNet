@@ -26,7 +26,7 @@
 | **P4** Mínimo irredutível | ✓ | ✓ (n muls no ACDC) | ✓ (prova + benchmark) | n/a |
 | **P5** Dequantização tropical | ✓ | ⚠ só no limite τ→0 | ◐ softmax normal ainda em uso | ◐ top-K via `bitnet_op_tropical_attn` (K=32 default) |
 | **P6** Estrutura, não compressão | ✓ | ✗ só `acdc_project` (validação) | ✗ modelo não foi treinado | ✗ |
-| **P7** FFT como cola | ✓ | ✓ Cooley-Tukey radix-2 | ✓ L2/L3/L5 verificados | ✓ L5 com Frady 2021 cleanup validado (test_hrr_cleanup 5/5) |
+| **P7** FFT como cola | ✓ | ✓ Cooley-Tukey radix-2 | ✓ L2/L3/L5 verificados | ✓✓ L5 com Frady 2021 cleanup end-to-end (test_hrr_cleanup 5/5 + `bitnet_op_hrr_attn_with_cleanup` no dispatch) |
 
 **Resumo quantitativo** (atualizado 2026-06-05 22:15, pós L3 ACDC FFN):
 - Dimensão "Documentado": 7/7 (100%) — todos os princípios têm base teórica
@@ -76,7 +76,7 @@ para usar Hadamard-domain ao invés de `maddubs`.
 | Integração no dispatch L2 | ✓ | patchado em `ggml_vec_dot_i2_i8_s` (Hadamard no lugar de maddubs) |
 | Integração no dispatch L3 | ✓ | `bitnet_op_acdc_gemv` em `ggml-bitnet-dispatch.h`; chamado em `llm_build_ffn_acdc_bitnet` (env `BITNET_ACDC_FFN=1`) |
 | Integração no dispatch L4 | ✓ | `llm_build_kqv` (env `BITNET_TROPICAL_TOPK=N`) |
-| Integração no dispatch L5 | ✓ | `llm_build_kqv` (env `BITNET_HRR_ATTN=1`) |
+| Integração no dispatch L5 | ✓ | `llm_build_kqv` (env `BITNET_HRR_ATTN=1`); cleanup opcional via `BITNET_HRR_ATTN_CLEANUP=N` (default 8 iters, Frady 2021 RESIDUAL) |
 
 **Sem lacunas na integração de dispatch.** L3 ACDC agora tem caminho real
 via `bitnet_op_acdc_gemv` → `acdc_gemv` (K blocos + proj placeholder).

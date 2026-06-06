@@ -357,5 +357,27 @@
     },
     "snr_improvement": "raw cos_sim 0.1660 → NAIVE projection 1.00 (proves Frady 2021 identifies V_0 as dominant)",
     "next_integration": "hrr_attention_with_cleanup wrapper combining attention + iterative cleanup for llama.cpp dispatch"
+  },
+
+  "P2_L5_hrr_cleanup_dispatch": {
+    "completed": "2026-06-05",
+    "scope": "End-to-end HRR + Frady 2021 cleanup in llama.cpp KQV call site",
+    "files_added_or_modified": [
+      "include/ggml-bitnet-dispatch.h",
+      "src/ggml-bitnet-dispatch.cpp",
+      "3rdparty/llama.cpp/src/llama.cpp"
+    ],
+    "env_vars": {
+      "BITNET_HRR_ATTN":         "Enable raw HRR unbind (1=on)",
+      "BITNET_HRR_ATTN_CLEANUP": "Enable Frady 2021 RESIDUAL cleanup (N=max iters; 0=raw, 8=default)"
+    },
+    "smoke_benchmark": {
+      "L5_raw_unbind":      "1.42 tok/s (BITNET_HRR_ATTN=1, CLEANUP=0)",
+      "L5_with_cleanup_8":  "1.29 tok/s (BITNET_HRR_ATTN=1, CLEANUP=8); -10% vs raw, expected",
+      "L4_tropical":        "4.33 tok/s (BITNET_TROPICAL_TOPK=32)",
+      "L4_plus_L5":         "4.19 tok/s (L4 wins via else-if chain)"
+    },
+    "output_quality": "garbage em ambos (modelo não treinado com HRR/ACDC; P6 não validado)",
+    "next_step": "Caminho C (retreino P6 com ACDC, GPU 2-6 semanas) — única via para output coerente"
   }
 }
