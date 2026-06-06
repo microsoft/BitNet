@@ -1,10 +1,113 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessão 2026-06-06
 
-**Período:** 2025-06-05 → 2026-06-05
+**Período:** 2025-06-05 → 2026-06-06
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits na sessão:** 20
+**Total de commits (cumulativo):** 23
+
+---
+
+## SESSÃO 2026-06-06 — Paralelização L4/L5 + Float Sparse Attention
+
+### S2.1 Commits desta sessão
+
+```
+e9c00ef  feat(attn): add float sparse top-K attention (BITNET_SPARSE_TOPK)
+3ec76b6  perf(dispatch): parallelize L4/L5 attention callbacks across heads
+3f7c594  docs(session): add fresh-clone verification + post-session CI fix log
+```
+
+### S2.2 Root-cause: Tropical -13.9% no benchmak anterior
+
+Na sessão anterior, o smoke benchmark mostrava L4 Tropical -7.4 % vs L1.
+Ao investigar, identificou-se que **todos os callbacks de ggml_map_custom3
+usavam `n_tasks=1`**, forçando execução single-thread enquanto o flash_attn
+padrão usa todos os `nth` threads. Com 4 threads, o caminho standard tinha
+4× mais paralelismo.
+
+### S2.3 Fix: callback paralelo com strided head loop (commit `3ec76b6`)
+
+**`src/ggml-bitnet-dispatch.cpp` — três callbacks alterados:**
+
+- `tropical_callback`: removido `if (ith != 0) return;`; loop de cabeças alterado para `for (int h = ith; h < n_head; h += nth)`.
+- `hrr_callback`: mesmo padrão; removido `(void)nth`.
+- `hrr_cleanup_callback`: mesmo padrão; substituído `goto cleanup` por `free()` direto; renomeado `M_working` → `M_work`.
+- Todos os três `ggml_map_custom3`: `n_tasks=1` → `GGML_N_TASKS_MAX`.
+
+Regiões de memória são disjuntas por head (q/dst são privados por head;
+k/v são read-only), então não há races.
+
+**Resultado pós-fix:**
+
+| Configuração | Antes | Depois | Δ |
+|---|---|---|---|
+| L4 Tropical K=32 | -7.4 % | ~-1 a -2 % | +6 pp |
+| L5 HRR raw | -62.8 % | -45 a -47 % | +16 pp |
+
+### S2.4 Root-cause do overhead residual Tropical: 3-pass K
+
+Mesmo após a paralelização, Tropical ainda mostra -2 a -5 % overhead em
+contextos curtos. O motivo: **3 passes sobre K por head**:
+
+1. `K_f32` (lido do KV cache) → `K_i8` (quantizado em int8)
+2. `K_i8` lido para scoring (dot products ternários)
+3. Aggregation dos top-K valores
+
+O path padrão (flash_attn) faz **1 pass** sobre K em float.
+A quantização I8 adiciona memória extra proporcional a `n_kv × head_dim`.
+
+### S2.5 Solução: `sparse_attention_float` (commit `e9c00ef`)
+
+Nova função de atenção sparse com **scoring em float32** (sem quantização de K):
+
+- **1 pass** sobre `K_f32` para dot products e seleção top-K via partial sort
+- Softmax sobre K scores + soma ponderada dos K valores
+- Ativa via env var `BITNET_SPARSE_TOPK=K` (chained `else if` no mesmo bloco `#if BITNET_L4_TROPICAL`)
+
+**Arquivos modificados:**
+
+| Arquivo | O que foi adicionado |
+|---|---|
+| `src/ggml-bitnet-tropical.cpp` | `sparse_attention_float()` — float scoring, partial sort, softmax, V sum |
+| `src/ggml-bitnet-dispatch.cpp` | `sparse_float_callback` (thread-parallel) + `bitnet_op_sparse_attn` |
+| `include/ggml-bitnet-tropical.h` | Declaração de `sparse_attention_float` |
+| `include/ggml-bitnet-dispatch.h` | Declaração de `bitnet_op_sparse_attn` |
+| `3rdparty/llama.cpp/src/llama.cpp` | `BITNET_SPARSE_TOPK` env-var hook (linha ~9878) |
+| `utils/cpu_universal_benchmark.py` | Sparse float adicionado ao suite; fix `UnicodeDecodeError` (bytes decode) |
+
+### S2.6 Benchmark pós-implementação (BitNet-2B, 4t, n=64, K=32)
+
+| Configuração | tok/s | Δ vs L1 |
+|---|---|---|
+| L1 baseline (I2_S GEMV) | 5.56–5.68 | 0.0 % |
+| L3 ACDC FFN | 5.49–5.61 | -1.2 a -1.3 % |
+| **L4 Sparse float K=32** | **5.48–5.54** | **-0.4 a -3.5 %** |
+| L4 Tropical K=32 | 5.38–5.44 | -2.2 a -5.3 % |
+| L5 HRR raw | 2.95–3.10 | -45 a -47 % |
+| L5 HRR + cleanup 8 | 2.89–2.94 | -48 a -49 % |
+
+Sparse float é sistematicamente melhor que tropical no mesmo K.
+Variância é alta em contextos curtos (n_kv ≈ 34) porque o overhead de
+dispatch domina o tempo de compute — o diferencial vs standard deve
+ser mais claro a n_kv ≥ 128.
+
+### S2.7 Estado atual dos Caminhos
+
+| Caminho | Descrição | Estado |
+|---|---|---|
+| A | Kernels L2–L5 matematicamente corretos | **100 %** |
+| B | Dispatch integrado no llama.cpp KQV/FFN | **100 %** |
+| B+ | L4 paralelizado + sparse float | **Novo ✓** |
+| C | Modelo retreinado com ACDC/HRR/tropical | **Aberto** (P6, GPU) |
+
+### S2.8 Próximos passos sugeridos (não executados)
+
+1. **Benchmark de contexto longo** — rodar `tropical_sweep.py` com `--n-tokens 256` e prompt longo (≥128 tokens) para medir o diferencial sparse float vs tropical a n_kv ≥ 128, onde a eliminação do buffer K_i8 deve mostrar ~20–40 % de melhora sobre tropical.
+2. **Incremental K_i8 cache** — evitar re-quantizar todas as chaves KV a cada decode step; manter o buffer K_i8 entre chamadas (exige patch no KV cache do llama.cpp).
+3. **Caminho A++** — estender L2 WHT para `m × n` com m, n não-potência-de-2.
+4. **ACDC-pretraining-aware diagonal** — adicionar extração de `d*` no `convert-helper-bitnet.py`.
+5. **Caminho C** — GPU necessária; ver sessão anterior §12.
 
 ---
 
