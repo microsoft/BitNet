@@ -102,7 +102,7 @@ if (BITNET_L4_TROPICAL)
 endif()
 
 # ─── L5: HRR (Holographic Reduced Representations) ─────────────────────────
-# 5/5 PASS: FFT roundtrip, bind vs circular_conv, phasor inverse,
+# 5/5 PASS: FFT roundtrip, bind, phasor inv,
 # RESIDUAL Frady 2021, NAIVE projection.
 if (BITNET_L5_HRR)
     add_executable(test_hrr_cleanup
@@ -115,4 +115,22 @@ if (BITNET_L5_HRR)
     set_target_properties(test_hrr_cleanup PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_hrr_cleanup COMMAND test_hrr_cleanup)
+
+    # ─── L5: HRR attention (dispatch kernel, no ggml wrapping) ─────────────
+    # 5/5 PASS: single-query finite, multi-query independent, phasor exact,
+    # gaussian finite, build+retrieve consistent with hrr_attention_full.
+    # This guards the kernel that bitnet_op_hrr_attn and
+    # bitnet_op_hrr_attn_with_cleanup invoke — a regression here would silently
+    # corrupt L5 attention in the entire inference pipeline.
+    add_executable(test_hrr_attention
+        ${CMAKE_SOURCE_DIR}/test_hrr_attention.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-hrr.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_hrr_attention PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_hrr_attention PRIVATE BITNET_L5_HRR)
+    bitnet_test_set_simd_flags(test_hrr_attention)
+    set_target_properties(test_hrr_attention PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_hrr_attention COMMAND test_hrr_attention)
 endif()

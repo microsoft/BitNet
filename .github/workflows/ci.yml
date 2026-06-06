@@ -60,7 +60,7 @@ jobs:
         run: cmake --build build --config Release -j$(nproc)
 
       - name: Build all kernel unit tests
-        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_hrr_cleanup
+        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_hrr_cleanup test_hrr_attention
 
-      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L5)
+      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L5_attn, L5_cleanup)
         run: cd build && ctest --output-on-failure
