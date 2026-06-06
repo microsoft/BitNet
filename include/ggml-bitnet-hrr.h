@@ -234,6 +234,38 @@ float hrr_cosine_sim(const float *a, const float *b, int d);
 int hrr_cleanup_step(float *out, const float *noisy,
                      const float **codebook, int N_cb, int d);
 
+/*
+ * hrr_cleanup_iter: iterative cleanup loop (Frady 2021).
+ *
+ * Repeats nearest-codebook projection until convergence (the chosen codebook
+ * index stops changing) or max_iters is reached.  Optionally subtracts the
+ * contribution of the chosen codebook entry from M (residual clean) and
+ * re-unbinds, which gives better SNR than naive projection when N > d/10.
+ *
+ * Two modes:
+ *   1. NAIVE PROJECTION:    out = argmin ||x - c|| iteratively (no M)
+ *   2. RESIDUAL CLEAN:      out = argmin ||M⊛q⁻¹ - k⊛c|| iteratively
+ *
+ * Mode (2) is the Frady 2021 algorithm and is what you want for HRR
+ * retrieval.  Pass M=NULL for mode (1).
+ *
+ * @param out        cleaned output [d floats] (== best codebook entry on return)
+ * @param noisy      initial retrieval (or NULL if using M+query)
+ * @param M          holographic memory [d floats], or NULL for naive mode
+ * @param query_key  retrieval key [d floats], or NULL for naive mode
+ * @param codebook   N_cb clean prototype vectors [N_cb × d floats]
+ * @param N_cb       codebook size
+ * @param d          dimension
+ * @param max_iters  iteration cap (typ. 8-16)
+ * @param tmp        scratch buffer [3*(d+2) + d floats] (only used in mode 2)
+ * @return           index of chosen codebook entry, or -1 if no entry ever
+ *                   projected closer than trivial (no convergence)
+ */
+int hrr_cleanup_iter(float *out, const float *noisy,
+                     const float *M, const float *query_key,
+                     const float **codebook, int N_cb, int d,
+                     int max_iters, float *tmp);
+
 /* ─── HRR-based attention (full replacement of scaled dot-product) ────── */
 
 /*

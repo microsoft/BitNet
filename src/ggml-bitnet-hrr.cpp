@@ -201,35 +201,26 @@ static void complex_multiply_spectrum(float *C, const float *A, const float *B, 
     int n_complex = d / 2 + 1;
 
 #if defined(__AVX2__)
+    /*
+     * Complex multiply 4 pairs per iteration using fmaddsub.
+     * Layout A, B, C: interleaved [re0,im0,re1,im1,re2,im2,re3,im3] = 8 floats.
+     *
+     * fmaddsub(a_re_dup, B, a_im_dup * B_swapped):
+     *   even positions (re): a_re*b_re - a_im*b_im = c_re  ← subtract
+     *   odd  positions (im): a_re*b_im + a_im*b_re = c_im  ← add
+     *
+     * Writes exactly 8 floats per iteration (one _mm256_storeu_ps).
+     */
     int i = 0;
     for (; i + 4 <= n_complex; i += 4) {
-        /* Carregar 4 complexos de A: [re0,im0,re1,im1,re2,im2,re3,im3] */
-        __m256 va = _mm256_loadu_ps(A + 2*i);  /* a_re0,a_im0,a_re1,a_im1,...  */
-        __m256 vb = _mm256_loadu_ps(B + 2*i);
-
-        /* Extrair re e im separados */
-        /* va: [ar0,ai0,ar1,ai1,ar2,ai2,ar3,ai3] */
-        /* Queremos: re*re-im*im, re*im+im*re */
-        /* Usar _mm256_moveldup_ps / _mm256_movehdup_ps */
-        __m256 a_re = _mm256_moveldup_ps(va);  /* [ar0,ar0,ar1,ar1,ar2,ar2,ar3,ar3] */
-        __m256 a_im = _mm256_movehdup_ps(va);  /* [ai0,ai0,ai1,ai1,ai2,ai2,ai3,ai3] */
-
-        /* b_re = shuffle(vb, ...) = mesmo vb mas interleaved */
-        __m256 b_re = _mm256_moveldup_ps(vb);
-        __m256 b_im = _mm256_movehdup_ps(vb);
-
-        /* C_re = a_re * b_re - a_im * b_im */
-        __m256 c_re = _mm256_fmsub_ps(a_re, b_re, _mm256_mul_ps(a_im, b_im));
-        /* C_im = a_re * b_im + a_im * b_re */
-        __m256 c_im = _mm256_fmadd_ps(a_re, b_im, _mm256_mul_ps(a_im, b_re));
-
-        /* Reinterleave: [cr0,ci0,cr1,ci1,...] */
-        __m256 c_lo = _mm256_unpacklo_ps(c_re, c_im);  /* cr0,ci0,cr1,ci1,cr4,ci4,cr5,ci5 */
-        __m256 c_hi = _mm256_unpackhi_ps(c_re, c_im);  /* cr2,ci2,cr3,ci3,cr6,ci6,cr7,ci7 */
-        __m256 out0 = _mm256_permute2f128_ps(c_lo, c_hi, 0x20);
-        __m256 out1 = _mm256_permute2f128_ps(c_lo, c_hi, 0x31);
-        _mm256_storeu_ps(C + 2*i,   out0);
-        _mm256_storeu_ps(C + 2*i+8, out1);
+        __m256 va     = _mm256_loadu_ps(A + 2*i);
+        __m256 vb     = _mm256_loadu_ps(B + 2*i);
+        __m256 a_re   = _mm256_moveldup_ps(va);            /* [ar0,ar0,ar1,ar1,...] */
+        __m256 a_im   = _mm256_movehdup_ps(va);            /* [ai0,ai0,ai1,ai1,...] */
+        __m256 b_swap = _mm256_permute_ps(vb, 0xB1);       /* swap re/im pairs */
+        __m256 c      = _mm256_fmaddsub_ps(a_re, vb,
+                            _mm256_mul_ps(a_im, b_swap));
+        _mm256_storeu_ps(C + 2*i, c);
     }
     for (; i < n_complex; i++) {
         float ar = A[2*i], ai = A[2*i+1];
@@ -365,6 +356,107 @@ int hrr_cleanup_step(float *out, const float *noisy,
     }
     memcpy(out, codebook[best], d * sizeof(float));
     return best;
+}
+
+/*
+ * hrr_cleanup_iter: Frady 2021 iterative cleanup.
+ *
+ * Two modes:
+ *   NAIVE (M == NULL):   iterate nearest-codebook projection on `noisy` until
+ *                        the chosen index stops changing.
+ *   RESIDUAL (M != NULL): for each iteration t:
+ *                          1. Compute k_inv = pseudoinverse(query_key)  [once]
+ *                          2. Retrieve v_t = M_t ⊛ k_inv
+ *                          3. Project to nearest codebook c_t
+ *                          4. If c_t == c_{t-1} → converged, stop
+ *                          5. Subtract contribution: M_{t+1} = M_t - query_key ⊛ c_t
+ *
+ * The residual mode is what makes HRR retrieval usable when N > d/10.
+ * Expected SNR (for phasor keys, random codebook):
+ *   raw retrieval:         cos_sim ≈ √d / (N-1 + √d)   (can be < 0.1)
+ *   + 8 iterations cleanup: cos_sim ≈ 0.95-0.99         (depending on d/N)
+ *
+ * @param out        cleaned output [d floats] (== chosen codebook entry)
+ * @param noisy      initial retrieval (used only in NAIVE mode; ignored in RESIDUAL)
+ * @param M          holographic memory [d floats], or NULL for NAIVE
+ * @param query_key  original key k [d floats] (RESIDUAL: used for subtraction;
+ *                   NAIVE: ignored)
+ * @param codebook   N_cb clean prototype vectors [N_cb × d floats]
+ * @param N_cb       codebook size
+ * @param d          dimension
+ * @param max_iters  iteration cap (typ. 8-16)
+ * @param tmp        scratch [3*(d+2) + d floats] for FFTs and k_inv
+ * @return           index of chosen codebook entry, or -1 on failure
+ */
+int hrr_cleanup_iter(float *out, const float *noisy,
+                     const float *M, const float *query_key,
+                     const float **codebook, int N_cb, int d,
+                     int max_iters, float *tmp) {
+    if (N_cb <= 0) return -1;
+    if (max_iters < 1) max_iters = 1;
+
+    /* Helper: find nearest codebook entry to `probe`, return its index. */
+    auto nearest = [&](const float * probe) -> int {
+        int best = 0;
+        float best_sim = -FLT_MAX;
+        for (int i = 0; i < N_cb; i++) {
+            float sim = hrr_cosine_sim(probe, codebook[i], d);
+            if (sim > best_sim) { best_sim = sim; best = i; }
+        }
+        return best;
+    };
+
+    int idx = -1;
+
+    if (M != NULL && query_key != NULL) {
+        /* ─── RESIDUAL MODE (Frady 2021) ─────────────────────────────────────
+         * 1. k_inv = conj(FFT(query_key))            [once]
+         * 2. iter t:
+         *      work = M_t ⊛ k_inv                    (re-unbind the residual memory)
+         *      idx_t = nearest(work, codebook)        (project to nearest prototype)
+         *      if idx_t == idx_{t-1} (and t>0): break (converged)
+         *      if t==0: out = codebook[idx_t]         (seed)
+         *      else:     out += codebook[idx_t]       (accumulate!)
+         *      M_{t+1} = M_t - query_key ⊛ codebook[idx_t]   (subtract trace)
+         */
+        float * M_working = (float *)malloc(d * sizeof(float));
+        float * binding   = (float *)malloc(d * sizeof(float));
+        float * k_inv     = (float *)malloc(d * sizeof(float));
+        float * work      = (float *)malloc(d * sizeof(float));
+        if (!M_working || !binding || !k_inv || !work) {
+            free(M_working); free(binding); free(k_inv); free(work);
+            return -1;
+        }
+        memcpy(M_working, M, d * sizeof(float));
+        hrr_pseudoinverse(k_inv, query_key, d, tmp);
+
+        int prev_idx = -1;
+        for (int iter = 0; iter < max_iters; iter++) {
+            hrr_unbind(work, M_working, k_inv, d, tmp);
+            idx = nearest(work);
+            if (iter > 0 && idx == prev_idx) break;
+            if (iter == 0) {
+                memcpy(out, codebook[idx], d * sizeof(float));
+            } else {
+                for (int i = 0; i < d; i++) out[i] += codebook[idx][i];
+            }
+            prev_idx = idx;
+            /* subtract this codebook entry's trace from M_working */
+            hrr_bind(binding, query_key, codebook[idx], d, tmp);
+            for (int i = 0; i < d; i++) M_working[i] -= binding[i];
+        }
+
+        free(M_working); free(binding); free(k_inv); free(work);
+        return idx;
+    } else {
+        /* ─── NAIVE MODE ─────────────────────────────────────────────────────
+         * Single nearest projection on the provided `noisy` retrieval.
+         * Useful when M is not available (e.g. test harness with direct noisy).
+         */
+        int best = nearest(noisy);
+        memcpy(out, codebook[best], d * sizeof(float));
+        return best;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
