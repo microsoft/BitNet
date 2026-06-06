@@ -20,6 +20,7 @@ option(BITNET_L2_WHT      "bitnet.cpp: WHT zero-mul GEMV (Level 2)"           ON
 option(BITNET_L3_ACDC     "bitnet.cpp: FWHT+ACDC O(n log n) layers (Level 3)" ON)
 option(BITNET_L4_TROPICAL "bitnet.cpp: Tropical attention (max,+) (Level 4)"  ON)
 option(BITNET_L5_HRR      "bitnet.cpp: Holographic memory HRR (Level 5)"      ON)
+option(BITNET_BUILD_TESTS "bitnet.cpp: build kernel unit tests"               ON)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
@@ -61,6 +62,13 @@ add_subdirectory(3rdparty/llama.cpp)
 if (BITNET_MATH_TARGET)
     target_link_libraries(ggml PUBLIC ${BITNET_MATH_TARGET})
     message(STATUS "BitNet: L2-L5 kernels linked into ggml target")
+endif()
+
+# ─── Tests ────────────────────────────────────────────────────────────────────
+# Standalone unit tests for L2-L5 kernels. Add -DBITNET_BUILD_TESTS=OFF to skip.
+if (BITNET_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
 # install

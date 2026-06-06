@@ -1,0 +1,69 @@
+# ─── BitNet CPU kernel CI ──────────────────────────────────────────────────────
+#
+# Builds the bitnet.cpp project with all L2-L5 math kernels enabled and runs
+# the kernel unit test suite. No model download (full smoke/perplexity happens
+# locally or in a separate nightly workflow).
+#
+# Why this exists:
+#   - Clang ≥ 18 is required for SIMD kernels (per CLAUDE.md).
+#   - 3rdparty/llama.cpp is a fork (branch `merge-dev`); submodule init is
+#     critical for the build.
+#   - GCC 14 may not be installed in the runner image; we explicitly install
+#     libstdc++-14-dev so Clang 18 can find its system C++ headers.
+#
+# Trigger: every push to main, every PR.
+
+name: kernel-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: build + test (Ubuntu, clang-18)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-18 \
+            cmake \
+            ninja-build \
+            libstdc++-14-dev
+
+      - name: Configure (Release, all kernels)
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBITNET_L2_WHT=ON \
+            -DBITNET_L3_ACDC=ON \
+            -DBITNET_L4_TROPICAL=ON \
+            -DBITNET_L5_HRR=ON \
+            -DBITNET_BUILD_TESTS=ON
+
+      - name: Build (compiles L1 + L2-L5 + dispatch into libggml)
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Build kernel unit tests
+        run: cmake --build build --target test_hrr_cleanup --config Release -j$(nproc)
+
+      - name: Run test_hrr_cleanup (5/5 expected)
+        run: ./build/tests/test_hrr_cleanup
+
+      - name: ctest (runs registered add_test() targets)
+        run: cd build && ctest --output-on-failure
