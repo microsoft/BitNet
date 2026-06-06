@@ -35,6 +35,15 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Apply dispatch patches (L3 ACDC + L5 HRR cleanup)
+        run: |
+          echo "Applying L3 ACDC + L5 HRR cleanup dispatch patches to llama.cpp..."
+          chmod +x ./scripts/apply-dispatch-patches.sh
+          ./scripts/apply-dispatch-patches.sh
+          echo "Verifying idempotence..."
+          ./scripts/apply-dispatch-patches.sh --check
+        shell: bash
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
