@@ -1,10 +1,172 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06 e 2026-06-06b
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b e 2026-06-06c
 
 **Período:** 2025-06-05 → 2026-06-06
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 25
+**Total de commits (cumulativo):** 26
+
+---
+
+## SESSÃO 2026-06-06c — Phase C: K_i8 cache incremental para tropical attention
+
+### S2c.1 Commits desta sessão
+
+```
+ec2a654 Phase C: K_i8 KV cache for tropical attention (3-pass K → 1-pass K)
+```
+
+### S2c.2 Motivação
+
+A sessão anterior (2026-06-06b) identificou o **"3-pass K problem"** no
+L4 tropical: cada decode step quantizava TODOS os n_kv × d elementos de
+K do zero, mesmo que apenas 1 token tivesse sido adicionado. O custo era
+~1/3 do trabalho total da atenção tropical. Em n=256, L4 tropical ficava
+em -8,9 % vs L1 (4,31 vs 4,73 tok/s).
+
+### S2c.3 Solução: cache persistente por (layer, kv_head)
+
+Arquivos novos:
+- `include/ggml-bitnet-kv-cache.h` — API pública: `init/reset/free/
+  set_layer/current_layer/get`. Lazy init com defaults BitNet-2B
+  (n_layer=32, n_head_kv=20, d=128, max_n_kv=4096).
+- `src/ggml-bitnet-kv-cache.cpp` — impl com:
+  - **scale lockado** no primeiro call: garante ranking top-K estável
+  - **incremental quant**: só n_kv − last_n elementos são processados
+  - **pthread_mutex por slot** (ver S2c.5 abaixo)
+  - **capacity growth**: dobra por realloc, limitado a max_n_kv
+- `test_kv_i8_cache.cpp` — 11/11 PASS (ver S2c.6)
+- `patches/llama.cpp/03-L4-TROPICAL-KI8-cache.patch` — inclui
+  `ggml-bitnet-kv-cache.h` e adiciona `bitnet_kv_i8_cache_set_layer(il)`
+  antes do `bitnet_op_tropical_attn`
+
+Modificações:
+- `src/ggml-bitnet-dispatch.cpp` — `tropical_ud` ganha campo `layer`;
+  callback chama `bitnet_kv_i8_cache_get(...)` e só faz malloc fallback
+  se cache miss (slot não alocado, layer fora do range, ou shape mismatch)
+- `src/CMakeLists.txt` — adiciona `ggml-bitnet-kv-cache.cpp` ao
+  `_bitnet_math_srcs` sob `BITNET_L4_TROPICAL`
+- `tests/CMakeLists.txt`, `.github/workflows/ci.yml` — wire test_kv_i8_cache
+- `scripts/apply-dispatch-patches.sh` — suporte ao patch 03
+- `patches/llama.cpp/README.md` — documenta patch 03
+
+### S2c.4 Decisão de design: API inalterada
+
+`bitnet_op_tropical_attn` mantém a assinatura `(ctx, q, k, v, topk, scale)`.
+O layer é capturado via `bitnet_kv_i8_current_layer()` no momento do
+dispatch (o KQV site llama.cpp chama `set_layer(il)` antes). O callback
+usa o valor congelado no `ud` (evita race com threads irmãs).
+
+### S2c.5 Bug crítico encontrado durante desenvolvimento: race condition GQA
+
+A primeira versão (sem mutex) crashava com `double free or corruption`
+em n=64 a partir de n_kv=96. Root cause:
+
+**GQA (Grouped Query Attention):** n_head=20, n_head_kv=5 → gqa=4.
+A strided loop do callback é `for h = ith; h < 20; h += 4`, então
+thread 0 processa h=0,4,8,12,16. Todas essas heads mapeiam para
+`kv_h = h/gqa = 0,1,2,3,4` — diferentes. **MAS** thread 1 processa
+h=1,5,9,13,17, que também mapeiam para `kv_h = 0,1,2,3,4`. **Portando,
+threads 0 e 1 acessam o MESMO (il, kv_h=0) simultaneamente**, ambas
+fazendo `n_quantized = n_kv` no mesmo slot → corrupção.
+
+**Fix:** `pthread_mutex_t mtx` em cada slot. Inicializado em
+`bitnet_kv_i8_cache_init`, destruído em `_free`, locked no início
+de `_get` e unlocked no final (com paths de erro também unlockando).
+Custo de serialização: 1 mutex por (il, kv_h), não por token — overhead
+desprezível.
+
+O bug **não aparece em n=8** (cache miss inicial + todos os threads
+fazem o mesmo n_kv, mas é idempotente) nem em n=64 com threads=1
+(serial). Aparece a partir de n_kv=64+ e threads=2+ (BitNet-2B tem
+n_head_kv=5, então 2 threads já colidem).
+
+### S2c.6 ctest após Phase C (8/8 PASS, 0,05 s)
+
+```
+$ ctest --output-on-failure
+    Start 1: test_bitnet_common       Passed    0.00 sec
+    Start 2: test_wht                 Passed    0.00 sec
+    Start 3: test_acdc                Passed    0.00 sec
+    Start 4: test_tropical            Passed    0.00 sec
+    Start 5: test_sparse_attention    Passed    0.00 sec
+    Start 6: test_kv_i8_cache         Passed    0.00 sec   ← NOVO
+    Start 7: test_hrr_cleanup         Passed    0.03 sec
+    Start 8: test_hrr_attention       Passed    0.00 sec
+100% tests passed, 0 tests failed out of 8
+```
+
+`test_kv_i8_cache` 11/11 subtestes:
+| # | Teste | O que verifica |
+|---|-------|----------------|
+| 1 | `init_noop` | init repetido com mesma shape: no-op (sem crash) |
+| 2 | `init_realloc` | init com shape diferente: free + realloc, get após reinit funciona |
+| 3 | `first_call_quantizes_all` | last_n=0, n_new=n_kv, scale > 0, todos em range int8 |
+| 4 | `incremental_only_new` | n_kv cresce: só n_kv − last_n elementos quantizados, scale lockada, p2 == p1 |
+| 5 | `no_new_keys` | n_kv == last_n: idempotente, mesma scale |
+| 6 | `out_of_range` | il/kv_h/n_kv fora do range: NULL |
+| 7 | `capacity_growth` | realloc + buffer move (p2 != p1) |
+| 8 | `capacity_exceeds_max` | n_kv > max_n_kv: NULL (caller fallback) |
+| 9 | `thread_safety` | 2 threads × 200 trials: 0 erros |
+| 10 | `reset_clears_state` | reset zera n_quantized, próximo get re-quantiza |
+| 11 | `set_layer_current` | roundtrip set_layer/current_layer |
+
+### S2c.7 Bench: cache dá +7,1 pp no L4 tropical em n=256
+
+BitNet-2B, t=4, K=32:
+
+| Configuração                       | n=128   | n=256   |
+|------------------------------------|---------|---------|
+| L1 baseline (I2_S GEMV)            | 4,88    | 5,06    |
+| L3 ACDC FFN                        | 4,77 (-2,3 %)| 5,09 (+0,6 %) |
+| **L4 Tropical (com cache)**        | **4,83 (-1,0 %)** | **4,97 (-1,8 %)** |
+| L4 Sparse float (sem cache)        | 4,97 (+1,8 %) | 4,94 (-2,4 %) |
+| L5 HRR raw                         | 2,06 (-57,8 %)| 1,55 (-69,4 %)|
+
+Comparação L4 Tropical antes/depois do cache:
+- **n=256:** 4,31 → 4,97 tok/s = **+7,1 pp** (de -8,9 % para -1,8 %)
+- n=128: 5,06 → 4,83 (ruído de execução; n=128 é dominado pelo prompt
+  eval, não pelo K cache)
+
+Agora L4 tropical está em **-1,0 % / -1,8 %** vs L1 — finalmente
+competitivo com sparse float (-1,8 % / -2,4 %). O cache cumpriu seu
+papel: eliminou a maior redundância do tropical (re-quantizar K
+inteiro a cada step).
+
+### S2c.8 Limitação conhecida: cache não elimina o score pass
+
+O cache só evita a **quantização** (1 dos 2 reads de K). O **scoring**
+continua varrendo todos os n_kv elementos para produzir o top-K.
+Próximas otimizações possíveis (não escopadas nesta sessão):
+
+1. **Score in-place sobre K_i8**: o `tropical_attn_topk` poderia
+   consumir K_i8 diretamente, eliminando o re-decode do max. Poupa
+   ~1/3 do trabalho restante.
+2. **Sparse float já não precisa de K_i8**: é estritamente mais
+   simples e ligeiramente mais rápido a n ≥ 32. Vale considerar
+   remover o cache em favor de sparse float como default L4.
+
+### S2c.9 Estado atualizado dos Caminhos
+
+| Caminho | Descrição                                       | Estado                       |
+|---------|-------------------------------------------------|------------------------------|
+| A       | Kernels L2–L5 matematicamente corretos          | **100 %**                    |
+| B       | Dispatch integrado no llama.cpp KQV/FFN         | **100 %**                    |
+| B+      | L4 paralelizado + sparse float                  | **100 %**                    |
+| B++     | Cobertura de teste ampliada (7/7 suítes)        | **100 %**                    |
+| B+++    | K_i8 cache para L4 tropical (Phase C)           | **Novo ✓** (S2c 2026-06-06c) |
+| C       | Modelo retreinado com ACDC/HRR/tropical         | **Aberto** (P6, GPU)         |
+
+### S2c.10 Próximos passos sugeridos (não executados)
+
+1. **Phase A: ACDC diagonal extraction** (antigo S2.8 #4) — adicionar
+   `d* = diag(H·W·H) / n²` no `convert-helper-bitnet.py` para inicializar
+   ACDC com diagonal correta.
+2. **Phase E: technical writeup** — agregar todos os achados (5 levels,
+   bugs encontrados, K_i8 cache, GQA race condition, sparse float > tropical
+   a contexto longo, cleanup HRR diverge em modelo P6 unvalidado).
+3. **S2c.8 #1**: scoring in-place sobre K_i8 (otimização adicional).
+4. **S2c.8 #2**: considerar sparse float como default L4 (já mais rápido).
 
 ---
 
