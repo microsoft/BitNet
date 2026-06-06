@@ -1,10 +1,10 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b e 2026-06-06c
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b, 2026-06-06c e 2026-06-06d
 
 **Período:** 2025-06-05 → 2026-06-06
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 26
+**Total de commits (cumulativo):** 27
 
 ---
 
@@ -161,12 +161,128 @@ Próximas otimizações possíveis (não escopadas nesta sessão):
 
 1. **Phase A: ACDC diagonal extraction** (antigo S2.8 #4) — adicionar
    `d* = diag(H·W·H) / n²` no `convert-helper-bitnet.py` para inicializar
-   ACDC com diagonal correta.
+   ACDC com diagonal correta. **→ CONCLUÍDO NA S2d**
 2. **Phase E: technical writeup** — agregar todos os achados (5 levels,
    bugs encontrados, K_i8 cache, GQA race condition, sparse float > tropical
    a contexto longo, cleanup HRR diverge em modelo P6 unvalidado).
 3. **S2c.8 #1**: scoring in-place sobre K_i8 (otimização adicional).
 4. **S2c.8 #2**: considerar sparse float como default L4 (já mais rápido).
+
+---
+
+## SESSÃO 2026-06-06d — Phase A: ACDC diagonal extraction
+
+### S2d.1 Commits desta sessão
+
+```
+fcf1d4d Phase A: ACDC diagonal extraction script (d* = diag(H·W·H) / n²)
+```
+
+### S2d.2 Motivação
+
+A camada ACDC (L3/Caminho A) executa multiplicação por matriz como
+`y = H · diag(d) · (H · x)` em vez de `y = W · x`. Para QUALQUER W
+inicial, a melhor diagonal d* (least-squares ortogonal sobre a base
+de Hadamard) é dada em forma fechada:
+
+```
+d*[k] = (H·W·H)[k, k] / n²
+```
+
+Este d* tem dois usos:
+1. **Diagnóstico**: medir quanta energia o modelo captura na
+   aproximação ACDC. Para W treinado SEM ACDC, espera-se ~1/n (fraco).
+   Para W treinado COM ACDC, espera-se ~0.95.
+2. **Inicialização**: servir de d*_init para um futuro retreino
+   P6 (Caminho C) que otimize a arquitetura ACDC.
+
+### S2d.3 Solução: `utils/extract_acdc_diagonal.py`
+
+Script standalone que:
+- Carrega um checkpoint safetensors (suporta shards indexados via
+  `model.safetensors.index.json`)
+- Itera matrizes 2D quadradas com "weight" no nome
+- Aplica `H @ W @ H` via `scipy.linalg.hadamard(n)`
+- Extrai a diagonal e divide por n²
+- Salva `.npz` com uma chave por tensor + `.json` sidecar com metadata
+  (shape, n, energy_captured, approx_frobenius_error)
+
+Limitação importante: ACDC é definido apenas para matrizes **quadradas**.
+Para BitNet-2B:
+- ✓ `q_proj, k_proj, v_proj, o_proj` (2560×2560) — 4 × 30 layers = 120 tensores
+- ✗ `gate_proj, up_proj` (2560×6912), `down_proj` (6912×2560) — não-quadradas
+- ✗ `embed_tokens` (vocab×2560), `lm_head` (2560×vocab) — não-quadradas
+
+Para matrizes não-quadradas, ACDC precisaria ser estendido (Caminho A++).
+
+### S2d.4 Bug encontrado durante desenvolvimento: energia captura errada por fator n
+
+A primeira versão usava `||H·diag(d)·H||_F² = n · ||d||²`. Verificação
+matemática (e teste correspondente) mostrou que o fator correto é `n²`:
+
+```
+W' = H · diag(d) · H
+W'·W'^T = H · diag(d) · (H·H) · diag(d) · H^T
+        = H · diag(d) · (n·I) · diag(d) · H^T
+        = n · H · diag(d²) · H
+trace(W'·W'^T) = n · trace(H · diag(d²) · H)
+              = n · sum_j (H · diag(d²) · H)[j,j]
+              = n · sum_j n·d²[j] = n² · ||d||²
+```
+
+Logo: `||H·diag(d*)·H||_F² = n² · ||d*||²`, não `n · ||d*||²`.
+
+O bug foi pego pelo teste `test_acdc_exact_recovery`: W =
+H·diag(d)·H deveria dar energia = 1.0, mas dava 0.125 (off por n).
+
+### S2d.5 ctest após Phase A (9/9 PASS, ~0,8 s)
+
+```
+$ ctest --output-on-failure
+    Start 1: test_bitnet_common          Passed    0.00 sec
+    Start 2: test_wht                    Passed    0.00 sec
+    Start 3: test_acdc                   Passed    0.00 sec
+    Start 4: test_tropical               Passed    0.00 sec
+    Start 5: test_sparse_attention       Passed    0.00 sec
+    Start 6: test_kv_i8_cache            Passed    0.00 sec
+    Start 7: test_hrr_cleanup            Passed    0.03 sec
+    Start 8: test_hrr_attention          Passed    0.00 sec
+    Start 9: test_extract_acdc_diagonal  Passed    0.74 sec  ← NOVO (Python)
+100% tests passed, 0 tests failed out of 9
+```
+
+`test_extract_acdc_diagonal` 4/4 subtestes (Python):
+| # | Teste | O que verifica |
+|---|-------|----------------|
+| 1 | `next_pow2` | 11 casos: 1→1, 2→2, 3→4, 4→4, ..., 1025→2048, 2560→4096 |
+| 2 | `acdc_exact_recovery` | W = H·diag(d)·H → d* = d (max err < 1e-3), energia = 1.0 |
+| 3 | `acdc_random_captures_1_over_n` | W random Uniform{-1,0,+1} → energia in [1/(2n), 3/n] (teoria: 1/n) |
+| 4 | `acdc_known_dense_recovery` | W=I → d*[0] = 1/n (não [1, 0, 0, ...]) |
+
+### S2d.6 Estado atualizado dos Caminhos
+
+| Caminho | Descrição                                       | Estado                       |
+|---------|-------------------------------------------------|------------------------------|
+| A       | Kernels L2–L5 matematicamente corretos          | **100 %**                    |
+| B       | Dispatch integrado no llama.cpp KQV/FFN         | **100 %**                    |
+| B+      | L4 paralelizado + sparse float                  | **100 %**                    |
+| B++     | Cobertura de teste ampliada (7/7 suítes)        | **100 %**                    |
+| B+++    | K_i8 cache para L4 tropical (Phase C)           | **100 %**                    |
+| **A**   | **ACDC diagonal extraction (Phase A)**          | **Novo ✓** (S2d 2026-06-06d) |
+| C       | Modelo retreinado com ACDC/HRR/tropical         | **Aberto** (P6, GPU)         |
+
+### S2d.7 Próximos passos sugeridos (não executados)
+
+1. **Phase E: technical writeup** — agregar todos os achados:
+   - 5 levels (WHT, ACDC, tropical, HRR, sparse float)
+   - 3 bugs reais encontrados: I2_S strided pack shift, ACDC fwht_i8_to_i32
+     normalization, K_i8 cache GQA race condition
+   - 1 bug no tooling: ACDC energy formula n vs n²
+   - Bench: sparse float > tropical a contexto longo, K_i8 cache
+     dá +7.1pp no tropical, cleanup HRR diverge em P6 unvalidated
+2. **Caminho A++**: ACDC para matrizes retangulares (FFN gate/up/down).
+3. **Caminho C** (P6, GPU): retreinar BitNet com ACDC + tropical +
+   HRR e medir ganho real.
 
 ---
 
