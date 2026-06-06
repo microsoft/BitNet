@@ -53,9 +53,12 @@ jobs:
             ninja-build \
             libstdc++-14-dev \
             python3 \
+            python3-pip \
             python3-scipy \
-            python3-numpy \
-            python3-safetensors
+            python3-numpy
+
+      - name: Install safetensors (PyPI only; not in Ubuntu 24.04 apt)
+        run: python3 -m pip install --break-system-packages --no-cache-dir safetensors
 
       - name: Configure (Release, all kernels)
         run: |
