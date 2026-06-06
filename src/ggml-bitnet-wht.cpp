@@ -176,17 +176,19 @@ static int32_t wht_dot_avx2(int n, const uint8_t * packed, const int8_t * x) {
         /* Load 32 packed bytes */
         __m256i p = _mm256_loadu_si256((const __m256i *)pw);
 
-        /* Unpack into 4 groups of 32 weights (each in {0,1,2}):
-         *   group 3: bits [7:6] of each byte  → shift right 6
-         *   group 2: bits [5:4]               → shift right 4
-         *   group 1: bits [3:2]               → shift right 2
-         *   group 0: bits [1:0]               → no shift
+        /* Unpack into 4 groups of 32 weights (each in {0,1,2}).
+         * Bit assignment matches unpack_i2s_block(): group g sits in
+         * bits [(3-g)*2+1 : (3-g)*2]:
+         *   group 0: bits [7:6] (positions 0..31)   → shift right 6
+         *   group 1: bits [5:4] (positions 32..63)  → shift right 4
+         *   group 2: bits [3:2] (positions 64..95)  → shift right 2
+         *   group 3: bits [1:0] (positions 96..127) → no shift
          */
         const __m256i mask2 = _mm256_set1_epi8(0x03);
-        __m256i g3 = _mm256_and_si256(_mm256_srli_epi16(p, 6), mask2);
-        __m256i g2 = _mm256_and_si256(_mm256_srli_epi16(p, 4), mask2);
-        __m256i g1 = _mm256_and_si256(_mm256_srli_epi16(p, 2), mask2);
-        __m256i g0 = _mm256_and_si256(p, mask2);
+        __m256i g0 = _mm256_and_si256(_mm256_srli_epi16(p, 6), mask2);
+        __m256i g1 = _mm256_and_si256(_mm256_srli_epi16(p, 4), mask2);
+        __m256i g2 = _mm256_and_si256(_mm256_srli_epi16(p, 2), mask2);
+        __m256i g3 = _mm256_and_si256(p, mask2);
 
         /* Process each group of 32 weights against 32 activations */
         __m256i groups[4] = { g0, g1, g2, g3 };
