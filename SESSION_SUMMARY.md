@@ -1,10 +1,10 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b, 2026-06-06c e 2026-06-06d
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b, 2026-06-06c, 2026-06-06d e 2026-06-06e
 
 **Período:** 2025-06-05 → 2026-06-06
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 27
+**Total de commits (cumulativo):** 28
 
 ---
 
@@ -280,9 +280,72 @@ $ ctest --output-on-failure
    - 1 bug no tooling: ACDC energy formula n vs n²
    - Bench: sparse float > tropical a contexto longo, K_i8 cache
      dá +7.1pp no tropical, cleanup HRR diverge em P6 unvalidated
+    **→ CONCLUÍDO: `docs/findings-cpu-universal.md` (commit 1be84ef)**
 2. **Caminho A++**: ACDC para matrizes retangulares (FFN gate/up/down).
 3. **Caminho C** (P6, GPU): retreinar BitNet com ACDC + tropical +
    HRR e medir ganho real.
+
+---
+
+## SESSÃO 2026-06-06e — Phase E: technical writeup
+
+### S2e.1 Commits desta sessão
+
+```
+1be84ef docs(findings): aggregate 5-level research, 4 bugs, 50 tests, bench table
+```
+
+### S2e.2 Entrega: `docs/findings-cpu-universal.md`
+
+Documento narrativo agregador (345 linhas) de todos os achados das 5
+sessões (S1, S2, S2b, S2c, S2d). Estrutura:
+
+1. **TL;DR** — tabela de speedup por nível, conclusão principal
+   (P6 retraining é o gap crítico)
+2. **Os 5 Níveis Algébricos** — L1, L2, L3, L4a, L4b, L5 com speedup
+   medido e quando ajuda
+3. **4 Bugs Reais Encontrados** — I2_S strided pack shift, ACDC fwht
+   normalization, K_i8 cache GQA race, ACDC energy formula
+4. **Cobertura de Testes** — tabela 9/9 ctest, 50/50 subtests
+5. **Benchmark Consolidado** — n=64/128/256 com todas as configs
+6. **Por Que a Tese Não Validou Empiricamente** — análise honesta:
+   kernels funcionam mas modelo P6 é o gap
+7. **Roadmap Restante** — curto/médio/longo prazo
+8. **Lições de Engenharia** — 5 takeaways práticos
+9. **Reproducibilidade** — comandos exatos
+10. **Apêndices A/B/C** — links para `.reversa/scout/`
+
+### S2e.3 Decisões de comunicação
+
+- **TL;DR primeiro**: leitor decide se aprofunda baseado na conclusão
+- **Bugs nomeados** (não "problema X"): facilita busca e referência
+- **Speedup relativo a L1** (não absoluto): comparação honesta
+- **Análise de gaps é honesta**: não vendemos a tese como validada;
+  deixamos claro que P6 (retreino GPU) é o blocker real
+- **Apêndices com referências**, não conteúdo duplicado: incentiva
+  leitura do `.reversa/scout/`
+
+### S2e.4 Estado final dos Caminhos
+
+| Caminho | Descrição                                       | Estado                       |
+|---------|-------------------------------------------------|------------------------------|
+| A       | Kernels L2–L5 matematicamente corretos          | **100 %**                    |
+| B       | Dispatch integrado no llama.cpp KQV/FFN         | **100 %**                    |
+| B+      | L4 paralelizado + sparse float                  | **100 %**                    |
+| B++     | Cobertura de teste ampliada (7/7 suítes)        | **100 %**                    |
+| B+++    | K_i8 cache para L4 tropical (Phase C)           | **100 %**                    |
+| A       | ACDC diagonal extraction (Phase A)              | **100 %**                    |
+| **E**   | **Technical writeup (Phase E)**                 | **Novo ✓** (S2e 2026-06-06e) |
+| C       | Modelo retreinado com ACDC/HRR/tropical         | **Aberto** (P6, GPU)         |
+
+### S2e.5 Encerramento da sessão
+
+Com Phase E concluído, o plano (C → A → E) está 100 % entregue.
+Próximas sessões podem focar em:
+- **Caminho A++** (ACDC para matrizes retangulares)
+- **Caminho B+** (L4 sparse float como default, remover cache se
+  desnecessário)
+- **Caminho C** (P6 retraining — precisa de GPU, semanas/meses)
 
 ---
 
