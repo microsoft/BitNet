@@ -204,9 +204,6 @@ static void tropical_callback(
     const struct ggml_tensor * v_t,
     int ith, int nth, void * userdata)
 {
-    (void)nth;
-    if (ith != 0) return;
-
     const struct tropical_ud * p = (const struct tropical_ud *)userdata;
 
     /*
@@ -221,6 +218,9 @@ static void tropical_callback(
      * This is exactly the [n_kv × d] row-major layout tropical_attention expects.
      *
      * GQA: n_head_q may be > n_head_kv; head h_q maps to kv head h_q / gqa_ratio.
+     *
+     * Thread parallelism: thread ith handles heads ith, ith+nth, ith+2*nth, ...
+     * All head regions in q/dst are disjoint; k/v are read-only — no races.
      */
     const int d         = (int)q_t->ne[0];
     const int n_tokens  = (int)q_t->ne[1];
@@ -234,28 +234,27 @@ static void tropical_callback(
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Single int8 buffer per KV block; re-quantize K once per head. */
+    /* Per-thread scratch buffers (each thread allocates independently). */
     int8_t * q_i8 = (int8_t *)malloc((size_t)d);
     int8_t * k_i8 = (int8_t *)malloc((size_t)n_kv * d);
+    if (!q_i8 || !k_i8) { free(q_i8); free(k_i8); return; }
 
-    for (int h = 0; h < n_head; h++) {
+    for (int h = ith; h < n_head; h += nth) {
         const int    kv_h    = h / gqa;
         const float *q_head  = q_f + (size_t)h    * n_tokens * d;
         const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
         const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
         float       *out_hd  = out + (size_t)h    * n_tokens * d;
 
-        /* Quantize the entire key block once per query head. */
         float k_scale = quantize_f32_to_i8(k_head, k_i8, n_kv * d);
 
         for (int qi = 0; qi < n_tokens; qi++) {
-            /* Per-query quantization keeps scale tight for each token. */
             float q_scale = quantize_f32_to_i8(q_head + qi * d, q_i8, d);
             tropical_attention(
-                out_hd  + qi * d,   /* output: dim vector for this query */
-                q_i8,               /* one quantized query vector [d] */
-                k_i8,               /* all n_kv key rows [n_kv × d] */
-                v_head,             /* float values [n_kv × d] */
+                out_hd  + qi * d,
+                q_i8,
+                k_i8,
+                v_head,
                 n_kv,
                 d,
                 p->topk,
@@ -280,7 +279,7 @@ struct ggml_tensor * bitnet_op_tropical_attn(
     struct tropical_ud * ud = (struct tropical_ud *)malloc(sizeof(*ud));
     ud->topk  = topk;
     ud->scale = scale;
-    return ggml_map_custom3(ctx, q, k, v, tropical_callback, /*n_tasks=*/1, ud);
+    return ggml_map_custom3(ctx, q, k, v, tropical_callback, GGML_N_TASKS_MAX, ud);
 }
 
 #else /* BITNET_L4_TROPICAL not defined */
@@ -330,21 +329,11 @@ static void hrr_callback(
     const struct ggml_tensor * v_t,
     int ith, int nth, void * userdata)
 {
-    (void)nth; (void)userdata;
-    if (ith != 0) return;
+    (void)userdata;
 
     /*
-     * Same 3D multi-head layout as tropical_callback (see comments there).
-     * Tensor shapes after ggml_permute + cast to F32:
-     *   q:   [head_dim, n_tokens, n_head]     contiguous
-     *   k:   [head_dim, n_kv,     n_head_kv]  contiguous
-     *   v:   [head_dim, n_kv,     n_head_kv]  contiguous
-     *
-     * hrr_attention_full expects row-major [n_tok × d] layout per head,
-     * which matches since data[h*n*d + t*d + j] = (head=h, token=t, dim=j).
-     *
-     * HRR retrieval quality requires d ≥ 10·n_kv.  For d=128 n_kv=2048,
-     * output is noisy — this is expected without HRR-trained weights.
+     * Same 3D multi-head layout as tropical_callback.
+     * Thread ith handles heads ith, ith+nth, ith+2*nth, ... (no races).
      */
     const int d         = (int)q_t->ne[0];
     const int n_tokens  = (int)q_t->ne[1];
@@ -358,22 +347,17 @@ static void hrr_callback(
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Ternary key buffer — derived once per KV head */
     int8_t * k_tern = (int8_t *)malloc((size_t)n_kv * d);
     if (!k_tern) return;
 
-    for (int h = 0; h < n_head; h++) {
+    for (int h = ith; h < n_head; h += nth) {
         const int    kv_h    = h / gqa;
         const float *q_head  = q_f + (size_t)h    * n_tokens * d;
         const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
         const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
         float       *out_hd  = out + (size_t)h    * n_tokens * d;
 
-        /* Ternary approximation: threshold at 0.5 * mean|K| per head */
         derive_ternary_keys(k_head, k_tern, n_kv * d);
-
-        /* hrr_attention_full: build holographic memory + retrieve all queries.
-         * O(n_kv·d·log d) build  +  O(n_tokens·d·log d) retrieve. */
         hrr_attention_full(out_hd, q_head, k_head, k_tern, v_head,
                            n_tokens, n_kv, d);
     }
@@ -387,7 +371,7 @@ struct ggml_tensor * bitnet_op_hrr_attn(
     struct ggml_tensor  * k,
     struct ggml_tensor  * v)
 {
-    return ggml_map_custom3(ctx, q, k, v, hrr_callback, /*n_tasks=*/1, NULL);
+    return ggml_map_custom3(ctx, q, k, v, hrr_callback, GGML_N_TASKS_MAX, NULL);
 }
 
 /* ─── L5: HRR attention + Frady 2021 cleanup_iter ─────────────────────── */
@@ -403,12 +387,9 @@ static void hrr_cleanup_callback(
     const struct ggml_tensor * v_t,
     int ith, int nth, void * userdata)
 {
-    (void)nth;
-    if (ith != 0) return;
-
     struct hrr_cleanup_ud * p = (struct hrr_cleanup_ud *)userdata;
 
-    /* Same 3D layout as hrr_callback. See comments there. */
+    /* Same 3D layout as hrr_callback. Thread ith handles strided heads. */
     const int d         = (int)q_t->ne[0];
     const int n_tokens  = (int)q_t->ne[1];
     const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
@@ -421,49 +402,43 @@ static void hrr_cleanup_callback(
     const float * v_f = (const float *)v_t->data;
     float       * out = (float *)dst->data;
 
-    /* Scratch buffers per head (reused across queries within the head). */
-    int8_t  * k_tern      = (int8_t *)malloc((size_t)n_kv * d);
-    float   * M           = (float  *)malloc((size_t)d * sizeof(float));
-    float   * M_working   = (float  *)malloc((size_t)d * sizeof(float));
-    float   * tmp         = (float  *)malloc((size_t)4 * (d + 2) * sizeof(float));
-    /* codebook pointers — each entry is a V row [d] */
+    /* Per-thread scratch buffers. */
+    int8_t       * k_tern   = (int8_t *)malloc((size_t)n_kv * d);
+    float        * M        = (float  *)malloc((size_t)d * sizeof(float));
+    float        * M_work   = (float  *)malloc((size_t)d * sizeof(float));
+    float        * tmp      = (float  *)malloc((size_t)4 * (d + 2) * sizeof(float));
     const float ** codebook = (const float **)malloc((size_t)n_kv * sizeof(const float *));
-    if (!k_tern || !M || !M_working || !tmp || !codebook) goto cleanup;
 
-    for (int h = 0; h < n_head; h++) {
+    if (!k_tern || !M || !M_work || !tmp || !codebook) {
+        free(k_tern); free(M); free(M_work); free(tmp); free(codebook);
+        return;
+    }
+
+    for (int h = ith; h < n_head; h += nth) {
         const int    kv_h    = h / gqa;
         const float *q_head  = q_f + (size_t)h    * n_tokens * d;
         const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
         const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
         float       *out_hd  = out + (size_t)h    * n_tokens * d;
 
-        /* Build holographic memory M = Σᵢ K_i ⊛ V_i (ternary keys for speed). */
         derive_ternary_keys(k_head, k_tern, n_kv * d);
         hrr_build_memory(M, nullptr, k_tern, v_head, n_kv, d);
 
-        /* Codebook for cleanup = V (one row per token in context). */
         for (int i = 0; i < n_kv; i++) codebook[i] = v_head + (size_t)i * d;
 
-        /* Per-query retrieval + Frady 2021 cleanup. */
         for (int t = 0; t < n_tokens; t++) {
             const float * q_tok = q_head + (size_t)t * d;
             float       * out_t = out_hd + (size_t)t * d;
 
-            /* Fresh M_working per query (RESIDUAL mode modifies M in place). */
-            memcpy(M_working, M, (size_t)d * sizeof(float));
+            memcpy(M_work, M, (size_t)d * sizeof(float));
             hrr_cleanup_iter(out_t, /*noisy=*/nullptr,
-                             M_working, q_tok,
+                             M_work, q_tok,
                              codebook, n_kv, d,
                              p->max_iters, tmp);
         }
     }
 
-cleanup:
-    free(k_tern);
-    free(M);
-    free(M_working);
-    free(tmp);
-    free(codebook);
+    free(k_tern); free(M); free(M_work); free(tmp); free(codebook);
 }
 
 struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
@@ -476,7 +451,7 @@ struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
     struct hrr_cleanup_ud * ud = (struct hrr_cleanup_ud *)malloc(sizeof(*ud));
     if (!ud) return q;
     ud->max_iters = max_iters;
-    return ggml_map_custom3(ctx, q, k, v, hrr_cleanup_callback, /*n_tasks=*/1, ud);
+    return ggml_map_custom3(ctx, q, k, v, hrr_cleanup_callback, GGML_N_TASKS_MAX, ud);
 }
 
 #else /* BITNET_L5_HRR not defined */
