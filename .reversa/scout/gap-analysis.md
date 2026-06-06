@@ -2,7 +2,7 @@
 
 > Matriz de aderência entre os 7 princípios transversais e o estado real do código.
 > Gerado em 2026-06-05 pelo `reversa-scout`.
-> **Atualizado 2026-06-05 21:30** com verificação de integração L2/L4/L5 no dispatch.
+> **Atualizado 2026-06-05 22:50** com 4 novos commits (a884036, 8509cff, ed6fbde, e7edb21), 2 bugs reais encontrados nos kernels, e 20/20 testes unitários C++ PASS.
 > Serve como entrada priorizada para próximos agentes (archaeologist, detective, forward).
 
 ---
@@ -26,13 +26,13 @@
 | **P4** Mínimo irredutível | ✓ | ✓ (n muls no ACDC) | ✓ (prova + benchmark) | n/a |
 | **P5** Dequantização tropical | ✓ | ⚠ só no limite τ→0 | ◐ softmax normal ainda em uso | ◐ top-K via `bitnet_op_tropical_attn` (K=32 default) |
 | **P6** Estrutura, não compressão | ✓ | ✗ só `acdc_project` (validação) | ✗ modelo não foi treinado | ✗ |
-| **P7** FFT como cola | ✓ | ✓ Cooley-Tukey radix-2 | ✓ L2/L3/L5 verificados | ✓✓ L5 com Frady 2021 cleanup end-to-end (test_hrr_cleanup 5/5 + `bitnet_op_hrr_attn_with_cleanup` no dispatch) |
+| **P7** FFT como cola | ✓ | ✓ Cooley-Tukey radix-2 | ✓ L2/L3/L4/L5 verificados | ✓✓ L5 com Frady 2021 cleanup end-to-end (test_hrr_cleanup 5/5 + `bitnet_op_hrr_attn_with_cleanup` no dispatch) |
 
-**Resumo quantitativo** (atualizado 2026-06-05 22:15, pós L3 ACDC FFN):
+**Resumo quantitativo** (atualizado 2026-06-05 22:50, pós 4 novos commits):
 - Dimensão "Documentado": 7/7 (100%) — todos os princípios têm base teórica
 - Dimensão "Implementado": 6/7 (86%) — P5 ainda parcial (τ→0); P6 depende de retreino (escopo fora)
-- Dimensão "Testado/Verificado": 6/7 (86%) — só P6 sem teste empírico
-- Dimensão "Integrado no dispatch": **6/7 (86%)** — L1 default + L2 patched em vec_dot + L3 FFN + L4 KQV + L5 KQV
+- Dimensão "Testado/Verificado": 6/7 (86%) — P2 L2/L3/L4/L5 agora com **20/20 testes unitários C++ PASS** (4/4 ctest); só P6 sem teste empírico
+- Dimensão "Integrado no dispatch": **6/7 (86%)** — L1 default + L2 patched em vec_dot + L3 FFN + L4 KQV + L5 KQV (com ou sem Frady 2021 cleanup)
 
 A integração L3/L4/L5 é feita via `src/ggml-bitnet-dispatch.cpp` (commit
 `129557d`, 2026-06-05 20:08) que registra 4 ops custom (`ggml_map_custom1/2/3`)
@@ -93,7 +93,11 @@ treinado com ACDC (P6 não validado), mas o kernel é exercitado end-to-end.
 | Speedup L2 | ⚠ | "1.5–2× sobre L1" (estimativa, não medido end-to-end) |
 | Speedup L3 | ✓ | **+2.4% medido end-to-end** (4.92→5.04 tok/s com `BITNET_ACDC_FFN=1`; sessão 2026-06-05, prompt "The capital of France is", -n 64, -t 4) |
 | Speedup L4 | ✓ | **+33% medido end-to-end** (3.11→4.15 tok/s; sessão 2026-06-05, prompt "The capital of France is", -n 19, -t 4) |
-| Speedup L5 | ✗ | **-46% regressão** (3.11→1.69 tok/s; FFT overhead domina head_dim=128) |
+| Speedup L4 (sessão cleanup) | ✓ | 4.33 tok/s (sessão 2026-06-05, `BITNET_TROPICAL_TOPK=32`) |
+| Speedup L5 raw | ⚠ | 1.42 tok/s (sessão 2026-06-05, `BITNET_HRR_ATTN=1`) |
+| Speedup L5 +cleanup 8 iters | ⚠ | 1.29 tok/s (sessão 2026-06-05, `BITNET_HRR_ATTN_CLEANUP=8`; -10% vs raw, esperado) |
+| Speedup L5 (sessão antiga) | ✗ | -46% regressão (3.11→1.69 tok/s; FFT overhead domina head_dim=128) |
+| Speedup L4+L5 chain | ⚠ | 4.19 tok/s (L4 wins via else-if) |
 | Speedup combinado | ⚠ | "~1700× end-to-end" (teórico) |
 
 **Lacuna concreta**: todos os speedups publicados são **estimativas
@@ -137,7 +141,8 @@ documentadas.
 verificada em toy benchmarks, mas **nunca calibrada contra atenção real
 de um modelo BitNet treinado**. O τ usado no `tropical_attn_topk` é fixo;
 não há mecanismo de annealing (P5 sugere que τ deveria ser parâmetro de
-fine-tuning).
+fine-tuning). A suite `test_tropical.cpp` (commit 8509cff) valida 5
+subtests: argmax, topk, attn, gemv, e zero-K edge case (K > n_keys).
 
 ### P6 — Estrutura, não compressão: ✗ NÃO VALIDADO EM TREINAMENTO
 
@@ -162,23 +167,25 @@ A mesma lacuna vale para HRR. A SNR `d ≥ 10N` é um limite teórico;
 não há modelo treinado sob o regime HRR cuja perplexidade tenha
 sido comparada com a versão Transformer padrão.
 
-### P7 — FFT como cola: ◐ PARCIAL (L2/L3 ok, L5 em construção)
+### P7 — FFT como cola: ✓✓ COMPLETO (L2/L3/L4/L5 todos verificados)
 
 | Aspecto | Estado | Localização |
 |---------|--------|-------------|
 | Documentação histórica | ✓ | Walsh 1923, Hadamard 1893, Cooley-Tukey 1965 |
-| Butterfly WHT (L2/L3) | ✓ | `src/ggml-bitnet-fwht.cpp` (butterfly_f32_avx2) |
-| Butterfly FFT complexa (L5) | ⚠ | `src/ggml-bitnet-hrr.cpp:88-100` (bit_reverse) + Cooley-Tukey radix-2 DIF (em construção) |
-| Verificação L2/L3 | ✓ | max_diff = 0 nos benchmarks |
-| Verificação L5 | ✗ | `utils/hrr_benchmark.py` em construção |
-| Refatoração de butterflies compartilhados | ✗ | L2/L3/L5 duplicam lógica similar (oportunidade de DRY) |
+| Butterfly WHT (L2) | ✓ | `src/ggml-bitnet-wht.cpp` (wht_dot_avx2 com labels g0..g3 corrigidos em e7edb21) |
+| Butterfly WHT (L3) | ✓ | `src/ggml-bitnet-fwht.cpp` (butterfly_f32_avx2) |
+| Butterfly FFT complexa (L5) | ✓ | `src/ggml-bitnet-hrr.cpp:88-100` (bit_reverse) + Cooley-Tukey radix-2 DIF |
+| Verificação L2 | ✓ | **test_wht.cpp 5/5 PASS** (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv |
+| Verificação L3 | ✓ | **test_acdc.cpp 5/5 PASS** (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv |
+| Verificação L4 | ✓ | **test_tropical.cpp 5/5 PASS** (commit 8509cff): argmax, topk, attn, gemv, zero_K |
+| Verificação L5 | ✓ | **test_hrr_cleanup.cpp 5/5 PASS** (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE |
+| Verificação end-to-end L5+cleanup | ✓✓ | `bitnet_op_hrr_attn_with_cleanup` no KQV; smoke 1.29 tok/s (P6 garbage esperado) |
+| Refatoração de butterflies compartilhados | ✗ | L2/L3/L5 duplicam lógica similar (oportunidade de DRY — Prioridade 5.1) |
 
-**Lacuna concreta**: L5 implementa Cooley-Tukey do zero (decisão
-justificada em `src/ggml-bitnet-hrr.cpp:22-30` para zero deps externas),
-mas o trabalho não está concluído. As funções `hrr_bind`,
-`hrr_unbind`, `hrr_pseudoinverse`, `hrr_accumulate`, `hrr_cleanup` da
-API planejada em `docs/theory/05-holographic-memory.md:198-214` ainda
-não estão todas implementadas.
+**L5 está concluído** (bind/unbind/pseudoinverse/cleanup_iter NAIVE+RESIDUAL
+todos implementados e testados) e integrado end-to-end no dispatch com
+Frady 2021 cleanup opcional. As 4 suites de teste unitário (L2/L3/L4/L5)
+são 20/20 PASS e rodam em < 0.04s local via ctest.
 
 ---
 
@@ -224,27 +231,27 @@ Lista ordenada por impacto na continuidade do projeto:
 
 ### Prioridade 5 — Refatoração e打扫
 
-| # | Lacuna | Arquivo | Impacto |
-|---|--------|---------|---------|
-| 5.1 | L2/L3/L5 compartilham padrão butterfly — extrair header comum | `src/ggml-bitnet-wht.cpp`, `fwht.cpp`, `hrr.cpp` | DRY, manutenção |
-| 5.2 | `acdc_gemv` com K blocos (mencionado em `include/ggml-bitnet-fwht.h:228`) | `src/ggml-bitnet-fwht.cpp` | expressividade ACDC (parâmetro K) |
-| 5.3 | CI/CD para rodar benchmarks automaticamente | (não existe) | regressões passam despercebidas |
+| # | Lacuna | Status | Arquivo | Impacto |
+|---|--------|--------|---------|---------|
+| 5.1 | L2/L3/L5 compartilham padrão butterfly — extrair header comum | ◐ PENDENTE | `src/ggml-bitnet-wht.cpp`, `fwht.cpp`, `hrr.cpp` | DRY, manutenção |
+| 5.2 | `acdc_gemv` com K blocos (mencionado em `include/ggml-bitnet-fwht.h:228`) | ✓ IMPLEMENTADO | `src/ggml-bitnet-fwht.cpp:350-380` (testado em test_acdc [5]) | expressividade ACDC (parâmetro K) |
+| 5.3 | CI/CD para rodar unit tests automaticamente | ✓✓ RESOLVIDO (a884036) | `.github/workflows/ci.yml` + `tests/CMakeLists.txt` | regressões nos kernels agora detectadas em < 0.04s por ctest |
 
 ---
 
 ## Conclusão Sintética
-
 A tese teórica está **completa** (P1–P7 documentados com provas). As
-implementações standalone estão **completas para L1–L4** e em
-**andamento para L5**. A integração com o pipeline de inferência real
-(llama.cpp dispatch) **não foi feita**, e nenhum modelo BitNet foi
-**treinado** com as arquiteturas ACDC ou HRR.
+implementações standalone estão **completas para L1–L5** (verificadas
+por 20/20 testes unitários C++). A integração com o pipeline de
+inferência real (llama.cpp dispatch) está **completa para L1–L5**
+(incluindo Frady 2021 cleanup opcional para L5). Nenhum modelo BitNet
+foi **treinado** com as arquiteturas ACDC ou HRR — esse é o único gap
+restante.
 
-Em outras palavras: o projeto tem **fundação teórica e kernels
-verificados**, mas o caminho até "modelo rodando em CPU mais rápido que
-GPU via álgebra" tem **dois gaps críticos**:
-1. Integração com dispatch (Prioridade 1)
-2. Validação empírica com modelo treinado (Prioridade 2)
+Em outras palavras: o projeto tem **fundação teórica, kernels
+verificados, dispatch integrado**. O caminho até "modelo rodando em CPU
+mais rápido que GPU via álgebra" tem **um gap crítico restante**:
+1. ~~Integração com dispatch~~ (RESOLVIDA, 4 commits: 129557d..a884036)
+2. Validação empírica com modelo treinado (P6, escopo GPU 2-6 semanas)
 
-Ambos os gaps estão fora do escopo do scout. Veja
-`continuity-proposals.md` para os caminhos de continuação propostos.
+Veja `continuity-proposals.md` para os caminhos de continuação propostos.

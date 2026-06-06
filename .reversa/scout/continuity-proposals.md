@@ -6,9 +6,11 @@
 > combinados. Gerado em 2026-06-05 pelo `reversa-scout` para alimentar o
 > ciclo forward do Reversa (requirements → plan → to-do → coding).
 >
-> **Atualizado 2026-06-05 21:30** com verificação de integração L2/L4/L5
-> (commit `129557d`) e adição do sub-caminho F (L3 ACDC FFN, próxima peça
-> faltante do dispatch).
+> **Atualizado 2026-06-05 22:50** com 14 commits (`129557d..a884036`):
+> L3 ACDC FFN integrado (caminho F ✓), L5 HRR com Frady 2021 cleanup
+> end-to-end, 4 suites de teste unitário C++ (20/20 PASS) wired em
+> ctest + GitHub Actions CI, 2 bugs reais encontrados e corrigidos nos
+> kernels L2/L3.
 
 ---
 
@@ -16,17 +18,17 @@
 
 ```
 Fundação teórica:        100% (P1–P7 documentados com provas)
-Kernels standalone L1–L4: 100% (compilam, max_diff = 0)
-Kernel L5 (HRR):         100% (FFT Cooley-Tukey + bind/unbind/pseudoinverse/cleanup)
-Integração dispatch:       71% (L1 default + L2 patched em vec_dot + L4+L5 via env; L3 só op registrado, não plugado)
-Validação empírica:        parcial (L4: +33% e2e medido; L5: -46% regressão; L3: não medido)
+Kernels standalone L1–L5: 100% (compilam, max_diff = 0, 20/20 testes unitários C++ PASS)
+Integração dispatch:     100% (L1 default + L2 patched em vec_dot + L3 FFN + L4 KQV + L5 KQV com cleanup opcional)
+Validação empírica:        parcial (L4: +33% e2e medido; L5: -10% com cleanup ou -46% raw, FFT overhead; L3: +2.4% com output garbage)
 ```
 
 A tese do projeto é matematicamente sólida. Os kernels são corretos
-isoladamente. O Caminho B (integração com dispatch) está **71% concluído**:
-L4 tropical e L5 HRR já rodam end-to-end (com qualidade garbage esperada
-— P6 não validado, modelo não foi treinado com essas arquiteturas).
-**L3 ACDC é a única peça faltante do dispatch** — ver sub-caminho F abaixo.
+isoladamente (20/20 testes). O Caminho B (integração com dispatch) está
+**100% concluído** (L1-L5 integrados). O Caminho A (completar L5) está
+também **100% concluído** (test_hrr_cleanup 5/5, Frady 2021 cleanup
+end-to-end). Resta apenas o **Caminho C (retreino P6)** — o gap
+empírico fundamental.
 
 ---
 
@@ -381,35 +383,50 @@ B + C permite: medir speedup real **e** validar qualidade real.
 
 ## Recomendação Default
 
-**Estado atual** (junho/2026, pós-commit `129557d` + sessão refinamento ACDC + HRR):
-- **Caminho B está 100%** (L1 default + L2 patched + L3 ACDC FFN + L4+L5 integrados).
+**Estado atual** (junho/2026, pós-`a884036`, 14 commits desde `129557d`):
+- **Caminho B está 100%** (L1 default + L2 patched + L3 ACDC FFN + L4+L5 integrados, L5 com cleanup opcional).
 - **Caminho A (HRR completo) está 100%** — kernels + Frady 2021 cleanup_iter
-  (NAIVE + RESIDUAL) implementados e validados em `test_hrr_cleanup.cpp` 5/5
-  PASS. Tabela de convergência cross-valida com Python benchmark.
+  (NAIVE + RESIDUAL) implementados, validados em `test_hrr_cleanup.cpp` 5/5
+  PASS, e integrados end-to-end em `bitnet_op_hrr_attn_with_cleanup` (commits
+  90ae65f, 92dacc4, 30ab330, 43b2af5). Tabela de convergência cross-valida
+  com Python benchmark.
+- **Testes C++ 20/20 PASS** (commits e7edb21, ed6fbde, 8509cff, a884036) cobrindo
+  L2/L3/L4/L5 com hand-rolled references.
+- **CI GitHub Actions** ativo: ubuntu-24.04 + clang-18 + libstdc++-14-dev
+  + ctest em 0.04s (commit b536d83, estendido em a884036).
+- **2 bugs reais encontrados** durante a criação da suite de testes:
+  - `wht_dot_avx2` g0/g3 labels invertidas (commit e7edb21)
+  - `acdc_forward_i8` 1/n² stray (commit ed6fbde)
+  Ambos eram latentes — o teste do próprio arquivo (`ggml_wht_verify`)
+  também falhava, mas ninguém tinha rodado.
 
 Ordem recomendada dado o estado atual:
 
-> **F ✓ (concluído) → A ✓ (concluído) → C (longo prazo, requer GPU).**
+> **F ✓ → A ✓ → C (longo prazo, requer GPU).** Os dois primeiros caminhos
+> estão **completos**. Resta apenas o gap empírico (Caminho C).
 
 **Próximas ações** (em ordem de prioridade, escopo de ~1-2 dias cada):
-1. **Integração L5 HRR com cleanup** no dispatch do llama.cpp
-   (`bitnet_op_hrr_attn_with_cleanup` em `llm_build_kqv`, env `BITNET_HRR_ATTN_CLEANUP=1`).
-   Kernel pronto (`hrr_cleanup_iter`), falta o wrapper de dispatch + benchmark
-   de perplexidade.
-2. **CI/CD mínimo** (gap #1 do scout): `cmake -B build && cmake --build`
-   + `./test_hrr_cleanup` em `.github/workflows/`. Tempo: 1-2 horas.
-3. **DRY refactor L2/L3/L5** (gap #3 do scout): todas compartilham
-   butterfly Cooley-Tukey radix-2. Extrair para `ggml-bitnet-fft-butterfly.{h,cpp}`
-   compartilhado. Tempo: 1 dia.
-4. **Commit estruturado** dos 5 arquivos modificados + `test_hrr_cleanup.cpp`
-   novo. Já estão staged em working tree.
-5. **Caminho C** (retreino P6 com ACDC, 2-6 semanas GPU): escopo separado.
+1. **DRY refactor L2/L3/L5** (gap #3 do scout, Prioridade 5.1): todas
+   compartilham butterfly Cooley-Tukey radix-2. Extrair para
+   `ggml-bitnet-fft-butterfly.{h,cpp}` compartilhado. Tempo: 1 dia.
+2. **Smoke benchmark sistemático** (gap #2.3): medir todos os 4 níveis
+   (L1/L2/L3/L4/L5) com o mesmo prompt/tokens/threads para construir uma
+   tabela speedup × kernel. Tempo: 0.5 dia.
+3. **Curva `perplexity(d)` para ACDC** (gap #2.4): qual d mínimo para
+   manter perplexidade aceitável? Importante porque o dispatch usa n=4096
+   (próximo do piso SNR d≥10N para N=4096). Tempo: 0.5 dia (script-only,
+   modelo retreinado é caminho C).
+4. **Caminho C** (retreino P6 com ACDC, 2-6 semanas GPU): escopo separado.
 
 Razões:
-1. **Integração L5 cleanup** fecha o último buraco entre kernel e dispatch —
-   depois disso, o `bitnet_math` OBJECT lib está **funcionalmente completo**
-   end-to-end em CPU.
-2. **CI/CD** protege contra regressões nos próximos 5 kernels (L1-L5).
+1. **DRY refactor** consolida a base antes de qualquer expansão futura.
+   O fato de ter encontrado 2 bugs latentes sugere que essas 3
+   implementações butterfly nunca foram cruz-validadas — extrair uma
+   única implementação canônica elimina esse risco.
+2. **Smoke benchmark** produz evidência empírica publicável (mesmo com
+   output garbage, a curva de speedup vs kernel-level é uma contribuição).
+3. **Curva perplexity(d)** informa o que esperar do Caminho C e se
+   d=4096 é viável ou se precisamos de d=40960.
 3. **DRY refactor** reduz ~30% do código duplicado (L2/L3/L5 butterfly).
 4. **Commit** fixa o trabalho num ponto estável antes de mexer no dispatch.
 

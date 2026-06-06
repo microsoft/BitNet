@@ -127,10 +127,14 @@
         "L3_ffn": "+2.4% end-to-end (4.92→5.04 tok/s) — medido 2026-06-05 com BITNET_ACDC_FFN=1; esperado: garbage (P6)",
         "L4_attention": "+33% end-to-end (3.11→4.15 tok/s) — medido 2026-06-05 com BITNET_TROPICAL_TOPK=32",
         "L5_attention": "−46% regressão (3.11→1.69 tok/s) — medido 2026-06-05; FFT overhead domina head_dim=128",
+        "L5_raw_unbind": "1.42 tok/s — medido 2026-06-05 com BITNET_HRR_ATTN=1, BITNET_HRR_ATTN_CLEANUP=0",
+        "L5_with_cleanup_8": "1.29 tok/s — medido 2026-06-05 com BITNET_HRR_ATTN_CLEANUP=8 (-10% vs raw, expected)",
+        "L4_tropical_e2e_v2": "4.33 tok/s — medido 2026-06-05 (sessão L5 cleanup)",
+        "L4_plus_L5_chain": "4.19 tok/s — L4 wins via else-if chain",
         "L5_attention_theoretical": "~186× (n=2048, acima do piso SNR d≥10N)",
         "combined_L3_L4_L5": "~1700× end-to-end (teórico, ainda não validado em modelo treinado)"
       },
-      "status": "validated_L3_L4_dispatch, regression_observed_L5, L3_garbage_by_design_P6"
+      "status": "validated_L3_L4_L5_dispatch, regression_observed_L5_FFT_overhead, L3_L5_garbage_by_design_P6"
     },
 
     "P4_irreducible_minimum": {
@@ -196,7 +200,8 @@
       "integration_status": {
         "in_dispatch": "sim, via bitnet_op_tropical_attn (env BITNET_TROPICAL_TOPK=N, K=32 default)",
         "model_calibrated": "não — softmax real do modelo pré-treinado ainda existe; top-K aproximado gera saída garbage (esperado sem retreino, P6)",
-        "e2e_speedup": "+33% medido (3.11→4.15 tok/s)"
+        "e2e_speedup": "+33% medido (3.11→4.15 tok/s)",
+        "kernel_unit_tests": "test_tropical.cpp 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero-K edge case"
       },
       "status": "integrated_and_measured, training_calibration_pending"
     },
@@ -272,11 +277,16 @@
       ],
       "shared_optimization_opportunity": "L2/L3/L5 compartilham padrão butterfly SIMD; refatoração futura poderia extrair header comum",
       "integration_status": {
-        "L2": "patched em ggml_vec_dot_i2_i8_s",
-        "L3": "op bitnet_op_acdc exportado, sem caller real",
-        "L5": "integrado em bitnet_op_hrr_attn, regressão -46% indica custo de FFT domina para d=128"
+        "L2": "patched em ggml_vec_dot_i2_i8_s (bug em wht_dot_avx2 corrigido em e7edb21)",
+        "L3": "bitnet_op_acdc_gemv integrado em llm_build_ffn_acdc_bitnet (env BITNET_ACDC_FFN=1); bug 1/n² em acdc_forward_i8 corrigido em ed6fbde",
+        "L5": "integrado em bitnet_op_hrr_attn (raw) e bitnet_op_hrr_attn_with_cleanup (Frady 2021); regressão -46% indica custo de FFT domina para d=128"
       },
-      "status": "verified_for_L2_L3_L5, integration_complete_for_L4_L5"
+      "kernel_unit_tests": {
+        "L2": "test_wht.cpp 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
+        "L3": "test_acdc.cpp 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
+        "L5": "test_hrr_cleanup.cpp 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE"
+      },
+      "status": "verified_for_L2_L3_L5, integration_complete_for_L4_L5, kernels_20_of_20_unit_tests_passing"
     }
   },
 
@@ -336,8 +346,43 @@
       "utils/hrr_benchmark.py"
     ],
     "tests_cpp": [
+      "test_wht.cpp",
+      "test_acdc.cpp",
+      "test_tropical.cpp",
       "test_hrr_cleanup.cpp"
     ]
+  },
+
+  "kernel_unit_test_suite": {
+    "completed": "2026-06-05",
+    "scope": "Standalone C++ unit tests for L2-L5 math kernels, wired into CMake/ctest + GitHub Actions CI",
+    "test_files": {
+      "test_wht.cpp":        "L2 — 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
+      "test_acdc.cpp":       "L3 — 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
+      "test_tropical.cpp":   "L4 — 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero_K",
+      "test_hrr_cleanup.cpp":"L5 — 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE"
+    },
+    "total": "20/20 PASS",
+    "ctest_runtime_local": "0.04 sec (4 executables, all in build/tests/)",
+    "cmake_wiring": "tests/CMakeLists.txt with bitnet_test_set_simd_flags() helper (per-arch SIMD flags + libm link)",
+    "ci_wiring": ".github/workflows/ci.yml runs ctest after cmake build (ubuntu-24.04 + clang-18 + libstdc++-14-dev)"
+  },
+
+  "kernel_bugs_found_and_fixed": {
+    "WHT_AVX2_g0_g3_swap": {
+      "discovered": "2026-06-05",
+      "severity": "HIGH — silently wrong for all 5 WHT test cases",
+      "root_cause": "src/ggml-bitnet-wht.cpp:186-189 (before fix) — labels g0..g3 were inverted relative to unpack_i2s_block in the same file. Bits [7:6] represent group 0 (positions 0..31), not group 3. The library's own ggml_wht_verify (test [3]) also failed, indicating the bug was latent and undetected.",
+      "fix_commit": "e7edb21",
+      "test_coverage": "test_wht.cpp 5/5 PASS after fix"
+    },
+    "ACDC_1_over_n2_normalization": {
+      "discovered": "2026-06-05",
+      "severity": "HIGH — spec violation in central L3 kernel",
+      "root_cause": "src/ggml-bitnet-fwht.cpp:291-303 (before fix) — acdc_forward_i8 applied a 1/n² factor (divided twice by n) that violated the spec in CLAUDE.md: 'Level 3 kernel: acdc_forward(x, d) = H·(d⊙(H·x)), UNNORMALIZED — no 1/n² factors. The diagonal d absorbs the scale when learned during training.'",
+      "fix_commit": "ed6fbde",
+      "test_coverage": "test_acdc.cpp 5/5 PASS after fix; test [4] expectation also corrected (d*[k]=1/n for W=I, not 1)"
+    }
   },
 
   "P2_L5_hrr_refinement": {

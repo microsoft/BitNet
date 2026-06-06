@@ -12,8 +12,8 @@
 | Remoto | https://github.com/peder1981/BitNet.git |
 | Licença | MIT |
 | Branch atual | main |
-| Último commit | `129557d` — *feat: register L2-L5 kernels in ggml dispatch* (2026-06-05 20:08) |
-| Working tree | uncommitted: `src/ggml-bitnet-dispatch.cpp`, `src/ggml-bitnet-tropical.cpp`, `src/ggml-bitnet-hrr.cpp`, `3rdparty/llama.cpp` (submodule, dispatch patches) |
+| Último commit | `a884036` — *build(tests): wire all 4 kernel unit tests into CMake + CI* (2026-06-05 22:45) |
+| Working tree | clean (único untracked: `_reversa_sdd/session-2025-06-05-tropical-attn.md`, imutável) |
 | Propósito | Inferência CPU de LLMs com pesos ternários {-1, 0, +1} + extensões algébricas (WHT, ACDC, tropical, HRR) |
 
 ## Estrutura de pastas (top-level)
@@ -102,7 +102,12 @@ BitNet/
 
 ## CI/CD
 
-Nenhum arquivo `.github/`, `Jenkinsfile`, `.gitlab-ci.yml` ou similar foi encontrado. CI/CD não está presente no repositório.
+`.github/workflows/ci.yml` — kernel-ci workflow (commit b536d83, estendido em a884036):
+- Trigger: push main, PR, manual dispatch
+- Runner: ubuntu-24.04 + clang-18 + libstdc++-14-dev + ninja
+- Build: Release com L2-L5 + tests=ON
+- ctest: roda 4 suites (test_wht, test_acdc, test_tropical, test_hrr_cleanup)
+- Sem smoke/perplexity (modelo é 1.18GB, downloads fora do escopo)
 
 ## Docker
 
@@ -116,11 +121,13 @@ Nenhum DDL, migration, schema ORM, model SQLAlchemy/Prisma/Django presente. O pr
 
 | Sinal | Valor |
 |-------|-------|
-| Framework de teste | nenhum framework formal (pytest, gtest, catch2) — apenas scripts ad-hoc |
+| Framework de teste | **sem framework formal** — testes C++ standalone via compilação direta (não gtest) |
+| **Testes unitários C++ (novo)** | **4 arquivos** — `test_wht.cpp`, `test_acdc.cpp`, `test_tropical.cpp`, `test_hrr_cleanup.cpp` (20/20 subtests PASS) |
+| Test runner | **ctest** (CMake), wired em `tests/CMakeLists.txt` |
 | Arquivos `test_*.py` | 1 — `utils/test_perplexity.py` |
 | Scripts `.sh` de teste | 2 — `utils/test_gemm_kernel.sh`, `utils/test_power.sh` |
 | Benchmarks | 7 — `acdc_benchmark.py`, `e2e_benchmark.py`, `hrr_benchmark.py`, `tropical_benchmark.py`, `tune_gemm_config.py`, `wht_benchmark.py`, `test_perplexity.py` |
-| Cobertura estimada | mínima — sem suíte de testes unitários; verificação majoritariamente via benchmarks |
+| Cobertura estimada | **boa para kernels C++** (5/5 por nível, L2-L5); mínima para dispatch end-to-end (smoke manual) |
 
 ## Módulos identificados (nível superficial)
 
@@ -134,11 +141,11 @@ Nenhum DDL, migration, schema ORM, model SQLAlchemy/Prisma/Django presente. O pr
 |--------|---------|----:|--------|
 | L1 I2_S MAD | `ggml-bitnet-mad.cpp` | 1.055 | Kernel SIMD AVX2/NEON para 2-bit packed |
 | L1 LUT (TL1/TL2) | `ggml-bitnet-lut.cpp` | (não contado) | LUT para ARM64/x86_64 |
-| L2 WHT | `ggml-bitnet-wht.cpp` | 399 | Decomposição WHT zero-multiplicação |
-| L3 ACDC | `ggml-bitnet-fwht.cpp` | (incl. header 148) | FWHT + diagonal O(n log n) + `acdc_gemv` retangular |
+| L2 WHT | `ggml-bitnet-wht.cpp` | 467 | Decomposição WHT zero-multiplicação (AVX2) + I2_S packing |
+| L3 ACDC | `ggml-bitnet-fwht.cpp` | 481 | FWHT + diagonal O(n log n) + `acdc_gemv` retangular + `acdc_project` |
 | L4 Tropical | `ggml-bitnet-tropical.cpp` | 391 | Atenção (max,+) semiring |
 | L5 HRR | `ggml-bitnet-hrr.cpp` | (incl. header 326) | FFT Cooley-Tukey radix-2 + HRR bind/unbind + Frady 2021 cleanup_iter (NAIVE + RESIDUAL) |
-| **Dispatch (L2-L5)** | `ggml-bitnet-dispatch.cpp` | 408 | Wrappers `bitnet_op_*` via `ggml_map_custom1/2/3`; ACDC GEMV (lazy proj init), tropical 3D GQA, HRR 3D GQA |
+| **Dispatch (L2-L5)** | `ggml-bitnet-dispatch.cpp` | 408 | Wrappers `bitnet_op_*` via `ggml_map_custom1/2/3`; ACDC GEMV (lazy proj init), tropical 3D GQA, HRR 3D GQA com Frady 2021 cleanup opcional |
 
 ### Headers (`include/`)
 - `ggml-bitnet.h` (49) — API principal L1
@@ -171,8 +178,11 @@ Nenhum DDL, migration, schema ORM, model SQLAlchemy/Prisma/Django presente. O pr
 ## Notas para próximos agentes
 
 1. **Submódulo 3rdparty/llama.cpp** é fork customizado (branch `merge-dev`). Tratar como read-only a menos que patch intencional.
-2. **L2-L5 estão agora completamente conectados ao dispatch do llama.cpp** (commit `129557d` + extensão subsequente): L4 tropical e L5 HRR via `bitnet_op_tropical_attn`/`bitnet_op_hrr_attn` em `llm_build_kqv` (`3rdparty/llama.cpp/src/llama.cpp:9797-9857`); L3 ACDC via `bitnet_op_acdc_gemv` em `llm_build_ffn_acdc_bitnet` (env `BITNET_ACDC_FFN=1`); L2 WHT patched em `ggml_vec_dot_i2_i8_s` (Hadamard no lugar de maddubs). Dispatch chain L2-L5 **completo**.
+2. **L2-L5 estão agora completamente conectados ao dispatch do llama.cpp**: L4 tropical e L5 HRR via `bitnet_op_tropical_attn`/`bitnet_op_hrr_attn` em `llm_build_kqv` (`3rdparty/llama.cpp/src/llama.cpp:9797-9857`); L3 ACDC via `bitnet_op_acdc_gemv` em `llm_build_ffn_acdc_bitnet` (env `BITNET_ACDC_FFN=1`); L2 WHT patched em `ggml_vec_dot_i2_i8_s` (Hadamard no lugar de maddubs). L5 também tem `bitnet_op_hrr_attn_with_cleanup` (Frady 2021 RESIDUAL, `BITNET_HRR_ATTN_CLEANUP=N` iters). Dispatch chain L2-L5 **completo**.
 3. **GPU foi removida** deste fork — não há `gpu/`, mas o contexto Reversa herdado (gerado em 2026-05-03) menciona `gpu/model.py`, `gpu/generate.py` etc. Esses módulos **não existem mais** — a análise arqueológica prévia pode estar obsoleta. Lacuna a validar.
-4. **Testes unitários C++** — suíte mínima. `test_hrr_cleanup.cpp` (5/5 testes PASS em 2026-06-05) é o primeiro teste de kernel. Benchmarks Python verificam corretude numérica.
-5. **`build_test/`** é artefato de build local não versionado (4,2M) — ignorar.
-6. **Idioma do projeto**: comentários e docs majoritariamente em **português-BR** (CLAUDE.md, README, commits). Mensagens de log também em PT-BR.
+4. **Testes unitários C++** — suíte completa. 4 arquivos (`test_wht.cpp`, `test_acdc.cpp`, `test_tropical.cpp`, `test_hrr_cleanup.cpp`) cobrem 5/5 subtests cada = **20/20 PASS**. Wired em `tests/CMakeLists.txt` + `.github/workflows/ci.yml`. Benchmarks Python (`utils/*_benchmark.py`) verificam corretude numérica independente.
+5. **2 bugs reais encontrados nos kernels** (commits e7edb21, ed6fbde):
+   - `wht_dot_avx2` em `src/ggml-bitnet-wht.cpp:186-189` tinha labels `g0..g3` invertidas vs `unpack_i2s_block` da própria lib. Os testes do próprio arquivo (ggml_wht_verify) também falhavam — bug latente.
+   - `acdc_forward_i8` em `src/ggml-bitnet-fwht.cpp:291-303` tinha stray 1/n² que violava a spec do CLAUDE.md ("unnormalized — no 1/n² factors"). A diagonal d absorve o scale quando aprendida no treino.
+6. **`build_test/`** é artefato de build local não versionado (4,2M) — ignorar. Adicionado `build_tests/` ao `.gitignore` (a884036) para quick-iteration builds.
+7. **Idioma do projeto**: comentários e docs majoritariamente em **português-BR** (CLAUDE.md, README, commits). Mensagens de log também em PT-BR.
