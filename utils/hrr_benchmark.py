@@ -342,6 +342,106 @@ def benchmark_attention_vs_hrr(n: int, d: int, rng: np.random.Generator):
     return t_std, t_hrr, t_ret, sim
 
 
+# ─── Iterative cleanup (Frady 2021) ──────────────────────────────────────
+
+def cleanup_iter(noisy: np.ndarray, M: np.ndarray, query_key: np.ndarray,
+                 codebook: np.ndarray, max_iters: int = 16) -> Tuple[np.ndarray, int, list]:
+    """
+    Frady 2021 iterative cleanup.
+
+    Two modes:
+      NAIVE  (M is None):        iterate nearest-codebook projection on noisy
+      RESIDUAL (M is not None):  retrieve, project, subtract contribution, repeat
+
+    Returns (cleaned, chosen_idx, sim_trace).
+    sim_trace[i] = cosine_sim after iteration i (so length ≤ max_iters+1).
+    """
+    d = noisy.shape[0]
+    sim_trace = [cosine_sim(noisy, codebook[0])]  # initial sim to a representative entry
+    chosen = -1
+
+    if M is None:
+        # NAIVE: just iterate projection on noisy
+        current = noisy.copy()
+        prev_idx = -2
+        for _ in range(max_iters):
+            sims = np.array([cosine_sim(current, c) for c in codebook])
+            idx = int(np.argmax(sims))
+            if idx == prev_idx:
+                break  # converged
+            prev_idx = idx
+            chosen = idx
+            current = codebook[idx].copy()
+            sim_trace.append(float(sims[idx]))
+        return current, chosen, sim_trace
+
+    # RESIDUAL (Frady 2021)
+    M_working = M.copy()
+    prev_idx = -2
+    for _ in range(max_iters):
+        # retrieve from current M_working
+        current = unbind(M_working, query_key)
+        sims = np.array([cosine_sim(current, c) for c in codebook])
+        idx = int(np.argmax(sims))
+        if idx == prev_idx:
+            break  # converged
+        prev_idx = idx
+        chosen = idx
+        sim_trace.append(float(sims[idx]))
+        # subtract this codebook entry's contribution
+        contribution = bind(query_key, codebook[idx])
+        M_working -= contribution
+    return codebook[chosen], chosen, sim_trace
+
+
+def cleanup_convergence_test(d_values: List[int], N_values: List[int],
+                              rng: np.random.Generator, max_iters: int = 16):
+    """
+    For each (d, N), build memory M from N phasor keys + N random values.
+    Retrieve each value with and without iterative cleanup.
+    Report:
+      - raw_sim:     cos_sim(raw retrieval, true value) — without cleanup
+      - cleaned_sim: cos_sim after Frady 2021 cleanup convergence
+      - iterations:  # of iterations to converge
+    """
+    print(f"\n[10] Iterative cleanup (Frady 2021): SNR improvement")
+    print(f"    {'d':>5}  {'N':>4}  {'d/N':>5}  {'raw_sim':>9}  "
+          f"{'cleaned_sim':>12}  {'iters':>6}  {'theory_no_cl':>13}")
+    for d in d_values:
+        for N in N_values:
+            if N > d // 2:
+                continue
+            keys   = np.array([random_phasor_vector(d, rng) for _ in range(N)])
+            values = np.array([random_unit_vector(d, rng)   for _ in range(N)])
+            M = build_memory(keys, values)
+
+            # Average across all N retrievals
+            raw_sims = []
+            cleaned_sims = []
+            iters_list = []
+            for i in range(N):
+                noisy = retrieve(M, keys[i])
+                raw_sim = cosine_sim(noisy, values[i])
+                _, idx, trace = cleanup_iter(noisy, M, keys[i], values, max_iters=max_iters)
+                cleaned = codebook_nearest(noisy, values)
+                cleaned_sim = cosine_sim(cleaned, values[i])
+                raw_sims.append(raw_sim)
+                cleaned_sims.append(cleaned_sim)
+                iters_list.append(len(trace) - 1)
+            raw_mean = np.mean(raw_sims)
+            cleaned_mean = np.mean(cleaned_sims)
+            iters_mean = np.mean(iters_list)
+            theory = math.sqrt(d) / (N - 1 + math.sqrt(d))  # rough estimate
+            print(f"    {d:>5}  {N:>4}  {d/N:>5.1f}  {raw_mean:>9.4f}  "
+                  f"{cleaned_mean:>12.4f}  {iters_mean:>6.1f}  {theory:>13.4f}")
+
+
+def codebook_nearest(noisy: np.ndarray, codebook: np.ndarray) -> np.ndarray:
+    """Find nearest codebook entry to noisy (single step, no iteration)."""
+    sims = np.array([cosine_sim(noisy, c) for c in codebook])
+    return codebook[int(np.argmax(sims))]
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────
 
 def main():
@@ -354,6 +454,8 @@ def main():
                         help="Análise de capacidade de memória")
     parser.add_argument("--scaling",  action="store_true",
                         help="Tabela de scaling de speedup")
+    parser.add_argument("--cleanup",  action="store_true",
+                        help="Test iterative cleanup (Frady 2021) convergence")
     parser.add_argument("--seed",     type=int, default=42)
     args = parser.parse_args()
 
@@ -383,6 +485,14 @@ def main():
     # ══ SCALING TEÓRICO ═══════════════════════════════════════════════════
     if args.scaling:
         scaling_speedup(d)
+
+    # ══ ITERATIVE CLEANUP (Frady 2021) ════════════════════════════════════
+    if args.cleanup:
+        cleanup_convergence_test(
+            d_values=[256, 1024, 4096],
+            N_values=[4, 16, 32, 64, 128],
+            rng=rng,
+            max_iters=16)
 
     # ══ BENCHMARK DE TEMPO ════════════════════════════════════════════════
     print(f"\n[9] Benchmark: Atenção padrão vs HRR  (d={d}, decode batch=1)")
