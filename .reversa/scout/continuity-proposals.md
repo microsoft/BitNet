@@ -529,3 +529,43 @@ Para desbloquear a continuidade, o próximo passo concreto é:
 Estes comandos Reversa usarão os artefatos desta pasta (`.reversa/scout/`)
 como contexto estruturado, em conjunto com `_reversa_sdd/` (análise
 prévia) e `docs/` (fundamentos).
+
+---
+
+## Sub-caminho B+++ — Phase C: K_i8 KV cache para L4 tropical (CONCLUÍDO 2026-06-06c)
+
+**Status:** 100 % (commit `ec2a654`)
+**Razão:** Eliminar o "3-pass K problem" identificado em S2 2026-06-06b —
+cada decode step re-quantizava todos os n_kv × d elementos, desperdiçando
+~1/3 do trabalho da atenção tropical.
+
+**Implementação:**
+- `include/ggml-bitnet-kv-cache.h` + `src/ggml-bitnet-kv-cache.cpp` —
+  cache persistente por (layer, kv_head) com scale lockado no primeiro
+  call, quantização incremental (só os tokens novos), pthread_mutex por
+  slot (corrigiu race condition GQA descoberta durante dev).
+- `src/ggml-bitnet-dispatch.cpp` — `tropical_callback` usa
+  `bitnet_kv_i8_cache_get(...)`; fallback para malloc se cache miss.
+- `tests/test_kv_i8_cache.cpp` — 11/11 subtestes (8/8 ctest suites).
+- `patches/llama.cpp/03-L4-TROPICAL-KI8-cache.patch` — include +
+  `bitnet_kv_i8_cache_set_layer(il)` antes de `bitnet_op_tropical_attn`.
+- `scripts/apply-dispatch-patches.sh` — suporte a patch 03.
+
+**Bench (BitNet-2B, t=4, K=32):**
+| n_kv | L4 Tropical antes | L4 Tropical depois | Ganho |
+|------|--------------------|--------------------|-------|
+| 256  | 4,31 tok/s (-8,9 %)| 4,97 tok/s (-1,8 %)| **+7,1 pp** |
+| 128  | 4,77 tok/s (-2,4 %)| 4,83 tok/s (-1,0 %)| +1,4 pp |
+
+**Limitação conhecida:** o cache não elimina o score pass (continua
+varrendo todos os n_kv elementos). Ganho marginal em n ≤ 128.
+L4 Sparse float (sem cache) atinge 4,94 tok/s em n=256 — ligeiramente
+mais rápido que tropical cached. Próxima otimização possível: scoring
+in-place sobre K_i8 (poupa ~1/3 do trabalho restante).
+
+**Lição de design:** GQA (Grouped Query Attention, gqa=4 em BitNet-2B)
+faz múltiplas heads compartilharem o mesmo kv_head. Threads diferentes
+podem acessar o mesmo slot simultaneamente. Caches por (layer, head)
+NÃO são seguros sem sincronização explícita em modelos com GQA > 1.
+
+

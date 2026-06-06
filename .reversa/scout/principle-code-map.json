@@ -355,19 +355,23 @@
 
   "kernel_unit_test_suite": {
     "completed": "2026-06-05",
-    "scope": "Standalone C++ unit tests for L2-L5 math kernels + shared utilities, wired into CMake/ctest + GitHub Actions CI",
+    "last_updated": "2026-06-06c (Phase C K_i8 cache)",
+    "scope": "Standalone C++ unit tests for L2-L5 math kernels + shared utilities + L4 K_i8 cache, wired into CMake/ctest + GitHub Actions CI",
     "test_files": {
       "test_bitnet_common.cpp":"shared — 5/5 PASS (commit cdce725): next_pow2, aliases, edge cases, no-butterfly, pow2 unchanged",
       "test_wht.cpp":         "L2 — 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
       "test_acdc.cpp":        "L3 — 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
       "test_tropical.cpp":    "L4 — 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero_K",
+      "test_sparse_attention.cpp": "L4 — 5/5 PASS (commit a483bbd): k_top_zero, k_top_full, top1_picks_argmax, topk_partial_sort, matches_manual_reference (semente 42, 32 keys, d=16)",
+      "test_kv_i8_cache.cpp": "L4-cache — 11/11 PASS (commit ec2a654): init noop, realloc, first_call_quantizes_all, incremental_only_new, no_new_keys_idempotent, out_of_range_null, capacity_growth, capacity_exceeds_max_null, thread_safety (2 threads racing → 0 errors), reset_clears_state, set_layer_current_roundtrip",
       "test_hrr_cleanup.cpp": "L5 — 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE",
       "test_hrr_attention.cpp":"L5 — 5/5 PASS (commit e8d45f1): single-query finite, multi-query independent, phasor SNR, gaussian finite, build+retrieve consistent with hrr_attention_full"
     },
-    "total": "30/30 PASS across 6 suites",
-    "ctest_runtime_local": "0.05 sec (6 executables, all in build/tests/)",
+    "total": "46/46 PASS across 8 suites",
+    "ctest_runtime_local": "0.05 sec (8 executables, all in build/tests/)",
     "cmake_wiring": "tests/CMakeLists.txt with bitnet_test_set_simd_flags() helper (per-arch SIMD flags + libm link)",
-    "ci_wiring": ".github/workflows/ci.yml runs ctest after cmake build (ubuntu-24.04 + clang-18 + libstdc++-14-dev)"
+    "ci_wiring": ".github/workflows/ci.yml runs ctest after cmake build (ubuntu-24.04 + clang-18 + libstdc++-14-dev)",
+    "phase_c_caveat": "test_kv_i8_cache detects the GQA race condition: 2 threads calling cache_get on the same (il, kv_h) would corrupt slot data without the per-slot pthread_mutex (caught in production at n=64 n_kv=96, n_threads=4, model with gqa=4)"
   },
 
   "cpu_universal_benchmark": {
