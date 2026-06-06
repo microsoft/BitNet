@@ -51,7 +51,11 @@ jobs:
             clang-18 \
             cmake \
             ninja-build \
-            libstdc++-14-dev
+            libstdc++-14-dev \
+            python3 \
+            python3-scipy \
+            python3-numpy \
+            python3-safetensors
 
       - name: Configure (Release, all kernels)
         run: |

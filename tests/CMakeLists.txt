@@ -170,3 +170,24 @@ if (BITNET_L5_HRR)
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_hrr_attention COMMAND test_hrr_attention)
 endif()
+
+# ─── ACDC diagonal extraction (Python) ────────────────────────────────────
+# 4/4 PASS: next_pow2 utility, exact recovery for ACDC-diagonalizable
+# matrices (energy = 1.0), random W captures ~1/n energy (1/32 = 0.0312,
+# actual ~0.035 within tolerance), W=I gives d*[0] = 1/n.
+# This guards the closed-form d* = diag(H·W·H) / n² that
+# extract_acdc_diagonal.py implements, which is the basis for the
+# ACDC pretraining initialization (Phase A).
+if (BITNET_L3_ACDC)
+    find_package(Python3 COMPONENTS Interpreter)
+    if (Python3_Interpreter_FOUND)
+        add_test(NAME test_extract_acdc_diagonal
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_SOURCE_DIR}/test_extract_acdc_diagonal.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        set_tests_properties(test_extract_acdc_diagonal PROPERTIES
+            LABELS "python;L3")
+    else()
+        message(STATUS "BitNet: skipping test_extract_acdc_diagonal (Python3 not found)")
+    endif()
+endif()
