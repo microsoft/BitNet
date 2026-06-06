@@ -135,6 +135,34 @@ GGML_API struct ggml_tensor * bitnet_op_hrr_attn(
     struct ggml_tensor  * k,
     struct ggml_tensor  * v);
 
+/*
+ * bitnet_op_hrr_attn_with_cleanup: HRR attention + Frady 2021 iterative cleanup.
+ *
+ * Same as bitnet_op_hrr_attn but, after the unbind, runs hrr_cleanup_iter
+ * (RESIDUAL mode) to identify the dominant values in the codebook (V) and
+ * subtract their traces from a working copy of M. This recovers usable SNR
+ * even when n_kv > d/10 (capacity limit of raw HRR retrieval).
+ *
+ * Complexity per head: O(n_kv·d·log d) build + n_tokens × O(max_iters × d·log d)
+ * retrieve+cleanup. For d=128, n_kv=2048, max_iters=8: build ~17ms, retrieve
+ * per token ~340µs (on a modern x86_64 with AVX2).
+ *
+ * @param ctx        ggml context
+ * @param q          queries [head_dim, n_queries]  (GGML_TYPE_F32)
+ * @param k          keys    [head_dim, n_kv]       (GGML_TYPE_F32)
+ * @param v          values  [head_dim, n_kv]       (GGML_TYPE_F32) — also used as
+ *                   the codebook for cleanup (each v_i is a candidate)
+ * @param max_iters  iteration cap for cleanup (typ. 8-16); encoded as the
+ *                   first 32 bits of an int userdata pointer.
+ * @return           output  [head_dim, n_queries]  (GGML_TYPE_F32)
+ */
+GGML_API struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                  max_iters);
+
 #ifdef __cplusplus
 }
 #endif

@@ -390,6 +390,95 @@ struct ggml_tensor * bitnet_op_hrr_attn(
     return ggml_map_custom3(ctx, q, k, v, hrr_callback, /*n_tasks=*/1, NULL);
 }
 
+/* ─── L5: HRR attention + Frady 2021 cleanup_iter ─────────────────────── */
+
+struct hrr_cleanup_ud {
+    int max_iters;   /* cleanup_iter iteration cap (typ. 8-16) */
+};
+
+static void hrr_cleanup_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * q_t,
+    const struct ggml_tensor * k_t,
+    const struct ggml_tensor * v_t,
+    int ith, int nth, void * userdata)
+{
+    (void)nth;
+    if (ith != 0) return;
+
+    struct hrr_cleanup_ud * p = (struct hrr_cleanup_ud *)userdata;
+
+    /* Same 3D layout as hrr_callback. See comments there. */
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
+
+    const float * q_f = (const float *)q_t->data;
+    const float * k_f = (const float *)k_t->data;
+    const float * v_f = (const float *)v_t->data;
+    float       * out = (float *)dst->data;
+
+    /* Scratch buffers per head (reused across queries within the head). */
+    int8_t  * k_tern      = (int8_t *)malloc((size_t)n_kv * d);
+    float   * M           = (float  *)malloc((size_t)d * sizeof(float));
+    float   * M_working   = (float  *)malloc((size_t)d * sizeof(float));
+    float   * tmp         = (float  *)malloc((size_t)4 * (d + 2) * sizeof(float));
+    /* codebook pointers — each entry is a V row [d] */
+    const float ** codebook = (const float **)malloc((size_t)n_kv * sizeof(const float *));
+    if (!k_tern || !M || !M_working || !tmp || !codebook) goto cleanup;
+
+    for (int h = 0; h < n_head; h++) {
+        const int    kv_h    = h / gqa;
+        const float *q_head  = q_f + (size_t)h    * n_tokens * d;
+        const float *k_head  = k_f + (size_t)kv_h * n_kv     * d;
+        const float *v_head  = v_f + (size_t)kv_h * n_kv     * d;
+        float       *out_hd  = out + (size_t)h    * n_tokens * d;
+
+        /* Build holographic memory M = Σᵢ K_i ⊛ V_i (ternary keys for speed). */
+        derive_ternary_keys(k_head, k_tern, n_kv * d);
+        hrr_build_memory(M, nullptr, k_tern, v_head, n_kv, d);
+
+        /* Codebook for cleanup = V (one row per token in context). */
+        for (int i = 0; i < n_kv; i++) codebook[i] = v_head + (size_t)i * d;
+
+        /* Per-query retrieval + Frady 2021 cleanup. */
+        for (int t = 0; t < n_tokens; t++) {
+            const float * q_tok = q_head + (size_t)t * d;
+            float       * out_t = out_hd + (size_t)t * d;
+
+            /* Fresh M_working per query (RESIDUAL mode modifies M in place). */
+            memcpy(M_working, M, (size_t)d * sizeof(float));
+            hrr_cleanup_iter(out_t, /*noisy=*/nullptr,
+                             M_working, q_tok,
+                             codebook, n_kv, d,
+                             p->max_iters, tmp);
+        }
+    }
+
+cleanup:
+    free(k_tern);
+    free(M);
+    free(M_working);
+    free(tmp);
+    free(codebook);
+}
+
+struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                   max_iters)
+{
+    struct hrr_cleanup_ud * ud = (struct hrr_cleanup_ud *)malloc(sizeof(*ud));
+    if (!ud) return q;
+    ud->max_iters = max_iters;
+    return ggml_map_custom3(ctx, q, k, v, hrr_cleanup_callback, /*n_tasks=*/1, ud);
+}
+
 #else /* BITNET_L5_HRR not defined */
 
 struct ggml_tensor * bitnet_op_hrr_attn(
@@ -399,6 +488,17 @@ struct ggml_tensor * bitnet_op_hrr_attn(
     struct ggml_tensor  * v)
 {
     (void)ctx; (void)k; (void)v;
+    return q;
+}
+
+struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    int                   max_iters)
+{
+    (void)ctx; (void)k; (void)v; (void)max_iters;
     return q;
 }
 
