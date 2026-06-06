@@ -99,6 +99,23 @@ if (BITNET_L4_TROPICAL)
     set_target_properties(test_tropical PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_tropical COMMAND test_tropical)
+
+    # ─── L4-alt: Float sparse top-K attention ────────────────────────────
+    # 5/5 PASS: K_top=0 returns zero, K_top=n_keys equals full softmax,
+    # top-1 picks argmax, top-K partial_sort picks correct keys,
+    # float scoring matches a hand-rolled reference implementation.
+    # Guards sparse_attention_float (the kernel behind BITNET_SPARSE_TOPK).
+    add_executable(test_sparse_attention
+        ${CMAKE_SOURCE_DIR}/test_sparse_attention.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_sparse_attention PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_sparse_attention PRIVATE BITNET_L4_TROPICAL)
+    bitnet_test_set_simd_flags(test_sparse_attention)
+    set_target_properties(test_sparse_attention PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_sparse_attention COMMAND test_sparse_attention)
 endif()
 
 # ─── L5: HRR (Holographic Reduced Representations) ─────────────────────────

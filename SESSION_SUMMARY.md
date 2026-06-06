@@ -1,10 +1,105 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessão 2026-06-06
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06 e 2026-06-06b
 
 **Período:** 2025-06-05 → 2026-06-06
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 23
+**Total de commits (cumulativo):** 25
+
+---
+
+## SESSÃO 2026-06-06b — Cobertura de teste + bench de contexto longo
+
+### S2b.1 Commits desta sessão
+
+```
+(ainda não commitados)
+  test_sparse_attention.cpp (NOVO) — 5/5 PASS, cobre sparse_attention_float
+  tests/CMakeLists.txt          — wire test_sparse_attention
+  .github/workflows/ci.yml      — adicionar test_sparse_attention
+  SESSION_SUMMARY.md            — esta atualização
+```
+
+### S2b.2 Gap encontrado: `sparse_attention_float` sem teste unitário
+
+A sessão anterior (2026-06-06) adicionou `sparse_attention_float` como
+nova alternativa de atenção L4 (env var `BITNET_SPARSE_TOPK`) mas **não
+criou teste unitário** para ela. Os 6/6 ctest existentes não cobrem essa
+função — uma regressão passaria silenciosa.
+
+### S2b.3 Solução: `test_sparse_attention.cpp` (commit pendente)
+
+5/5 subtests cobrindo:
+
+| # | Teste | O que verifica |
+|---|-------|----------------|
+| 1 | `k_top_zero_returns_zero_output` | K_top ≤ 0 → output = 0 (degenerate) |
+| 2 | `k_top_full_equals_full_softmax` | K_top ≥ n_keys → equivalente a softmax full (referência escrita à mão) |
+| 3 | `top1_selection_picks_argmax_score` | K_top=1 → saída = V[argmax_score] |
+| 4 | `topk_partial_sort_picks_correct_keys` | K_top=2 → partial_sort pega os 2 maiores scores na ordem certa |
+| 5 | `matches_manual_reference_implementation` | 32 keys, 16 d, dados pseudo-aleatórios (semente 42) → bate com referência ingênua reimplementada |
+
+Adicionado a `tests/CMakeLists.txt` no mesmo bloco `#if BITNET_L4_TROPICAL`
+(compila `ggml-bitnet-tropical.cpp` + `ggml-bitnet-common.cpp`).
+Adicionado a `.github/workflows/ci.yml` na lista de targets.
+
+### S2b.4 ctest após wiring (7/7 PASS, 35/35 subtests, 0,05 s)
+
+```
+$ ctest --output-on-failure
+    Start 4: test_tropical           Passed    0.00 sec
+    Start 5: test_sparse_attention  Passed    0.00 sec
+    Start 6: test_hrr_cleanup       Passed    0.03 sec
+    Start 7: test_hrr_attention     Passed    0.00 sec
+100% tests passed, 0 tests failed out of 7
+Total Test time (real) =   0.05 sec
+```
+
+### S2b.5 Long-context benchmark (n=256, t=4, BitNet-2B, sparse float vs tropical)
+
+`utils/cpu_universal_benchmark.py` rodado com `-n 256 --keep-running` para
+medir o diferencial sparse float vs tropical a contexto longo (previsão
+S2.8 #1: "diferencial deve ser mais claro a n_kv ≥ 128").
+
+| Configuração                       | tok/s   | Δ vs L1   |
+|------------------------------------|---------|-----------|
+| L1 baseline (I2_S GEMV)            | 4,73    | +0,0 %    |
+| L3 ACDC FFN                        | 4,71    | -0,4 %    |
+| L4 Tropical top-K=32               | 4,31    | -8,9 %    |
+| **L4 Sparse float top-K=32**       | **4,49**| **-5,1 %**|
+| L5 HRR raw                         | 1,57    | -66,8 %   |
+| L5 HRR + cleanup 8                 | 1,35    | -71,5 %   |
+
+**Confirma a previsão:** sparse float é 3,8 pp melhor que tropical em
+n=256 (vs ~1-2 pp em n=64). O gap alarga com contexto, exatamente como
+previsto em S2.8 #1.
+
+**Achado novo:** L5 HRR + cleanup agora é **mais lento** que raw em n=256
+(1,35 vs 1,57 tok/s). Em n=64 era equivalente (2,89 vs 2,95). Razão: o
+cleanup itera n_kv × max_iters × O(d log d) por head, e como o output
+do modelo é garbage (P6 unvalidado), o cleanup está aplicando
+convergência a uma "memória" que não representa nada. Isso corrobora a
+interpretação original de que cleanup só ajuda quando o modelo foi
+treinado com HRR.
+
+### S2b.6 Estado atualizado dos Caminhos
+
+| Caminho | Descrição                                       | Estado                       |
+|---------|-------------------------------------------------|------------------------------|
+| A       | Kernels L2–L5 matematicamente corretos          | **100 %**                    |
+| B       | Dispatch integrado no llama.cpp KQV/FFN         | **100 %**                    |
+| B+      | L4 paralelizado + sparse float                  | **100 %** (S2 2026-06-06)    |
+| B++     | Cobertura de teste ampliada (7/7 suítes)        | **Novo ✓** (S2b 2026-06-06b) |
+| C       | Modelo retreinado com ACDC/HRR/tropical         | **Aberto** (P6, GPU)         |
+
+### S2b.7 Próximos passos sugeridos (não executados)
+
+1. **ACDC-pretraining-aware diagonal** (antigo S2.8 #4) — adicionar
+   extração de `d*` no `convert-helper-bitnet.py`.
+2. **Caminho A++** — estender L2 WHT para `m × n` com m, n não-potência-de-2.
+3. **Incremental K_i8 cache** (antigo S2.8 #2) — patch no KV cache do
+   llama.cpp para evitar re-quantizar K entre decode steps.
+4. **Caminho C** — GPU necessária; ver sessão §12.
 
 ---
 
@@ -191,7 +286,7 @@ e1c95c5  build(submodule): update llama.cpp pointer to 707f316 (L3 ACDC FFN disp
 
 ---
 
-## 4. Suítes de teste criadas (6/6 PASS, 30/30 subtests, 0,05 s)
+## 4. Suítes de teste criadas (7/7 PASS, 35/35 subtests, 0,05 s)
 
 | Suite                  | Subtests | Commit       | O que cobre                                           |
 |------------------------|----------|--------------|-------------------------------------------------------|
@@ -199,12 +294,15 @@ e1c95c5  build(submodule): update llama.cpp pointer to 707f316 (L3 ACDC FFN disp
 | `test_wht`             | 5/5      | `e7edb21`    | L2 — WHT zero-multiplicação                           |
 | `test_acdc`            | 5/5      | `ed6fbde`    | L3 — FWHT, ACDC, projeção                             |
 | `test_tropical`        | 5/5      | `8509cff`    | L4 — argmax, topk, attn, gemv, K=0                    |
+| `test_sparse_attention`| 5/5      | S2b (pendente)| L4-alt — sparse float top-K: K=0, K=n, top-1, top-K, vs ref |
 | `test_hrr_cleanup`     | 5/5      | `30ab330`    | L5 — FFT, bind, phasor, Frady 2021 NAIVE/RESIDUAL     |
 | `test_hrr_attention`   | 5/5      | `e8d45f1`    | L5 — `hrr_attention_full` (dispatch-level)            |
 
 Os 4 primeiros testes foram cabeados no `tests/CMakeLists.txt` e no CI no
 commit `a884036`; `test_bitnet_common` e `test_hrr_attention` entraram em
-`cdce725` e `e8d45f1`, respectivamente.
+`cdce725` e `e8d45f1`, respectivamente; `test_sparse_attention` foi
+adicionado na sessão S2b (2026-06-06b) para fechar um gap de cobertura
+deixado pela sessão 2026-06-06.
 
 `tests/CMakeLists.txt` foi reescrito como data-driven: cada executável
 compila apenas o(s) `.cpp` de kernel de que precisa, via helper
