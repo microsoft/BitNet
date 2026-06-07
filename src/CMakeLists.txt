@@ -28,7 +28,7 @@ set(_bitnet_has_dispatch OFF)
 # Always compiled when ANY L2-L5 kernel is enabled (the wrappers in fwht.cpp
 # and hrr.cpp call bitnet_next_pow2).  See include/ggml-bitnet-common.h for
 # the rationale ("L2/L3/L5 don't share a butterfly; only next_pow2 is shared").
-if (BITNET_L2_WHT OR BITNET_L3_ACDC OR BITNET_L4_TROPICAL OR BITNET_L5_HRR)
+if (BITNET_L2_WHT OR BITNET_L3_ACDC OR BITNET_L4_TROPICAL OR BITNET_L5_HRR OR BITNET_L6_RAG)
     list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-common.cpp)
 endif()
 
@@ -66,6 +66,31 @@ if (BITNET_L5_HRR)
     message(STATUS "BitNet: Level 5 Holographic memory (HRR) enabled")
 endif()
 
+if (BITNET_L6_RAG)
+    list(APPEND _bitnet_math_srcs ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-rag.cpp)
+    list(APPEND _bitnet_math_defs BITNET_L6_RAG)
+    message(STATUS "BitNet: Level 6 CPU-RAG flat-index ANN engine enabled")
+
+    # Optional shared library for Python ctypes bridge
+    if (BITNET_RAG_SHARED)
+        add_library(bitnet_rag SHARED ${CMAKE_CURRENT_SOURCE_DIR}/ggml-bitnet-rag.cpp)
+        target_include_directories(bitnet_rag PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+        target_compile_features(bitnet_rag PUBLIC cxx_std_11)
+        if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686")
+            target_compile_options(bitnet_rag PRIVATE -mavx2 -mfma)
+        elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+            target_compile_options(bitnet_rag PRIVATE -march=armv8-a+simd)
+        endif()
+        if (UNIX AND NOT APPLE)
+            target_link_libraries(bitnet_rag PUBLIC m)
+        endif()
+        set_target_properties(bitnet_rag PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+        message(STATUS "BitNet: bitnet_rag SHARED library enabled → build/lib/libbitnet_rag.so")
+    endif()
+endif()
+
 # ggml-bitnet-dispatch.cpp registers custom ops (ggml_map_custom2/3) for L3-L5.
 # Compiled when at least one of L3/L4/L5 is enabled.
 if (_bitnet_has_dispatch)
@@ -99,9 +124,9 @@ if (_bitnet_math_srcs)
             $<$<COMPILE_LANGUAGE:CXX>:-march=armv8-a+simd>)
     endif()
 
-    # libm: required for HRR (cos, sin, sqrt) and tropical (expf) on Linux.
+    # libm: required for HRR (cos, sin, sqrt), tropical (expf), RAG (sqrtf, expf).
     # macOS and Windows link math implicitly.
-    if (BITNET_L5_HRR OR BITNET_L4_TROPICAL)
+    if (BITNET_L5_HRR OR BITNET_L4_TROPICAL OR BITNET_L6_RAG)
         if (UNIX AND NOT APPLE)
             target_link_libraries(bitnet_math PUBLIC m)
         endif()

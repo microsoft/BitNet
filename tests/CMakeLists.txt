@@ -284,6 +284,23 @@ set_target_properties(test_dense_is_default PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 add_test(NAME test_dense_is_default COMMAND test_dense_is_default)
 
+# ─── L6: CPU-RAG flat-index retrieval engine (Direção E) ──────────────────
+# 4/4 PASS: exact_match (query=doc → rank-0), nn_ranking (8 docs at controlled
+# inner products → deterministic descending order), adaptive_k (1 dominant doc
+# → K=1 with coverage=0.90), batch_accuracy (64 random docs, 10 queries with
+# query=doc[i] → rank-0 always correct).
+if (BITNET_L6_RAG)
+    add_executable(test_rag_retrieval
+        ${CMAKE_SOURCE_DIR}/test_rag_retrieval.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-rag.cpp)
+    target_include_directories(test_rag_retrieval PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_rag_retrieval PRIVATE BITNET_L6_RAG)
+    bitnet_test_set_simd_flags(test_rag_retrieval)
+    set_target_properties(test_rag_retrieval PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_rag_retrieval COMMAND test_rag_retrieval)
+endif()
+
 # ACDC rectangular (D2 gate RESOLVED 2026-06-07).
 # bench.md confirmed: Falcon3-10B FFN (23040/3072=7.5×) is the compute
 # bottleneck. Fase II (ACDC rect) implementation is now complete.

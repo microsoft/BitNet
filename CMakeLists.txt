@@ -20,6 +20,8 @@ option(BITNET_L2_WHT      "bitnet.cpp: WHT zero-mul GEMV (Level 2)"           ON
 option(BITNET_L3_ACDC     "bitnet.cpp: FWHT+ACDC O(n log n) layers (Level 3)" ON)
 option(BITNET_L4_TROPICAL "bitnet.cpp: Tropical attention (max,+) (Level 4)"  ON)
 option(BITNET_L5_HRR      "bitnet.cpp: Holographic memory HRR (Level 5)"      ON)
+option(BITNET_L6_RAG      "bitnet.cpp: CPU-RAG flat-index ANN engine (Level 6)" ON)
+option(BITNET_RAG_SHARED  "bitnet.cpp: build bitnet_rag as a shared lib (ctypes)" OFF)
 option(BITNET_BUILD_TESTS "bitnet.cpp: build kernel unit tests"               ON)
 # FWHT parallel (OpenMP): opt-in. Default OFF so the ggml inference path (which
 # runs inside a ggml thread-pool callback) is never affected.  Enable only for
