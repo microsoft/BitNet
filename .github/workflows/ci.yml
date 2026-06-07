@@ -35,9 +35,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Apply dispatch patches (04 + 05)
+      - name: Apply dispatch patch (combined 05)
         run: |
-          echo "Applying patches 04+05 (L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect + LLaMA gate)..."
+          echo "Applying combined patch 05 (L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect + LLaMA gate)..."
           chmod +x ./scripts/apply-dispatch-patches.sh
           ./scripts/apply-dispatch-patches.sh
           echo "Verifying idempotence..."
@@ -70,15 +70,16 @@ jobs:
             -DBITNET_L3_ACDC=ON \
             -DBITNET_L4_TROPICAL=ON \
             -DBITNET_L5_HRR=ON \
+            -DBITNET_L6_RAG=ON \
             -DBITNET_BUILD_TESTS=ON
 
-      - name: Build (compiles L1 + L2-L5 + dispatch into libggml)
+      - name: Build (compiles L1 + L2-L6 + dispatch into libggml)
         run: cmake --build build --config Release -j$(nproc)
 
       - name: Build all kernel unit tests
-        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default test_acdc_rect
+        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default test_acdc_rect test_adaptive_k test_rag_retrieval
 
-      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L5_attn, L5_cleanup, 4 property tests, dense-is-default, acdc_rect)
+      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L4_adaptive, L5_attn, L5_cleanup, 4 property tests, dense-is-default, acdc_rect, L6_rag)
         run: cd build && ctest --output-on-failure
 
       - name: Air-gapped boot test (AC-11, NO-07)

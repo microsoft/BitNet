@@ -2,20 +2,32 @@
 #
 # apply-dispatch-patches.sh
 #
-# Aplica os patches de dispatch do BitNet CPU-Universal sobre o
+# Aplica o patch de dispatch do BitNet CPU-Universal sobre o
 # 3rdparty/llama.cpp após `git submodule update --init`.
 #
 # Contexto:
 #   O submodule 3rdparty/llama.cpp aponta para o fork upstream
-#   (https://github.com/Eddie-Wang1120/llama.cpp.git, base commit 1f86f05).
-#   Os commits de feature foram consolidados em dois patches cumulativos:
+#   (https://github.com/Eddie-Wang1120/llama.cpp.git, base commit 1f86f05,
+#    src/llama.cpp blob 666fcc4).
 #
-#   04-ACDC-rect-FFN.patch   — L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect
-#                              (inclui build_falcon ACDC rect gate)
-#   05-ACDC-rect-LLaMA.patch — adds ACDC rect gate to build_llama
-#                              (needed for Falcon3-3B/10B which report arch=llama)
+#   Um único patch cumulativo é usado:
 #
-#   Patches 01-03 existem como referência histórica mas não são mais usados.
+#   05-ACDC-rect-LLaMA.patch  — patch combinado:
+#     • Dispatch includes (L3 ACDC + L5 HRR + L4 K_i8 cache)
+#     • llm_build_ffn_acdc_rect  (model-agnostic rectangular ACDC FFN)
+#     • llm_build_ffn_acdc_bitnet (BitNet-2B hardcoded dims, legacy)
+#     • llm_build_kqv tropical + HRR attention gates
+#     • build_falcon ACDC rect gate  (Falcon3-3B/10B: n_ff/n_embd = 3-7.5×)
+#     • build_llama  ACDC rect gate  (LLaMA-arch: Falcon3 reports arch=llama)
+#
+#   04-ACDC-rect-FFN.patch existem como referência histórica (subset do 05).
+#   Patches 01-03 existem como referência histórica mas não são usados no CI.
+#
+#   NOTA TÉCNICA (por que não 04+05 em sequência):
+#     Ambos foram criados da mesma base (blob 666fcc4).  Aplicados em sequência,
+#     o patch 05 falha no hunk @@ -28 porque o 04 já adicionou as linhas de
+#     include que o 05 também tenta adicionar.  O 05 é superset do 04 e deve
+#     ser aplicado sozinho a partir da base limpa.
 #
 # Uso:
 #   ./scripts/apply-dispatch-patches.sh           # aplica
@@ -24,12 +36,11 @@
 #
 # Pré-requisitos:
 #   - 3rdparty/llama.cpp/ existe e está checked-out na base 1f86f05
-#   - patches/llama.cpp/04-ACDC-rect-FFN.patch existe
 #   - patches/llama.cpp/05-ACDC-rect-LLaMA.patch existe
 #
 # Saída:
-#   - Aplica patches 04 + 05 em sequência
-#   - Idempotente: detecta se já aplicados e sai 0
+#   - Aplica patch 05 (combinado)
+#   - Idempotente: detecta se já aplicado e sai 0
 #   - Falha com mensagem clara se patch não aplicar (sai 1)
 
 set -euo pipefail
@@ -39,7 +50,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SUBMODULE="$REPO_ROOT/3rdparty/llama.cpp"
 PATCHES_DIR="$REPO_ROOT/patches/llama.cpp"
 
-PATCH_04="$PATCHES_DIR/04-ACDC-rect-FFN.patch"
 PATCH_05="$PATCHES_DIR/05-ACDC-rect-LLaMA.patch"
 
 # Cores
@@ -58,10 +68,6 @@ if [ ! -d "$SUBMODULE" ]; then
     err "rode 'git submodule update --init --recursive' antes"
     exit 1
 fi
-if [ ! -f "$PATCH_04" ]; then
-    err "patch não encontrado: $PATCH_04"
-    exit 1
-fi
 if [ ! -f "$PATCH_05" ]; then
     err "patch não encontrado: $PATCH_05"
     exit 1
@@ -76,70 +82,44 @@ cd "$SUBMODULE"
 CURRENT_HEAD=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 echo "submodule HEAD: $CURRENT_HEAD"
 
-# Sentinela patch 04: llm_build_ffn_acdc_rect (unique to patch 04)
-is_04_applied() {
-    grep -qF 'llm_build_ffn_acdc_rect' src/llama.cpp
-}
-
-# Sentinela patch 05: bitnet_acdc_ffn_rect_llama (unique to patch 05)
-is_05_applied() {
+# Sentinela — llm_build_ffn_acdc_rect: adicionado pelo patch combinado (05)
+is_applied() {
+    grep -qF 'llm_build_ffn_acdc_rect' src/llama.cpp && \
     grep -qF 'bitnet_acdc_ffn_rect_llama' src/llama.cpp
 }
 
 case "$MODE" in
     check)
-        all_ok=true
-        if is_04_applied; then
-            ok "patch 04 aplicado (L3+L5+L4cache+FaseIII)"
+        if is_applied; then
+            ok "patch combinado aplicado (L3+L5+L4cache+FaseIII rect+LLaMA gate)"
+            exit 0
         else
-            warn "patch 04 NÃO aplicado"
-            all_ok=false
+            warn "patch combinado NÃO aplicado"
+            exit 1
         fi
-        if is_05_applied; then
-            ok "patch 05 aplicado (ACDC rect LLaMA)"
-        else
-            warn "patch 05 NÃO aplicado"
-            all_ok=false
-        fi
-        $all_ok && exit 0 || exit 1
         ;;
     reverse)
-        if is_05_applied; then
+        if is_applied; then
             git apply --reverse "$PATCH_05"
             ok "patch 05 revertido"
         else
-            ok "patch 05 já estava ausente (nada a reverter)"
-        fi
-        if is_04_applied; then
-            git apply --reverse "$PATCH_04"
-            ok "patch 04 revertido"
-        else
-            ok "patch 04 já estava ausente (nada a reverter)"
+            ok "patch já estava ausente (nada a reverter)"
         fi
         exit 0
         ;;
     apply)
-        if is_04_applied; then
-            ok "patch 04 já aplicado (idempotente)"
+        if is_applied; then
+            ok "patch combinado já aplicado (idempotente)"
         else
-            echo "aplicando patch 04 (L3 ACDC + L5 HRR + L4 K_i8 cache + Fase III ACDC rect)..."
-            if ! git apply "$PATCH_04"; then
-                err "patch 04 falhou — base incompatível com $CURRENT_HEAD (esperado: 1f86f05)"
-                exit 1
-            fi
-            ok "patch 04 aplicado"
-        fi
-        if is_05_applied; then
-            ok "patch 05 já aplicado (idempotente)"
-        else
-            echo "aplicando patch 05 (ACDC rect gate para build_llama)..."
+            echo "aplicando patch combinado (L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect + LLaMA gate)..."
             if ! git apply "$PATCH_05"; then
-                err "patch 05 falhou — requer patch 04 aplicado primeiro"
+                err "patch 05 falhou — base incompatível com $CURRENT_HEAD (esperado blob 666fcc4)"
+                err "rode 'git checkout src/llama.cpp' no submodule antes de tentar novamente"
                 exit 1
             fi
-            ok "patch 05 aplicado"
+            ok "patch combinado aplicado"
         fi
-        ok "dispatch patches prontos (04 + 05)"
+        ok "dispatch patch pronto"
         exit 0
         ;;
 esac
