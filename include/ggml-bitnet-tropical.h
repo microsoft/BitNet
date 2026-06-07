@@ -183,6 +183,77 @@ void sparse_attention_float(
     int           head_dim,
     int           K_top);
 
+/* ─── Adaptive-K sparse attention ────────────────────────────────────────
+ *
+ * Selects K dynamically per query based on the entropy of the score
+ * distribution. Concentrated attention (few dominant tokens) yields small K;
+ * diffuse attention (many tokens) yields large K — up to k_max.
+ *
+ * Algorithm (cumulative softmax threshold):
+ *   1. Compute all float scores  O(n·d)
+ *   2. Sort descending (partial, top k_max only)  O(n·log k_max)
+ *   3. Accumulate softmax weights until Σ w_k ≥ coverage  O(k_max)
+ *   4. K = first index exceeding coverage, clamped to [k_min, k_max]
+ *
+ * Quality:
+ *   coverage=0.95 → output captures 95% of attention probability mass
+ *   coverage=1.00 → equivalent to sparse_attention_float(K=k_max)
+ */
+
+/*
+ * tropical_adaptive_k: determine adaptive K from pre-computed scores.
+ *
+ * Given the full score array (already computed by scoring pass), returns
+ * the minimum K in [k_min, min(k_max, n_keys)] such that the top-K softmax
+ * weights (normalized over top-k_max) cover at least `coverage` probability.
+ *
+ * O(n·log k_max + k_max) — dominated by partial_sort.
+ *
+ * @param scores    pre-computed scores [n_keys floats]
+ * @param n_keys    number of available keys
+ * @param coverage  target probability mass [0, 1]; 0.95 is a good default
+ * @param k_min     minimum K to return (floor; ≥ 1)
+ * @param k_max     maximum K to return (budget cap; ≤ n_keys)
+ * @return          adaptive K in [k_min, min(k_max, n_keys)]
+ */
+int tropical_adaptive_k(
+    const float * scores,
+    int           n_keys,
+    float         coverage,
+    int           k_min,
+    int           k_max);
+
+/*
+ * sparse_attention_float_adaptive: sparse attention with dynamic K.
+ *
+ * Combines score computation, adaptive K selection, and sparse softmax+aggregate
+ * in a single unified pass over K.  Scores are computed once and reused for both
+ * K selection and the final softmax step.
+ *
+ * The chosen K is dynamically selected per query; queries with concentrated
+ * attention use fewer tokens (faster), diffuse attention uses more (accurate).
+ *
+ * @param output    result vector [head_dim floats]
+ * @param q         query vector [head_dim floats]
+ * @param K         key matrix [n_keys × head_dim floats]
+ * @param V         value matrix [n_keys × head_dim floats]
+ * @param n_keys    number of available keys
+ * @param head_dim  dimension per head
+ * @param coverage  probability coverage threshold [0,1]; 0.95 recommended
+ * @param k_min     minimum K (≥ 1)
+ * @param k_max     maximum K budget (≤ n_keys)
+ */
+void sparse_attention_float_adaptive(
+    float       * output,
+    const float * q,
+    const float * K,
+    const float * V,
+    int           n_keys,
+    int           head_dim,
+    float         coverage,
+    int           k_min,
+    int           k_max);
+
 /* ─── Tropical GEMV ───────────────────────────────────────────────────── */
 
 /*

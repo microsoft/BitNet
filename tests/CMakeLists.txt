@@ -128,6 +128,22 @@ if (BITNET_L4_TROPICAL)
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME test_sparse_attention COMMAND test_sparse_attention)
 
+    # ─── L4-adaptive: Dynamic-K sparse attention (Direção D) ─────────────
+    # 4/4 PASS: concentrated → K=1, uniform → K≈k_max, coverage=1.0 matches
+    # fixed K, adaptive K always ≤ k_max across 100 random distributions.
+    # Guards tropical_adaptive_k + sparse_attention_float_adaptive.
+    add_executable(test_adaptive_k
+        ${CMAKE_SOURCE_DIR}/test_adaptive_k.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_adaptive_k PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_adaptive_k PRIVATE BITNET_L4_TROPICAL)
+    bitnet_test_set_simd_flags(test_adaptive_k)
+    set_target_properties(test_adaptive_k PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_adaptive_k COMMAND test_adaptive_k)
+
     # ─── L4 cache: K_i8 persistent cache for tropical attention ────────────
     # 11/11 PASS: init noop, realloc on shape change, first-call quantizes
     # all, incremental quantizes only new entries, no-new-keys is idempotent,

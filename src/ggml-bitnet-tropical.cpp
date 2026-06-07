@@ -479,6 +479,148 @@ sparse_cleanup:
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * ADAPTIVE-K: per-query dynamic K via cumulative softmax threshold
+ *
+ * Standard sparse attention uses a fixed global K.  Adaptive-K observes that
+ * different queries have very different attention entropy:
+ *   - Syntax heads: concentrated (few tokens) → small K saves compute
+ *   - Cross-attention heads: diffuse (many tokens) → large K needed
+ *
+ * Strategy: find minimum K such that top-K tokens contain ≥ coverage fraction
+ * of the full softmax probability mass (over top-k_max tokens).
+ *
+ * Expected per-query speedup (BitNet-2B, 512-token context, d=64):
+ *   coverage=0.95 → median K ≈ 8-16 vs fixed K=32 → 2-4× aggregation speedup
+ *   Outer scan O(n·d) dominates; savings come from the O(K·d) aggregation.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+int tropical_adaptive_k(
+    const float * scores,
+    int           n_keys,
+    float         coverage,
+    int           k_min,
+    int           k_max)
+{
+    if (n_keys <= 0) return k_min > 0 ? k_min : 1;
+
+    /* Clamp k_min / k_max to valid range */
+    int K_limit = (k_max < n_keys) ? k_max : n_keys;
+    if (k_min < 1)       k_min = 1;
+    if (k_min > K_limit) return K_limit;
+    if (coverage <= 0.0f) return k_min;
+    if (coverage >= 1.0f) return K_limit;
+
+    /* Step 1: partial sort — top K_limit indices, descending by score. O(n log K) */
+    int *idx = (int *)malloc((size_t)n_keys * sizeof(int));
+    if (!idx) return K_limit;
+    for (int i = 0; i < n_keys; i++) idx[i] = i;
+    std::partial_sort(idx, idx + K_limit, idx + n_keys,
+        [scores](int a, int b){ return scores[a] > scores[b]; });
+
+    /* Step 2: softmax over top K_limit (numerically stable). O(K_limit) */
+    float max_s = scores[idx[0]];
+    float *w    = (float *)malloc((size_t)K_limit * sizeof(float));
+    if (!w) { free(idx); return K_limit; }
+
+    float sum_exp = 0.0f;
+    for (int k = 0; k < K_limit; k++) {
+        w[k]     = expf(scores[idx[k]] - max_s);
+        sum_exp += w[k];
+    }
+
+    /* Step 3: cumulative sum until coverage threshold. O(K_limit) */
+    float inv_sum  = 1.0f / sum_exp;
+    float cum      = 0.0f;
+    int   K_chosen = K_limit;
+    for (int k = 0; k < K_limit; k++) {
+        cum += w[k] * inv_sum;
+        if (cum >= coverage) { K_chosen = k + 1; break; }
+    }
+
+    free(idx);
+    free(w);
+    return K_chosen < k_min ? k_min : K_chosen;
+}
+
+void sparse_attention_float_adaptive(
+    float       * output,
+    const float * q,
+    const float * K,
+    const float * V,
+    int           n_keys,
+    int           head_dim,
+    float         coverage,
+    int           k_min,
+    int           k_max)
+{
+    if (n_keys <= 0) { memset(output, 0, (size_t)head_dim * sizeof(float)); return; }
+
+    /* Clamp k_max so we never allocate beyond n_keys */
+    int K_limit = (k_max < n_keys) ? k_max : n_keys;
+    if (k_min < 1)       k_min = 1;
+    if (k_min > K_limit) k_min = K_limit;
+
+    /* Step 1: score all keys (O(n·d)) */
+    float *scores = (float *)malloc((size_t)n_keys * sizeof(float));
+    int   *idx    = (int   *)malloc((size_t)n_keys * sizeof(int));
+    float *w      = (float *)malloc((size_t)K_limit * sizeof(float));
+    if (!scores || !idx || !w) goto adaptive_cleanup;
+
+    {
+        float inv_sqrt_d = 1.0f / sqrtf((float)head_dim);
+        for (int i = 0; i < n_keys; i++) {
+            const float *ki = K + (size_t)i * head_dim;
+            float dot = 0.0f;
+            for (int j = 0; j < head_dim; j++) dot += q[j] * ki[j];
+            scores[i] = dot * inv_sqrt_d;
+            idx[i] = i;
+        }
+    }
+
+    /* Step 2: partial sort — top K_limit descending. O(n log K) */
+    std::partial_sort(idx, idx + K_limit, idx + n_keys,
+        [scores](int a, int b){ return scores[a] > scores[b]; });
+
+    /* Step 3: adaptive K selection via cumulative softmax. O(K_limit) */
+    {
+        float max_s   = scores[idx[0]];
+        float sum_exp = 0.0f;
+        for (int k = 0; k < K_limit; k++) {
+            w[k]     = expf(scores[idx[k]] - max_s);
+            sum_exp += w[k];
+        }
+        float inv_sum = 1.0f / sum_exp;
+        float cum     = 0.0f;
+        int   K_chosen = K_limit;
+        if (coverage < 1.0f) {
+            for (int k = 0; k < K_limit; k++) {
+                cum += w[k] * inv_sum;
+                if (cum >= coverage) { K_chosen = k + 1; break; }
+            }
+        }
+        if (K_chosen < k_min) K_chosen = k_min;
+
+        /* Step 4: re-normalize softmax over K_chosen (subset of top K_limit) */
+        float sum_k = 0.0f;
+        for (int k = 0; k < K_chosen; k++) sum_k += w[k];
+        float inv_k = 1.0f / sum_k;
+
+        /* Step 5: weighted aggregate of top-K_chosen value vectors. O(K·d) */
+        memset(output, 0, (size_t)head_dim * sizeof(float));
+        for (int k = 0; k < K_chosen; k++) {
+            const float *vk = V + (size_t)idx[k] * head_dim;
+            float wk = w[k] * inv_k;
+            for (int j = 0; j < head_dim; j++) output[j] += wk * vk[j];
+        }
+    }
+
+adaptive_cleanup:
+    free(scores);
+    free(idx);
+    free(w);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * TROPICAL GEMV: produto matricial tropical (max-plus)
  *
  * (A ⊗ᵗʳᵒᵖ x)[i] = max_j (A[i,j] + x[j])
