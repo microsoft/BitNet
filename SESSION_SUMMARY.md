@@ -79,6 +79,38 @@ Ver seção completa na conversa. Fases:
 - **V**: Diagnóstico ACDC em modelos 1.58bit reais
 - **VI**: Publicação (v0.2.0, PR #568)
 
+### S3.6b Benchmark Falcon3-10B-1.58bit (L1–L5, 4 threads, n=64)
+
+Arquitetura: 40L / hidden=3072 / n_head=12 / n_head_kv=4 / **head_dim=256** / **FFN=23040**
+
+| Configuração | tok/s | Δ vs L1 |
+|---|---|---|
+| L1 baseline (I2_S GEMV) | 1.39 | 0.0 % |
+| L3 ACDC FFN | 1.25 | -10.1 % |
+| L4 Tropical K=32 | 1.16 | -16.5 % |
+| L4 Sparse float K=32 | 1.14 | -18.0 % |
+| L5 HRR raw | 0.89 | -36.0 % |
+| L5 HRR + cleanup 8 | **0.97** | **-30.2 %** |
+
+**Achados críticos:**
+- L4 sparse float inverte de +2% (3B) para -18% (10B): FFN=23040 domina o compute, atenção <10% do tempo → overhead supera economia
+- L3 ACDC piora com escala (-10.1%): FWHT sem AVX2 perde para GEMV otimizado quando FFN é muito maior
+- L5 HRR + cleanup > L5 raw no 10B (único modelo onde isso ocorre): head_dim=256 dá mais capacidade ao HRR
+- **Nenhum kernel L3/L4/L5 traz speedup no 10B** → bottleneck real está no FFN retangular (A++, Fase II)
+
+### S3.6c Tabela comparativa dos 3 modelos (Δ vs L1 de cada)
+
+| Configuração | BitNet-2B (18L/FFN=6912) | Falcon3-3B (22L/FFN=9216) | Falcon3-10B (40L/FFN=23040) |
+|---|---|---|---|
+| L1 baseline | ~4.88 tok/s | 4.40 tok/s | 1.39 tok/s |
+| L3 ACDC FFN | -2.8 % | -4.3 % | -10.1 % |
+| L4 Tropical K=32 | -7.4 % | -4.8 % | -16.5 % |
+| **L4 Sparse float K=32** | **~-1 %** | **+2.0 %** | **-18.0 %** |
+| L5 HRR raw | -62.8 % | -40.0 % | -36.0 % |
+| L5 HRR+cleanup 8 | -62.4 % | -49.5 % | -30.2 % |
+
+**Lei observada:** o overhead de L3/L4/L5 cresce com FFN_dim. Os kernels atuais operam na camada de atenção; para 10B o FFN domina. A Fase II (ACDC retangular) é o caminho correto para o 10B.
+
 ### S3.7 Estado dos modelos locais
 
 | Modelo | Path | Tamanho | Status |
@@ -87,7 +119,7 @@ Ver seção completa na conversa. Fases:
 | Falcon3-3B-1.58bit GGUF | `models/Falcon3-3B-Instruct-1.58bit/ggml-model-i2_s.gguf` | 2.22 GB | ✅ |
 | Falcon3-3B Q4_K_M | `models/Falcon3-3B-Instruct-Q4/` | ~2 GB | ✅ |
 | Falcon3-10B-1.58bit safetensors | `models/Falcon3-10B-Instruct-1.58bit/model.safetensors` | 3.8 GB | ✅ |
-| **Falcon3-10B-1.58bit GGUF** | `models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf` | 3.99 GB | ⏳ baixando |
+| **Falcon3-10B-1.58bit GGUF** | `models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf` | 3.99 GB | ✅ |
 
 ---
 
