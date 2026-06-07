@@ -380,6 +380,40 @@ cleanup:
  *
  * Complexidade: O(n·d) scoring + O(n·log K) sort + O(K·d) aggregation.
  * Para K=32, n=168, d=128: ~22K ops vs padrão ~43K ops → ~50% speedup.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * ⚠️  OPT-IN, NÃO DEFAULT  (decisão D1, requirements.md#10, AC-06)
+ * ─────────────────────────────────────────────────────────────────────────
+ * Esta função é o **caminho L4 sparse float** (T036, RF-05) e **NÃO** é
+ * invocada por padrão. O dispatch em `src/ggml-bitnet-dispatch.cpp` só a
+ * chama quando o usuário **explicitamente** ativa uma das duas formas:
+ *
+ *   1. Variável de ambiente: `BITNET_SPARSE_TOPK=<K>` (ex: `BITNET_SPARSE_TOPK=32`)
+ *   2. Flag CLI: `--attn sparse` (padrão: `--attn dense`)
+ *
+ * Sem env var, o dispatch usa o caminho denso (tropical_callback +
+ * attention denso), preservando o comportamento original do BitNet-2B.
+ *
+ * Justificativa da decisão (esclarecimento D1, 2026-06-06):
+ *   "Compatibilidade tem prioridade sobre performance. Modelos não-treinados
+ *    para atenção esparsa podem degradar qualidade. O usuário assume o risco
+ *    ao ativar uma otimização para a qual o modelo pode não estar preparado."
+ *
+ * Invariante P5 (k_scale lockada no primeiro call) aplica-se quando usado
+ * com cache K_i8 (caminho L4 tropical). Em sparse_attention_float puro
+ * (este caminho), k_scale não é lockada porque o scoring é float direto.
+ *
+ * Tests:
+ *   - `tests/test_l4_sparse_properties.cpp` (T006) — 3 invariantes:
+ *     (P1) output finito + concentrado,
+ *     (P2) clamp K_top > n_keys correto,
+ *     (P3) sum(weights_topK) ≤ sum(weights_full) (energy monotone).
+ *   - `tests/test_dense_is_default.cpp` (T008) — verifica que sem env var,
+ *     `sparse_attention_float` NÃO é invocada.
+ *   - `tests/test_air_gapped_boot.sh` (T010) — smoke test air-gapped.
+ *
+ * Persona: D4 (Privacidade/Soberania) — ver `requirements.md#9`. Esta
+ * função não toca rede, não envia telemetria, e roda 100% local.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 void sparse_attention_float(
