@@ -223,48 +223,131 @@ static void butterfly_i32_avx2(int32_t * v, int n) {
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * ARM NEON BUTTERFLY (float32 + int32)
+ *
+ * Two-phase design (mirrors the AVX2 approach but for 128-bit / 4-wide NEON):
+ *
+ *  Phase 1 — in-register prefix (h=1, h=2 FUSED):
+ *    NEON registers hold 4 floats (128-bit), so only h=1 (adjacent pairs)
+ *    and h=2 (stride-2 pairs) fit within a single register.
+ *
+ *    h=1: split float32x4 into lo=[a0,a1] and hi=[a2,a3] (float32x2),
+ *         vrev64_f32 swaps pairs within each 64-bit lane,
+ *         vadd+vsub give sum/diff, vzip1 picks [sum[0],diff[0]] per lane.
+ *    h=2: cross lo and hi halves: new_lo=add(lo,hi), new_hi=sub(lo,hi),
+ *         recombine with vcombine_f32.
+ *
+ *  Phase 2 — cross-block vectorized butterfly (h=4, 8, ..., n/2):
+ *    Standard paired load/add/sub/store, 4 elements at a time.
+ *
+ * Memory traffic for small stages: 2×n scalar passes → n/4 NEON passes (8× fewer).
+ * For P=32768: 2×32768 scalar butterflies → 8192 NEON blocks = ~4× fewer ops.
+ *
+ * Requires: AArch64 (armv8-a+simd) for vzip1_f32 / vzip1_s32.
  * ═══════════════════════════════════════════════════════════════════════════ */
 #if defined(__ARM_NEON)
 
+/* h=1,2 fused prefix — single pass, in-register per 4-float chunk */
+static inline void butterfly_f32_neon_prefix4(float * v, int n) {
+    for (int i = 0; i < n; i += 4) {
+        float32x4_t x  = vld1q_f32(v + i);
+        float32x2_t lo = vget_low_f32(x);   /* [a0, a1] */
+        float32x2_t hi = vget_high_f32(x);  /* [a2, a3] */
+
+        /* h=1: vrev64_f32([a0,a1])→[a1,a0]; sum=[a0+a1,a0+a1]; diff=[a0-a1,…]
+         *      vzip1_f32(sum,diff) → [sum[0], diff[0]] = [a0+a1, a0-a1] ✓ */
+        {
+            float32x2_t lo_rev = vrev64_f32(lo);
+            float32x2_t lo_s   = vadd_f32(lo, lo_rev);
+            float32x2_t lo_d   = vsub_f32(lo, lo_rev);
+            lo = vzip1_f32(lo_s, lo_d);   /* [a0+a1, a0-a1] */
+
+            float32x2_t hi_rev = vrev64_f32(hi);
+            float32x2_t hi_s   = vadd_f32(hi, hi_rev);
+            float32x2_t hi_d   = vsub_f32(hi, hi_rev);
+            hi = vzip1_f32(hi_s, hi_d);   /* [a2+a3, a2-a3] */
+        }
+
+        /* h=2: lo=[b0,b1], hi=[b2,b3]; new_lo=[b0+b2,b1+b3], new_hi=[b0-b2,b1-b3] ✓ */
+        {
+            float32x2_t s = vadd_f32(lo, hi);
+            float32x2_t d = vsub_f32(lo, hi);
+            x = vcombine_f32(s, d);
+        }
+
+        vst1q_f32(v + i, x);
+    }
+}
+
+/* h=1,2 fused prefix for int32 — identical logic with int32x2_t */
+static inline void butterfly_i32_neon_prefix4(int32_t * v, int n) {
+    for (int i = 0; i < n; i += 4) {
+        int32x4_t  x  = vld1q_s32(v + i);
+        int32x2_t  lo = vget_low_s32(x);    /* [a0, a1] */
+        int32x2_t  hi = vget_high_s32(x);   /* [a2, a3] */
+
+        /* h=1: vrev64_s32 swaps pairs within each 64-bit lane */
+        {
+            int32x2_t lo_rev = vrev64_s32(lo);
+            int32x2_t lo_s   = vadd_s32(lo, lo_rev);
+            int32x2_t lo_d   = vsub_s32(lo, lo_rev);
+            lo = vzip1_s32(lo_s, lo_d);   /* [a0+a1, a0-a1] */
+
+            int32x2_t hi_rev = vrev64_s32(hi);
+            int32x2_t hi_s   = vadd_s32(hi, hi_rev);
+            int32x2_t hi_d   = vsub_s32(hi, hi_rev);
+            hi = vzip1_s32(hi_s, hi_d);   /* [a2+a3, a2-a3] */
+        }
+
+        /* h=2: cross halves */
+        {
+            int32x2_t s = vadd_s32(lo, hi);
+            int32x2_t d = vsub_s32(lo, hi);
+            x = vcombine_s32(s, d);
+        }
+
+        vst1q_s32(v + i, x);
+    }
+}
+
 static void butterfly_f32_neon(float * v, int n) {
-    for (int len = 1; len < n; len <<= 1) {
-        if (len >= FWHT_SIMD_WIDTH_F32) {
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j += FWHT_SIMD_WIDTH_F32) {
-                    float32x4_t a = vld1q_f32(v + i + j);
-                    float32x4_t b = vld1q_f32(v + i + j + len);
-                    vst1q_f32(v + i + j,       vaddq_f32(a, b));
-                    vst1q_f32(v + i + j + len, vsubq_f32(a, b));
-                }
-            }
-        } else {
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j++) {
-                    float a = v[i + j], b = v[i + j + len];
-                    v[i + j] = a + b; v[i + j + len] = a - b;
-                }
+    if (n < 4) {
+        butterfly_f32_scalar(v, n);
+        return;
+    }
+
+    /* Phase 1: h=1,2 — fused in-register, one memory pass */
+    butterfly_f32_neon_prefix4(v, n);
+
+    /* Phase 2: h=4,8,...,n/2 — cross-block NEON butterfly */
+    for (int len = 4; len < n; len <<= 1) {
+        for (int i = 0; i < n; i += len << 1) {
+            for (int j = 0; j < len; j += 4) {
+                float32x4_t a = vld1q_f32(v + i + j);
+                float32x4_t b = vld1q_f32(v + i + j + len);
+                vst1q_f32(v + i + j,       vaddq_f32(a, b));
+                vst1q_f32(v + i + j + len, vsubq_f32(a, b));
             }
         }
     }
 }
 
 static void butterfly_i32_neon(int32_t * v, int n) {
-    for (int len = 1; len < n; len <<= 1) {
-        if (len >= FWHT_SIMD_WIDTH_I32) {
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j += FWHT_SIMD_WIDTH_I32) {
-                    int32x4_t a = vld1q_s32(v + i + j);
-                    int32x4_t b = vld1q_s32(v + i + j + len);
-                    vst1q_s32(v + i + j,       vaddq_s32(a, b));
-                    vst1q_s32(v + i + j + len, vsubq_s32(a, b));
-                }
-            }
-        } else {
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j++) {
-                    int32_t a = v[i + j], b = v[i + j + len];
-                    v[i + j] = a + b; v[i + j + len] = a - b;
-                }
+    if (n < 4) {
+        butterfly_i32_scalar(v, n);
+        return;
+    }
+
+    /* Phase 1: h=1,2 — fused in-register */
+    butterfly_i32_neon_prefix4(v, n);
+
+    /* Phase 2: h=4,8,...,n/2 — cross-block NEON butterfly */
+    for (int len = 4; len < n; len <<= 1) {
+        for (int i = 0; i < n; i += len << 1) {
+            for (int j = 0; j < len; j += 4) {
+                int32x4_t a = vld1q_s32(v + i + j);
+                int32x4_t b = vld1q_s32(v + i + j + len);
+                vst1q_s32(v + i + j,       vaddq_s32(a, b));
+                vst1q_s32(v + i + j + len, vsubq_s32(a, b));
             }
         }
     }
