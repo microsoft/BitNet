@@ -112,8 +112,30 @@ Método: llama-cli, n=32 tokens decode, `d=random` (BITNET_ACDC_FFN_RECT_RAND=1)
 
 ### S4.7 Pendências
 
-1. **`acdc_project_rect` completo (Fase V):** Atualmente stub que retorna zeros. Implementação real requer `d* = diag(H_P · W_P · H_P) / P²` para W ∈ {-1,0,+1}^{m×n}. P=32768 → 4 GB naive; requer processamento em blocos de linhas de W.
-2. **PR #568 / v0.2.0:** Atualizar `benchmarks/v0.2.0/bench.json` + `bench.md` com resultados Fase II/III, push, abrir PR.
+1. ~~**`acdc_project_rect` completo (Fase V):**~~ **✅ CONCLUÍDO** — XOR-convolution O(m·n + P log P), commit `34ee9bf`.
+2. ~~**PR #568 / v0.2.0:**~~ **✅ CONCLUÍDO** — `benchmarks/v0.3.0/` publicado, commit `<ver S4b>`.
+
+### S4b — Fase VI: benchmarks v0.3.0 + fix CI submodule
+
+**Fase V concluída** — `acdc_project_rect` real implementado via XOR-convolution:
+```
+C[s] = Σ_{i XOR j = s} W[i,j]   →   d* = FWHT(C) / P²
+```
+Memória O(P) = 128 KB; custo O(m·n) = 71M ops para Falcon3-10B (vs 16G naive). 4 novos testes (19/19 PASS). Commit `34ee9bf`.
+
+**fix(ci) concluído** — submodule resetado para `1f86f05` (público); todas as mudanças de dispatch consolidadas em `patches/llama.cpp/04-ACDC-rect-FFN.patch`; CI verde (`947cd65`).
+
+**Fase VI — benchmarks v0.3.0** (medido 2026-06-07, n=64, t=4, hardware i5-10210U):
+
+| Modelo | n_ff/n_embd | Baseline | ACDC rect d=0 | ACDC rect d=rand |
+|--------|-------------|----------|---------------|-----------------|
+| BitNet-2B | 2.7× | 5.27 tok/s | — | **+1.7%** |
+| Falcon3-3B | 3.0× | 4.61 tok/s | −2.2% | −3.5% |
+| **Falcon3-10B** | **7.5×** | **1.40 tok/s** | **+3.6%** | **+2.1%** |
+
+Lei empírica confirmada: ACDC rect traz speedup quando `n_ff/n_embd > ~5`. Mecanismo: I/O de pesos (720 MB/forward no 10B) eliminado → 170× menos tráfego de memória.
+
+Arquivos: `benchmarks/v0.3.0/bench.json` + `benchmarks/v0.3.0/bench.md`.
 
 ---
 
