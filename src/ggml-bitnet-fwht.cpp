@@ -108,34 +108,82 @@ static void butterfly_i32_scalar(int32_t * v, int n) {
 /* ═══════════════════════════════════════════════════════════════════════════
  * AVX2 VECTORIZED BUTTERFLY (float32)
  *
- * For stages where len ≥ FWHT_SIMD_WIDTH_F32 (= 8):
- *   Process 8 butterfly pairs simultaneously.
- *   Each pair: (a+b, a-b) via _mm256_add_ps + _mm256_sub_ps.
- *   ZERO multiplications.
+ * Two-phase design:
+ *
+ *  Phase 1 — in-register prefix (h=1, h=2, h=4 FUSED):
+ *    For stages where the butterfly pairs are within the same 8-float ymm
+ *    register, we fuse all three into a single memory pass using AVX2
+ *    permute/shuffle/blend intrinsics.  Zero additional loads or stores
+ *    beyond one load + one store per 8-float chunk.
+ *
+ *    h=1: moveldup / movehdup + blend_ps(sum, diff, 0xAA)
+ *    h=2: permute_ps(0x4E)   + shuffle_ps(sum, diff, 0x44)
+ *    h=4: permute2f128(0x01) + blend_ps(sum, hi-x,  0xF0)
+ *
+ *    Memory traffic: n/8 loads + n/8 stores (vs 3 × n/1 scalar ops before).
+ *    For P=32768: 3 × 32768 scalar butterflies → 4096 AVX2 blocks = ~8× fewer ops.
+ *
+ *  Phase 2 — cross-block stages (h=8, 16, ..., n/2):
+ *    Standard paired load/add/sub/store, 8 pairs at a time.
+ *    ZERO multiplications throughout.
  * ═══════════════════════════════════════════════════════════════════════════ */
 #if defined(__AVX2__)
 
+/* h=1,2,4 fused prefix — single pass over entire array, pure in-register */
+static inline void butterfly_f32_avx2_prefix8(float * v, int n) {
+    for (int i = 0; i < n; i += 8) {
+        __m256 x = _mm256_loadu_ps(v + i);
+
+        /* h=1: [a0,a1,a2,a3,a4,a5,a6,a7] → [a0+a1, a0-a1, a2+a3, a2-a3, ...] */
+        {
+            __m256 ev = _mm256_moveldup_ps(x);          /* [a0,a0,a2,a2,a4,a4,a6,a6] */
+            __m256 od = _mm256_movehdup_ps(x);          /* [a1,a1,a3,a3,a5,a5,a7,a7] */
+            /* blend: bit=0 → take from sum; bit=1 → take from diff; 0xAA=10101010b */
+            x = _mm256_blend_ps(_mm256_add_ps(ev, od),
+                                _mm256_sub_ps(ev, od), 0xAA);
+        }
+
+        /* h=2: pairs with stride 2 within each 4-element group
+         * permute_ps(0x4E) within 128-bit lanes: [b0,b1,b2,b3] → [b2,b3,b0,b1]
+         * shuffle_ps(s,d,0x44): picks s[0],s[1],d[0],d[1] per lane */
+        {
+            __m256 xp = _mm256_permute_ps(x, 0x4E);
+            __m256 s  = _mm256_add_ps(x, xp);
+            __m256 d  = _mm256_sub_ps(x, xp);
+            x = _mm256_shuffle_ps(s, d, 0x44);
+        }
+
+        /* h=4: pairs across 128-bit halves
+         * permute2f128(0x01): swap the two 128-bit halves
+         * blend(s, hi-x, 0xF0): lower 4 = sum, upper 4 = hi-x (correct sign) */
+        {
+            __m256 hi  = _mm256_permute2f128_ps(x, x, 0x01);
+            __m256 s   = _mm256_add_ps(x, hi);
+            __m256 dn  = _mm256_sub_ps(hi, x);         /* hi-x → upper half sign correct */
+            x = _mm256_blend_ps(s, dn, 0xF0);          /* 0xF0 = 11110000b */
+        }
+
+        _mm256_storeu_ps(v + i, x);
+    }
+}
+
 static void butterfly_f32_avx2(float * v, int n) {
-    for (int len = 1; len < n; len <<= 1) {
-        if (len >= FWHT_SIMD_WIDTH_F32) {
-            /* Vectorized: process FWHT_SIMD_WIDTH_F32 butterfly pairs at once */
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j += FWHT_SIMD_WIDTH_F32) {
-                    __m256 a = _mm256_loadu_ps(v + i + j);
-                    __m256 b = _mm256_loadu_ps(v + i + j + len);
-                    _mm256_storeu_ps(v + i + j,       _mm256_add_ps(a, b));
-                    _mm256_storeu_ps(v + i + j + len, _mm256_sub_ps(a, b));
-                }
-            }
-        } else {
-            /* Scalar for small stages (len < 8) */
-            for (int i = 0; i < n; i += len << 1) {
-                for (int j = 0; j < len; j++) {
-                    float a = v[i + j];
-                    float b = v[i + j + len];
-                    v[i + j]       = a + b;
-                    v[i + j + len] = a - b;
-                }
+    if (n < 8) {
+        butterfly_f32_scalar(v, n);
+        return;
+    }
+
+    /* Phase 1: h=1,2,4 — fused in-register, one memory pass */
+    butterfly_f32_avx2_prefix8(v, n);
+
+    /* Phase 2: h=8,16,...,n/2 — cross-block vectorized butterfly */
+    for (int len = 8; len < n; len <<= 1) {
+        for (int i = 0; i < n; i += len << 1) {
+            for (int j = 0; j < len; j += 8) {
+                __m256 a = _mm256_loadu_ps(v + i + j);
+                __m256 b = _mm256_loadu_ps(v + i + j + len);
+                _mm256_storeu_ps(v + i + j,       _mm256_add_ps(a, b));
+                _mm256_storeu_ps(v + i + j + len, _mm256_sub_ps(a, b));
             }
         }
     }

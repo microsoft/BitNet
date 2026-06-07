@@ -77,10 +77,12 @@ if (BITNET_L2_WHT)
 endif()
 
 # ─── L3: ACDC (Fast WHT + diagonal scaling) ────────────────────────────────
-# 5/5 PASS: fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv.
-# (Bug found + fixed: acdc_forward_i8 had a stray 1/n² normalization that
-#  violated the spec in CLAUDE.md ("unnormalized — no 1/n² factors").
-#  Spec test [4] also updated: for W=I, d*[k] = 1/n, not 1.)
+# 6/6 PASS: fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv,
+#           fwht_avx2_prefix (n=8,16,32,4096).
+# (fwht_avx2_prefix guards the AVX2 in-register h=1,2,4 fused butterfly:
+#  moveldup/movehdup/blend for h=1, permute_ps/shuffle_ps for h=2,
+#  permute2f128/blend for h=4 — replaces 3 separate scalar loops with one pass.
+#  Verified exact match (max_diff=0) against hadamard_ref for all 4 sizes.)
 if (BITNET_L3_ACDC)
     add_executable(test_acdc
         ${CMAKE_SOURCE_DIR}/test_acdc.cpp

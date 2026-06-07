@@ -165,6 +165,30 @@ static int test_acdc_gemv_vs_naive() {
     return ok;
 }
 
+/* AVX2 in-register prefix correctness: h=1,2,4 fused stages.
+ * Tests n=8 (only the 3 in-register stages, no large-stage loop) and
+ * n=16, n=4096 (in-register prefix + large stages together).
+ * If butterfly_f32_avx2_prefix8 has wrong sign or permutation this detects it. */
+static int test_fwht_avx2_prefix() {
+    printf("\n[6] fwht_avx2_prefix: in-register h=1,2,4 stages (n=8,16,4096)\n");
+    std::mt19937 rng(123);
+    std::normal_distribution<float> nd(0.0f, 1.0f);
+    int all_ok = 1;
+    const int sizes[] = {8, 16, 32, 4096};
+    for (int n : sizes) {
+        std::vector<float> v(n), v_ref(n);
+        for (int i = 0; i < n; i++) { v[i] = nd(rng); v_ref[i] = v[i]; }
+        fwht_f32(v.data(), n);
+        hadamard_ref(v_ref.data(), n);
+        float diff = max_abs_diff(v.data(), v_ref.data(), n);
+        int ok = (diff < 1e-3f * (float)n);
+        printf("    n=%-5d  max|fwht - ref| = %.2e  %s\n", n, diff,
+               ok ? "✓" : "FAILED ✗");
+        if (!ok) all_ok = 0;
+    }
+    return all_ok;
+}
+
 /* ── Main ──────────────────────────────────────────────────────────────── */
 
 int main() {
@@ -173,11 +197,12 @@ int main() {
     printf("═══════════════════════════════════════════════════════════\n");
     int n_pass = 0, n_total = 0;
     struct { const char * name; int (*fn)(); } tests[] = {
-        { "fwht_f32",       test_fwht_f32              },
-        { "fwht_i8",        test_fwht_i8_to_i32        },
-        { "acdc_forward",   test_acdc_forward          },
-        { "acdc_project",   test_acdc_project_roundtrip },
-        { "acdc_gemv",      test_acdc_gemv_vs_naive    },
+        { "fwht_f32",         test_fwht_f32              },
+        { "fwht_i8",          test_fwht_i8_to_i32        },
+        { "acdc_forward",     test_acdc_forward          },
+        { "acdc_project",     test_acdc_project_roundtrip },
+        { "acdc_gemv",        test_acdc_gemv_vs_naive    },
+        { "fwht_avx2_prefix", test_fwht_avx2_prefix      },
     };
     for (auto & t : tests) {
         n_total++;
