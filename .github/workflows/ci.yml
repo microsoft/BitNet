@@ -35,9 +35,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Apply dispatch patches (L3 ACDC + L5 HRR cleanup + L4 K_I8 cache)
+      - name: Apply dispatch patches (combined L3+L5+L4cache+FaseIII)
         run: |
-          echo "Applying L3 ACDC + L5 HRR cleanup + L4 K_I8 cache dispatch patches to llama.cpp..."
+          echo "Applying cumulative patch 04 (L3 ACDC + L5 HRR + L4 K_i8 cache + Fase III ACDC rect)..."
           chmod +x ./scripts/apply-dispatch-patches.sh
           ./scripts/apply-dispatch-patches.sh
           echo "Verifying idempotence..."
@@ -76,9 +76,9 @@ jobs:
         run: cmake --build build --config Release -j$(nproc)
 
       - name: Build all kernel unit tests
-        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default
+        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default test_acdc_rect
 
-      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L5_attn, L5_cleanup, plus 4 property tests + dense-is-default)
+      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L5_attn, L5_cleanup, 4 property tests, dense-is-default, acdc_rect)
         run: cd build && ctest --output-on-failure
 
       - name: Air-gapped boot test (AC-11, NO-07)
