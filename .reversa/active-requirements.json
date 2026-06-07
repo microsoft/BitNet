@@ -1,0 +1,57 @@
+{
+  "schema-version": 1,
+  "feature-dir": "_reversa_forward/001-trilha-rigor-produto",
+  "feature-id": "001",
+  "short-name": "trilha-rigor-produto",
+  "started-at": "2026-06-06T19:49:10Z",
+  "current-stage": "audit",
+  "stages-completed": ["requirements", "clarify", "plan", "to-do", "audit"],
+  "paused-features": [],
+  "last-updated": "2026-06-06T20:57:23Z",
+  "last-clarify": {
+    "date": "2026-06-06",
+    "questions-asked": 4,
+    "questions-answered": 4,
+    "open-duvidas": 0,
+    "monitoring-triggers": ["LR-01 (D2 trigger)", "LR-02 (D3 reavaliação Q4 2029)", "LR-03 (D4 persona)"]
+  },
+  "last-plan": {
+    "date": "2026-06-06",
+    "artifacts": ["roadmap.md", "investigation.md", "data-delta.md", "onboarding.md"],
+    "interfaces-omitted": true,
+    "decisions": 12,
+    "principles-checked": 7,
+    "conflicts": 0,
+    "milestones-defined": 5,
+    "sub-milestones-defined": 3
+  },
+  "last-to-do": {
+    "date": "2026-06-06",
+    "version": "1.1 (post-audit fix)",
+    "total-actions": 36,
+    "parallel-actions": 20,
+    "phases": {
+      "preparacao": 4,
+      "testes": 8,
+      "nucleo": 12,
+      "integracao": 7,
+      "polimento": 5
+    },
+    "conditional-actions-gate-d2": ["T009", "T018", "T019", "T034"],
+    "longest-dependency-chain": "T005 -> T024 -> T033 (3 levels)"
+  },
+  "last-audit": {
+    "date": "2026-06-06",
+    "findings-initial": 11,
+    "findings-resolved": 3,
+    "findings-open": 8,
+    "open-by-severity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 4,
+      "low": 2
+    },
+    "resolved-ids": ["A001", "A004", "A011"],
+    "ready-for-coding": true
+  }
+}

@@ -1,8 +1,8 @@
 {
   "output_folder": "_reversa_sdd",
   "doc_level": "completo",
-  "phase": "detective",
-  "last_updated": "2026-05-03",
+  "phase": "reviewer-complete",
+  "last_updated": "2026-06-06T19:00:00Z",
   "modules_analyzed": [
     "run_inference",
     "run_inference_server",
@@ -25,5 +25,96 @@
     "adrs": 7,
     "state_machines": 4,
     "git_commits_analyzed": 80
+  },
+  "checkpoints": {
+    "architect": {
+      "completed_at": "2026-06-06T18:30:00Z",
+      "doc_level": "completo",
+      "files": [
+        "_reversa_sdd/architecture.md",
+        "_reversa_sdd/c4-context.md",
+        "_reversa_sdd/c4-containers.md",
+        "_reversa_sdd/c4-components.md",
+        "_reversa_sdd/erd-complete.md",
+        "_reversa_sdd/traceability/spec-impact-matrix.md"
+      ],
+      "containers_identified": 8,
+      "components_identified": 9,
+      "tech_debts_identified": 12,
+      "c4_levels": ["context", "containers", "components"],
+      "erd_entities": 13,
+      "fork_note": "Upstream context from 2026-05-03 still mentions gpu/; fork removed gpu/ and added L2-L5. Architecture documents the CURRENT state."
+    },
+    "reviewer": {
+      "completed_at": "2026-06-06T18:45:00Z",
+      "codex_used": false,
+      "codex_reason": "plugin not available in this session",
+      "files": [
+        "_reversa_sdd/confidence-report.md",
+        "_reversa_sdd/questions.md",
+        "_reversa_sdd/gaps.md"
+      ],
+      "specs_reviewed": 6,
+      "specs_cross_checked": 5,
+      "total_affirmations": 81,
+      "green_count": 68,
+      "yellow_count": 12,
+      "red_count": 1,
+      "overall_confidence_pct": 91.4,
+      "reclassifications_inplace": 5,
+      "reclassifications_applied": [
+        {
+          "date": "2026-06-06",
+          "from": "🟢",
+          "to": "🟢",
+          "affirmation": "Último commit 4b7816a",
+          "evidence": "stale pós 68971e2 push",
+          "spec": "architecture.md §8"
+        },
+        {
+          "date": "2026-06-06",
+          "from": "🔴 LAC-01",
+          "to": "🟡",
+          "affirmation": "P6 não validado empiricamente",
+          "evidence": "D-Reviewer-1: Caminho C documentado + escopo CPU-only + RF-06 Q4 2029 reserva técnica; D-01 reclassificada para D-01`",
+          "spec": "architecture.md §5.1, confidence-report.md LAC-01, gap-analysis.md P6"
+        },
+        {
+          "date": "2026-06-06",
+          "from": "🟡",
+          "to": "🟢",
+          "affirmation": "Persona A — Desenvolvedor de Privacidade",
+          "evidence": "D-Reviewer-4: cross-folder proveniência forte, D4 registrada, validada e cross-referenciada em documentos oficiais",
+          "spec": "c4-context.md §2.1"
+        },
+        {
+          "date": "2026-06-06",
+          "from": "🟢",
+          "to": "🟢 (marcadas)",
+          "affirmation": "5 RNs obsoletas (005, 006, 011, 014, 015)",
+          "evidence": "D-Reviewer-2 Opção A: marcadores [LEGACY — UPSTREAM ONLY — não se aplica ao fork] aplicados",
+          "spec": "domain.md (5 RNs)"
+        },
+        {
+          "date": "2026-06-06",
+          "from": "🟢 (stale)",
+          "to": "🟢 (com cabeçalho)",
+          "affirmation": "code-analysis.md (599 linhas, 15 refs gpu/)",
+          "evidence": "D-Reviewer-3 Opção Híbrida A+C: cabeçalho de aviso + footer redirect para architecture.md",
+          "spec": "code-analysis.md (topo + bottom)"
+        }
+      ],
+      "questions_pending": 0,
+      "questions_answered": 4,
+      "gaps_total": 11,
+      "gaps_critical": 0,
+      "gaps_moderate": 3,
+      "gaps_cosmetic": 4,
+      "gaps_resolved_inplace": 5,
+      "gaps_resolved_after_questions": ["GAP-01", "GAP-02", "GAP-03", "GAP-04"],
+      "answer_mode": "chat",
+      "post_answer_update_at": "2026-06-06T19:00:00Z"
+    }
   }
 }
+

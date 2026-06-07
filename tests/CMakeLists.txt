@@ -7,6 +7,14 @@
 # Enable with -DBITNET_BUILD_TESTS=ON (default ON).
 # Run all tests:    ctest --output-on-failure
 # Run one test:     ctest -R test_wht --output-on-failure
+#
+# NOTE (T003, 2026-06-06): Catch2 is **not** used in this project. All existing
+# tests use hand-rolled `assert(...)` macros with `fprintf(stderr, ...)` for
+# diagnostics and `return 1` on failure. This is intentional — it keeps the
+# test runtime under 1ms and removes a heavy dependency for an already-trim
+# CPU-only build. New T-actions (T005-T008) MUST follow the same convention.
+# Pattern reference: test_bitnet_common.cpp in tests/ subdir (or root for older
+# tests — see top-level test_wht.cpp, test_acdc.cpp etc.).
 
 if (NOT BITNET_BUILD_TESTS)
     return()
@@ -190,4 +198,91 @@ if (BITNET_L3_ACDC)
     else()
         message(STATUS "BitNet: skipping test_extract_acdc_diagonal (Python3 not found)")
     endif()
+endif()
+
+# ─── Property-based tests (RF-01, AC-02) — added by T024 ─────────────────
+# Hand-rolled assert-based convention (see header note). Each test runs
+# 100-1000 iterations with deterministic seeds. Total runtime < 1s.
+# These are the "executable specification" referenced in P2
+# (docs/invariants.md#p2).
+
+# L3: ACDC properties — 4/4 PASS (T005)
+if (BITNET_L3_ACDC)
+    add_executable(test_acdc_properties
+        ${CMAKE_SOURCE_DIR}/test_acdc_properties.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_acdc_properties PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_acdc_properties PRIVATE BITNET_L3_ACDC)
+    bitnet_test_set_simd_flags(test_acdc_properties)
+    set_target_properties(test_acdc_properties PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_acdc_properties COMMAND test_acdc_properties)
+endif()
+
+# L4: Sparse float properties — 3/3 PASS (T006)
+if (BITNET_L4_TROPICAL)
+    add_executable(test_l4_sparse_properties
+        ${CMAKE_SOURCE_DIR}/test_l4_sparse_properties.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp)
+    target_include_directories(test_l4_sparse_properties PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_l4_sparse_properties PRIVATE BITNET_L4_TROPICAL)
+    bitnet_test_set_simd_flags(test_l4_sparse_properties)
+    set_target_properties(test_l4_sparse_properties PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_l4_sparse_properties COMMAND test_l4_sparse_properties)
+endif()
+
+# L5: HRR properties — 3/3 PASS (T007)
+if (BITNET_L5_HRR)
+    add_executable(test_hrr_properties
+        ${CMAKE_SOURCE_DIR}/test_hrr_properties.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-hrr.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+    target_include_directories(test_hrr_properties PRIVATE
+        ${CMAKE_SOURCE_DIR}/include)
+    target_compile_definitions(test_hrr_properties PRIVATE BITNET_L5_HRR)
+    bitnet_test_set_simd_flags(test_hrr_properties)
+    set_target_properties(test_hrr_properties PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME test_hrr_properties COMMAND test_hrr_properties)
+endif()
+
+# Dense-is-default (D-T-01, AC-06) — 3/3 PASS (T008)
+# Static analysis (no kernel dep) — always built when tests are enabled.
+add_executable(test_dense_is_default
+    ${CMAKE_SOURCE_DIR}/test_dense_is_default.cpp)
+target_include_directories(test_dense_is_default PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(test_dense_is_default PRIVATE
+    SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+bitnet_test_set_simd_flags(test_dense_is_default)
+set_target_properties(test_dense_is_default PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+add_test(NAME test_dense_is_default COMMAND test_dense_is_default)
+
+# ACDC rectangular (GATED by D2, T009) — only enabled if BITNET_ENABLE_ACDC_RECT=ON.
+# Per requirements.md#10 (D2): only if T029 investigation confirms ACDC FFN is
+# the blocker. Default OFF until gate resolves.
+option(BITNET_ENABLE_ACDC_RECT "Enable ACDC rectangular shapes (gated by D2)" OFF)
+if (BITNET_ENABLE_ACDC_RECT)
+    if (BITNET_L3_ACDC)
+        add_executable(test_acdc_rect
+            ${CMAKE_SOURCE_DIR}/test_acdc_rect.cpp
+            ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
+            ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
+        target_include_directories(test_acdc_rect PRIVATE
+            ${CMAKE_SOURCE_DIR}/include)
+        target_compile_definitions(test_acdc_rect PRIVATE BITNET_L3_ACDC BITNET_ACDC_RECT)
+        bitnet_test_set_simd_flags(test_acdc_rect)
+        set_target_properties(test_acdc_rect PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+        add_test(NAME test_acdc_rect COMMAND test_acdc_rect)
+        message(STATUS "BitNet: test_acdc_rect ENABLED (D2 gate passed)")
+    endif()
+else()
+    message(STATUS "BitNet: test_acdc_rect DISABLED (D2 gate pending; see T029)")
 endif()

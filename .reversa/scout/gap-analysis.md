@@ -155,6 +155,8 @@ subtests: argmax, topk, attn, gemv, e zero-K edge case (K > n_keys).
 | **Modelo BitNet treinado com HRR** | **✗** | **inexistente** |
 | Comparação perplexidade L1 vs L3 vs L5 | ✗ | nenhuma medição publicada |
 
+> **Reclassificação 2026-06-06** (decisão D-Reviewer-1, ver `_reversa_sdd/questions.md` P1): a lacuna P6 acima continua factual (`✗ NÃO VALIDADO EM TREINAMENTO` permanece), porém a **dívida D-01** que ela sustenta em `_reversa_sdd/architecture.md §5.1` foi reclassificada de 🔴 para 🟡 com a justificativa: "Caminho C (validação end-to-end com modelo treinado) documentado na arquitetura, mas implementação fora do escopo da fase CPU-only. Reserva técnica RF-06 do `001-trilha-rigor-produto/requirements.md` agendada para Q4 2029. Dívida consciente com plano de pagamento definido." O status `✗` deste finding permanece como observação histórica; a `✓/✗` não mudou, mas a severidade sistêmica foi reclassificada.
+
 **Lacuna concreta (a mais séria)**: o princípio P6 é a tese central
 do paper "Fastfood" (Le et al. 2013) e da fundamentação teórica
 do projeto, mas **nunca foi testado empiricamente** neste fork. O
@@ -206,7 +208,7 @@ Lista ordenada por impacto na continuidade do projeto:
 
 | # | Lacuna | Arquivo | Impacto |
 |---|--------|---------|---------|
-| 2.1 | Nenhum modelo BitNet treinado com camadas ACDC | (não existe) | P6 é teoria, não evidência |
+| 2.1 | Nenhum modelo BitNet treinado com camadas ACDC | (não existe) | P6 é teoria, não evidência. **Reclassificado** 2026-06-06 (decisão D-Reviewer-1): dívida D-01 🔴→🟡; Caminho C documentado em `_reversa_sdd/architecture.md §1.1, §5.1, §6`; reserva técnica RF-06 Q4 2029 no `001-trilha-rigor-produto/requirements.md`. |
 | 2.2 | Nenhum modelo treinado com atenção HRR | (não existe) | P5 não validado em produção |
 | 2.3 | Comparação perplexidade L1 vs L3 vs L5 | (não existe) | impossível julgar se a tese funciona |
 | 2.4 | Curva `perplexity(d)` para ACDC (qual d mínimo?) | (não existe) | P4 SNR piso não validado empiricamente |

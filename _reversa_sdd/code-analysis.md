@@ -4,6 +4,37 @@
 
 ---
 
+> ## ⚠️ ATENÇÃO — Documento parcial (2026-06-06)
+>
+> Este doc foi gerado em **2026-05-03 sobre o upstream** `microsoft/BitNet`, que tinha dois backends (CPU + GPU). O fork [`peder1981/BitNet`](https://github.com/peder1981/BitNet) (este) **removeu a pipeline `gpu/`** em junho/2026 e adicionou **5 níveis algébricos (L1-L5)** como pesquisa (WHT, ACDC, Tropical, HRR).
+>
+> **15 referências a `gpu/` neste documento** apontam para módulos **inexistentes no fork** (Módulos 4-11 deste documento, 268 linhas: `gpu/model.py`, `gpu/generate.py`, `gpu/tokenizer.py`, `gpu/pack_weight.py`, `gpu/convert_checkpoint.py`, `gpu/convert_safetensors.py`, `gpu/sample_utils.py`, `gpu/stats.py`).
+>
+> **Conteúdo válido** (referente ao fork atual):
+> - Módulo 1: `run_inference.py` ✅
+> - Módulo 2: `run_inference_server.py` ✅
+> - Módulo 3: `setup_env.py` ✅
+> - Módulo 12: `src/ggml-bitnet-lut.cpp` ✅
+> - Módulo 13: `src/ggml-bitnet-mad.cpp` ✅
+> - Módulo 14: `utils/codegen_tl1.py` ✅
+> - Módulo 15: `utils/codegen_tl2.py` ✅
+>
+> **Para o estado arquitetural atual do fork**, veja:
+> - [`architecture.md`](architecture.md) — visão geral
+> - [`c4-containers.md`](c4-containers.md) e [`c4-components.md`](c4-components.md) — containers e componentes
+> - [`erd-complete.md`](erd-complete.md) — entidades
+> - `gap-analysis.md` (P6) — limitação conhecida (L3/L5 como arquitetura de treinamento, não validadas empiricamente)
+>
+> **Lacunas adicionais no fork** (não cobertas por este doc):
+> - `src/ggml-bitnet-wht.cpp` (L2) — adicionado após 2026-05-03
+> - `src/ggml-bitnet-fwht.cpp` (L3) — adicionado após 2026-05-03
+> - `src/ggml-bitnet-tropical.cpp` (L4) — adicionado após 2026-05-03
+> - `src/ggml-bitnet-hrr.cpp` (L5) — adicionado após 2026-05-03
+> - `src/ggml-bitnet-dispatch.cpp` (orquestra L1-L5) — adicionado após 2026-05-03
+> - `src/ggml-bitnet-kv-cache.cpp` (K_i8 cache, L4/L5) — adicionado em 2026-06-06
+
+---
+
 ## Visão Geral do Sistema
 
 **BitNet** é a implementação de referência da Microsoft para inferência eficiente de LLMs com quantização de 1 bit (ternária: {-1, 0, 1}). O projeto suporta dois backends de inferência:

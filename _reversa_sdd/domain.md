@@ -89,7 +89,9 @@ assert((nrow % 4) == 0 && "quantize_i2_s_1x4 requires nrow % 4 == 0");
 
 ---
 
-### RN-005: GPU requer TWO modelos distintos para inferência 🟢 CONFIRMADO
+### RN-005: GPU requer TWO modelos distintos para inferência 🟢 CONFIRMADO **[LEGACY — UPSTREAM ONLY — não se aplica ao fork]**
+
+> **Nota de fork (2026-06-06)**: A pipeline `gpu/` foi removida do fork `peder1981/BitNet`. Esta RN documenta o comportamento do **upstream** `microsoft/BitNet` (commit `154c92b`, mai/2025) e **não se aplica** ao fork atual, que é CPU-only. Mantida como referência histórica.
 
 O pipeline GPU carrega e mantém dois modelos Transformer em memória simultaneamente:
 - `model_state_fp16.pt` → prefill (melhor qualidade, BF16)
@@ -99,7 +101,9 @@ O pipeline GPU carrega e mantém dois modelos Transformer em memória simultanea
 
 ---
 
-### RN-006: Prompts são truncados/padded para comprimento fixo em GPU 🟢 CONFIRMADO
+### RN-006: Prompts são truncados/padded para comprimento fixo em GPU 🟢 CONFIRMADO **[LEGACY — UPSTREAM ONLY — não se aplica ao fork]**
+
+> **Nota de fork (2026-06-06)**: Comportamento do `gpu/generate.py:238` no upstream. Não se aplica ao fork (sem `gpu/`). Veja `architecture.md §1.3` para as restrições reais do fork.
 
 Para reutilização do CUDA Graph (que captura operações com shapes fixas), prompts são padded para `prompt_length` (default: 64 tokens). Prompts mais longos que `prompt_length` resultam em comportamento indefinido — os tokens extras são descartados silenciosamente.
 
@@ -166,7 +170,9 @@ weight = weight + 4  # offset para uint8 não-negativo
 
 ---
 
-### RN-011: Vulnerabilidade de deserialização insegura foi conhecida e tardiamente corrigida 🟢 CONFIRMADO
+### RN-011: Vulnerabilidade de deserialização insegura foi conhecida e tardiamente corrigida 🟢 CONFIRMADO **[LEGACY — UPSTREAM ONLY — não se aplica ao fork]**
+
+> **Nota de fork (2026-06-06)**: CVE-502 (CWE-502) reportado e corrigido no upstream em `eb60fc3` (PR #421, mar/2026). A pipeline `gpu/` foi removida do fork, então o fix não se aplica aqui. Mantida como referência ao histórico de segurança do upstream.
 
 `torch.load()` sem `weights_only=True` permite execução de código arbitrário via payloads maliciosos em arquivos `.pt`. Esta vulnerabilidade (CWE-502) existiu no pipeline GPU desde sua introdução (maio 2025) e foi corrigida apenas em março 2026 (PR #421, commit `eb60fc3`).
 
@@ -207,7 +213,9 @@ s = 127 / input.abs().max()  # máximo — padrão de quantização de ativaçõ
 
 ---
 
-### RN-014: Escape hatch para debugging de CUDA Graphs 🟢 CONFIRMADO
+### RN-014: Escape hatch para debugging de CUDA Graphs 🟢 CONFIRMADO **[LEGACY — UPSTREAM ONLY — não se aplica ao fork]**
+
+> **Nota de fork (2026-06-06)**: Variável `NO_CUDA_GRAPHS` em `gpu/generate.py:343` do upstream. Fork não usa CUDA Graphs (sem `gpu/`). Mantida como referência ao mecanismo de escape hatch do upstream.
 
 A variável de ambiente `NO_CUDA_GRAPHS` desabilita CUDA Graphs quando presente:
 ```python
@@ -219,7 +227,9 @@ tokens, use_cuda_graphs="NO_CUDA_GRAPHS" not in os.environ, ...
 
 ---
 
-### RN-015: `capture_error_mode="thread_local"` é workaround para crash em PyTorch ≥2.1 🟢 CONFIRMADO
+### RN-015: `capture_error_mode="thread_local"` é workaround para crash em PyTorch ≥2.1 🟢 CONFIRMADO **[LEGACY — UPSTREAM ONLY — não se aplica ao fork]**
+
+> **Nota de fork (2026-06-06)**: Workaround em `gpu/generate.py:136-139` do upstream. Fork não usa CUDA Graphs (sem `gpu/`). Mantida como referência ao workaround do upstream.
 
 ```python
 # generate.py:136-139
