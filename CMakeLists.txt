@@ -21,6 +21,10 @@ option(BITNET_L3_ACDC     "bitnet.cpp: FWHT+ACDC O(n log n) layers (Level 3)" ON
 option(BITNET_L4_TROPICAL "bitnet.cpp: Tropical attention (max,+) (Level 4)"  ON)
 option(BITNET_L5_HRR      "bitnet.cpp: Holographic memory HRR (Level 5)"      ON)
 option(BITNET_BUILD_TESTS "bitnet.cpp: build kernel unit tests"               ON)
+# FWHT parallel (OpenMP): opt-in. Default OFF so the ggml inference path (which
+# runs inside a ggml thread-pool callback) is never affected.  Enable only for
+# standalone benchmarks / extraction tools that run outside ggml.
+option(BITNET_FWHT_OMP    "bitnet.cpp: OpenMP-parallel fwht_f32_parallel() (benchmark use)" OFF)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)

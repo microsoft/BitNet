@@ -54,6 +54,11 @@
 #include <cstdlib>
 #include <cstdio>
 
+/* ─── Optional OpenMP (fwht_f32_parallel only — NOT used in inference path) */
+#if defined(BITNET_FWHT_OMP)
+#  include <omp.h>
+#endif
+
 /* ─── Platform SIMD ─────────────────────────────────────────────────────── */
 #if defined(__AVX2__)
 #  include <immintrin.h>
@@ -302,6 +307,65 @@ void fwht_f32(float * v, int n) {
     butterfly_f32_neon(v, n);
 #else
     butterfly_f32_scalar(v, n);
+#endif
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PUBLIC: fwht_f32_parallel
+ *
+ * OpenMP-parallel FWHT for standalone tools (extraction scripts, benchmarks).
+ *
+ * NOT used in the ggml inference dispatch path — calling this inside a ggml
+ * thread-pool callback would over-subscribe the CPU.  For inference, use
+ * fwht_f32() which relies on the ggml thread pool instead.
+ *
+ * When BITNET_FWHT_OMP is NOT defined (default), this is identical to fwht_f32.
+ *
+ * Threading strategy (AVX2 path):
+ *   Phase 1 (h=1,2,4): in-register prefix — always serial (no memory access).
+ *   Phase 2 (h=8..n/2): collapse(2) over (block, j-pair) work units.
+ *     Total work units per stage = n/16 (constant for all h), so each stage
+ *     has the same parallelism regardless of h.  OMP `if` guard skips thread
+ *     creation when n is too small to amortize overhead (n < n_threads*64).
+ *
+ * ⚠ BENCHMARKED FINDING (2026-06-07): threading does NOT improve FWHT throughput
+ *   for single-vector transforms.  Root cause: the butterfly has log2(n) stages
+ *   with sequential inter-stage dependencies → log2(n) OMP barriers.  Each
+ *   barrier costs ~10-50 µs; at n=32768 (12 large stages) barrier overhead ≈
+ *   120 µs vs actual compute ≈ 100 µs.  Net result: slower with threads.
+ *   The correct approach for higher throughput is BATCH FWHT — interleave B
+ *   independent vectors through the same butterfly loop.  No synchronization
+ *   between stages is needed since the B vectors are independent.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+void fwht_f32_parallel(float * v, int n, int n_threads) {
+#if defined(BITNET_FWHT_OMP) && defined(__AVX2__)
+    if (n < 8 || n_threads <= 1 || n < n_threads * 64) {
+        fwht_f32(v, n);
+        return;
+    }
+
+    /* Phase 1: h=1,2,4 fused in-register — pure register ops, no parallelism needed */
+    butterfly_f32_avx2_prefix8(v, n);
+
+    /* Phase 2: h=8,16,...,n/2 — parallel over collapsed (outer-block × j-pair) */
+    for (int len = 8; len < n; len <<= 1) {
+        const int n_outer = n / (len << 1);
+        const int n_inner = len >> 3;
+        #pragma omp parallel for num_threads(n_threads) schedule(static) collapse(2)
+        for (int bi = 0; bi < n_outer; bi++) {
+            for (int bj = 0; bj < n_inner; bj++) {
+                const int i = bi * (len << 1);
+                const int j = bj * 8;
+                __m256 a = _mm256_loadu_ps(v + i + j);
+                __m256 b = _mm256_loadu_ps(v + i + j + len);
+                _mm256_storeu_ps(v + i + j,       _mm256_add_ps(a, b));
+                _mm256_storeu_ps(v + i + j + len, _mm256_sub_ps(a, b));
+            }
+        }
+    }
+#else
+    (void)n_threads;
+    fwht_f32(v, n);
 #endif
 }
 

@@ -43,6 +43,11 @@ if (BITNET_L3_ACDC)
     list(APPEND _bitnet_math_defs BITNET_L3_ACDC)
     set(_bitnet_has_dispatch ON)
     message(STATUS "BitNet: Level 3 FWHT+ACDC O(n log n) enabled")
+    if (BITNET_FWHT_OMP)
+        find_package(OpenMP REQUIRED COMPONENTS CXX)
+        list(APPEND _bitnet_math_defs BITNET_FWHT_OMP)
+        message(STATUS "BitNet: FWHT OpenMP parallel enabled (fwht_f32_parallel)")
+    endif()
 endif()
 
 if (BITNET_L4_TROPICAL)
@@ -100,6 +105,11 @@ if (_bitnet_math_srcs)
         if (UNIX AND NOT APPLE)
             target_link_libraries(bitnet_math PUBLIC m)
         endif()
+    endif()
+
+    # OpenMP: opt-in for fwht_f32_parallel() (benchmark/extraction use only).
+    if (BITNET_FWHT_OMP AND OpenMP_CXX_FOUND)
+        target_link_libraries(bitnet_math PUBLIC OpenMP::OpenMP_CXX)
     endif()
 
     # Expose the target name to the parent scope so CMakeLists.txt can link it

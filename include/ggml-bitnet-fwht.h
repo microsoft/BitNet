@@ -85,6 +85,17 @@ void fwht_i8_to_i32(const int8_t * x, int32_t * out, int n);
  */
 void fwht_f32(float * v, int n);
 
+/*
+ * fwht_f32_parallel: OpenMP-parallel variant for standalone tools.
+ *
+ * Semantically identical to fwht_f32(v, n); uses n_threads OMP threads for
+ * the large butterfly stages (h ≥ 8).  DO NOT call from ggml thread-pool
+ * callbacks — use fwht_f32() there to avoid CPU over-subscription.
+ *
+ * When compiled without BITNET_FWHT_OMP this is a no-op wrapper around fwht_f32.
+ */
+void fwht_f32_parallel(float * v, int n, int n_threads);
+
 /* ── ACDC layer forward pass ──────────────────────────────────────────── */
 
 /*
