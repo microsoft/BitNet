@@ -260,19 +260,115 @@ static void test_falcon_down_proj_dims() {
     EXPECT_NEAR(mx, 0.0f, 1e-10f, "down_proj dims: d=0 → y=0");
 }
 
-/* ─── Test 9: acdc_project_rect returns zeros (Fase V placeholder) ───────*/
-static void test_project_rect_stub() {
-    fprintf(stderr, "\n--- test_project_rect_stub ---\n");
-    const int M = 16, N = 8, P = 16;
+/* ─── Test 9: acdc_project_rect — square identity diagonal ──────────────
+ *
+ * For W = I_n (square identity, n=m=P), the XOR-convolution gives:
+ *   C[s] = Σ_i δ(i XOR i, s) = Σ_i δ(0, s) = n·δ(s,0)
+ *   FWHT([n, 0, ..., 0]) = [n, n, ..., n]
+ *   d*[k] = n / n² = 1/n  for all k.
+ * ─────────────────────────────────────────────────────────────────────── */
+static void test_project_rect_square_identity() {
+    fprintf(stderr, "\n--- test_project_rect_square_identity ---\n");
+    const int N = 16;   /* square: m = n = P = 16 */
 
-    std::vector<int8_t> W(M * N, 1);
-    std::vector<float>  d(P, 99.0f);
+    std::vector<int8_t> W(N * N, 0);
+    for (int i = 0; i < N; i++) W[i * N + i] = 1;   /* identity */
 
+    std::vector<float> d(N, 0.0f);
+    acdc_project_rect(d.data(), W.data(), N, N);
+
+    const float expected = 1.0f / (float)N;
+    float max_err = 0.0f;
+    for (int k = 0; k < N; k++)
+        max_err = fmaxf(max_err, fabsf(d[k] - expected));
+
+    EXPECT_NEAR(max_err, 0.0f, 1e-5f, "project_rect square I: d[k] = 1/n");
+}
+
+/* ─── Test 10: acdc_project_rect — non-trivial W, XOR-conv by hand ──────
+ *
+ * W = 2×2 matrix embedded in m=4, n=2 (P=4):
+ *   W = [[1, 0],
+ *        [0, 1]]
+ * C[0^0] += 1, C[1^1] += 1 → C = [2, 0, 0, 0]
+ * FWHT([2,0,0,0]) = [2, 2, 2, 2]
+ * d* = [2/16, 2/16, 2/16, 2/16] = [1/8, 1/8, 1/8, 1/8]
+ * ─────────────────────────────────────────────────────────────────────── */
+static void test_project_rect_known() {
+    fprintf(stderr, "\n--- test_project_rect_known ---\n");
+    const int M = 4, N = 2, P = 4;
+
+    std::vector<int8_t> W(M * N, 0);
+    W[0 * N + 0] = 1;   /* W[0,0] = 1 */
+    W[1 * N + 1] = 1;   /* W[1,1] = 1 */
+
+    std::vector<float> d(P, 0.0f);
     acdc_project_rect(d.data(), W.data(), M, N);
 
-    float mx = 0.0f;
-    for (int i = 0; i < P; i++) mx = fmaxf(mx, fabsf(d[i]));
-    EXPECT_NEAR(mx, 0.0f, 1e-10f, "project_rect stub: returns zeros (Fase V)");
+    const float expected = 2.0f / (float)(P * P);   /* 2/16 = 0.125 */
+    float max_err = 0.0f;
+    for (int k = 0; k < P; k++)
+        max_err = fmaxf(max_err, fabsf(d[k] - expected));
+
+    EXPECT_NEAR(max_err, 0.0f, 1e-5f, "project_rect known: d[k] = 1/8");
+}
+
+/* ─── Test 11: acdc_project_rect — sparse W, single nonzero ─────────────
+ *
+ * W[2,1] = 1 (only entry), m=4, n=4, P=4.
+ * C[2 XOR 1] = C[3] = 1; rest zero.
+ * FWHT of e_3 for H_4:
+ *   H_4 = [[1,1,1,1],[1,-1,1,-1],[1,1,-1,-1],[1,-1,-1,1]]
+ *   H_4·e_3 = [1,-1,-1,1]
+ * d* = [1,-1,-1,1] / 16
+ * ─────────────────────────────────────────────────────────────────────── */
+static void test_project_rect_sparse() {
+    fprintf(stderr, "\n--- test_project_rect_sparse ---\n");
+    const int M = 4, N = 4, P = 4;
+
+    std::vector<int8_t> W(M * N, 0);
+    W[2 * N + 1] = 1;   /* W[2,1] = 1 */
+
+    std::vector<float> d(P, 0.0f);
+    acdc_project_rect(d.data(), W.data(), M, N);
+
+    /* Expected: H_4 · e_3 / 16 = [1,-1,-1,1] / 16 */
+    float expected[4] = { 1.0f/16, -1.0f/16, -1.0f/16, 1.0f/16 };
+    float max_err = 0.0f;
+    for (int k = 0; k < P; k++)
+        max_err = fmaxf(max_err, fabsf(d[k] - expected[k]));
+
+    EXPECT_NEAR(max_err, 0.0f, 1e-5f, "project_rect sparse: d matches H_4·e_3/16");
+}
+
+/* ─── Test 12: acdc_project_rect — forward-project round-trip ───────────
+ *
+ * For square W=I (n=16), d* = 1/n all elements.
+ * acdc_forward_rect_f32 with d=1/n on x=e_j should return e_j exactly:
+ *   H·(1/n · H·e_j) = (H²/n)·e_j = (nI/n)·e_j = e_j
+ * ─────────────────────────────────────────────────────────────────────── */
+static void test_project_rect_forward_roundtrip() {
+    fprintf(stderr, "\n--- test_project_rect_forward_roundtrip ---\n");
+    const int N = 16;
+
+    /* Build identity W and project */
+    std::vector<int8_t> W(N * N, 0);
+    for (int i = 0; i < N; i++) W[i * N + i] = 1;
+
+    std::vector<float> d(N, 0.0f);
+    acdc_project_rect(d.data(), W.data(), N, N);   /* d[k] = 1/N */
+
+    /* Forward pass for x = e_3 */
+    std::vector<float> x(N, 0.0f);
+    x[3] = 1.0f;
+    std::vector<float> y(N, 0.0f);
+    acdc_forward_rect_f32(y.data(), N, x.data(), N, d.data());
+
+    float max_err = 0.0f;
+    for (int i = 0; i < N; i++)
+        max_err = fmaxf(max_err, fabsf(y[i] - x[i]));
+
+    EXPECT_NEAR(max_err, 0.0f, 1e-4f, "project_rect→forward: W=I roundtrip y=x");
 }
 
 /* ─── Driver ─────────────────────────────────────────────────────────────*/
@@ -286,7 +382,10 @@ int main(void) {
     test_i8_vs_f32();
     test_falcon_ffn_dims();
     test_falcon_down_proj_dims();
-    test_project_rect_stub();
+    test_project_rect_square_identity();
+    test_project_rect_known();
+    test_project_rect_sparse();
+    test_project_rect_forward_roundtrip();
 
     fprintf(stderr, "\n=== test_acdc_rect: %d failure(s) ===\n", g_fails);
     return g_fails == 0 ? 0 : 1;

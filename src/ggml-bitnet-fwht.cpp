@@ -560,7 +560,7 @@ void acdc_forward_rect_i8(float * y, int m, const int8_t * x, int n, const float
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * PUBLIC: acdc_project_rect  (Fase V placeholder)
+ * PUBLIC: acdc_project_rect
  *
  * Find the best diagonal d* ∈ ℝ^P for W ∈ {-1,0,+1}^{m×n}:
  *
@@ -568,14 +568,47 @@ void acdc_forward_rect_i8(float * y, int m, const int8_t * x, int n, const float
  *
  * where P = next_pow2(max(m,n)) and W_P is W zero-padded to P×P.
  *
- * Cost: O(P² log P).  For P=32768: ~16G ops — batch offline, not at inference.
- * Memory: O(P²).  For P=32768: 4 GB float32 — requires chunked implementation.
+ * EFFICIENT ALGORITHM via XOR-convolution (Fase V):
  *
- * TODO (Fase V): implement chunked diagonal extraction. Until then, returns
- * zeros so callers receive a valid (but trivial) diagonal that produces y=0.
+ * d*[k] = Σ_{i<m,j<n} W[i,j] · (-1)^{popcount(k & (i XOR j))}
+ *        = (H_P · C)[k] / P²
+ *
+ * where C[s] = Σ_{(i,j): i XOR j = s, i<m, j<n} W[i,j]
+ *
+ * Steps:
+ *   1. C = 0                            O(P)
+ *   2. For each (i,j): C[i^j] += W[i,j]  O(m·n)
+ *   3. C ← H_P · C  (FWHT in-place)    O(P log P)
+ *   4. d*[k] = C[k] / P²               O(P)
+ *
+ * Memory: O(P) — 128 KB for P=32768  (vs 4 GB naive)
+ * Cost:   O(m·n + P log P) — ~71M for Falcon3-10B gate_proj  (vs 16G naive)
  * ═══════════════════════════════════════════════════════════════════════════ */
 void acdc_project_rect(float * d, const int8_t * W, int m, int n) {
     const int P = fwht_next_pow2(m > n ? m : n);
-    memset(d, 0, (size_t)P * sizeof(float));
-    (void)W;
+
+    /* C[s] = XOR-convolution accumulator */
+    float * C = (float *)calloc((size_t)P, sizeof(float));
+    if (!C) {
+        memset(d, 0, (size_t)P * sizeof(float));
+        return;
+    }
+
+    /* Step 2: accumulate W[i,j] into C[i XOR j] */
+    for (int i = 0; i < m; i++) {
+        const int8_t * row = W + (size_t)i * n;
+        for (int j = 0; j < n; j++) {
+            int8_t w = row[j];
+            if (w != 0) C[i ^ j] += (float)w;
+        }
+    }
+
+    /* Step 3: FWHT in-place — C becomes H_P · C */
+    fwht_f32(C, P);
+
+    /* Step 4: normalize by P² */
+    const float inv_P2 = 1.0f / ((float)P * (float)P);
+    for (int k = 0; k < P; k++) d[k] = C[k] * inv_P2;
+
+    free(C);
 }

@@ -185,11 +185,17 @@ void acdc_forward_rect_i8(float * y, int m, const int8_t * x, int n, const float
 /*
  * acdc_project_rect: best diagonal d for W ∈ {-1,0,+1}^{m×n}.
  *
- * Fase V placeholder — currently writes zeros.
- * Full implementation: d[k] = diag(H_P · W_P · H_P)[k] / P²
+ * Computes d[k] = (H_P · W_P · H_P)[k,k] / P² via XOR-convolution:
+ *
+ *   C[s] = Σ_{(i,j): i XOR j = s} W[i,j]    (accumulated in O(m·n))
+ *   d* = FWHT(C) / P²                          (O(P log P))
+ *
+ * Memory O(P): 128 KB for P=32768 (vs 4 GB naive).
+ * Cost O(m·n + P log P): ~71M ops for Falcon3-10B (vs 16G naive).
+ * Run offline, not at inference time.
  *
  * @param d  output diagonal [P floats], P = next_pow2(max(m,n))
- * @param W  input ternary matrix [m×n int8], row-major
+ * @param W  input ternary matrix [m×n int8], row-major, values in {-1,0,+1}
  * @param m  row dimension
  * @param n  column dimension
  */
