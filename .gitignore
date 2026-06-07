@@ -45,4 +45,4 @@ poetry.toml
 
 build/
 build_tests/
-logs/
+logs/Testing/
