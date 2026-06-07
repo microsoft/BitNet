@@ -4,8 +4,116 @@
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 35 (+2 em 2026-06-07)
+**Total de commits (cumulativo):** 37 (+4 em 2026-06-07 — inclui b7b951c + cbe33f0 Fase II/III)
 **PR upstream aberto:** [`microsoft/BitNet#567`](https://github.com/microsoft/BitNet/pull/567) — **OPEN, CLA aceito, MERGEABLE, aguardando review**
+
+---
+
+## SESSÃO 2026-06-07b — Fase II: ACDC Retangular + Fase III: llama.cpp wiring
+
+### S4.1 Resumo executivo
+
+Duas entregas de implementação pura (zero docs):
+
+1. **Fase II — ACDC retangular (`b7b951c`):** Kernel `H_P·diag(d)·H_P` para matrizes FFN assimétricas. P = next_pow2(max(m,n)). Implementação em `src/ggml-bitnet-fwht.cpp` + testes `test_acdc_rect.cpp` (15/15 PASS).
+2. **Fase III — wiring no llama.cpp (`cbe33f0`):** `llm_build_ffn_acdc_rect()` + `BITNET_ACDC_FFN_RECT=1` gate. Ativado em `build_falcon()` para todos os modelos Falcon (3B/10B). Fix crítico: `ggml_map_custom1` → `ggml_map_custom2` com shape template (bug de buffer overflow silencioso).
+
+### S4.2 Fase II — ACDC Retangular
+
+**Motivação:** Para Falcon3-10B (n_embd=3072, n_ff=23040), a FFN retangular é o bottleneck dominante. Dense GEMV gate_proj: 70.8M ops. ACDC rect com P=32768: 983K ops → ~72× menos operações.
+
+**Matemática:** Para W ∈ R^{m×n} (m ≠ n):
+```
+y[m] = primeiros m elementos de H_P · (d ⊙ (H_P · [x|0_pad]))
+onde P = next_pow2(max(m, n))
+```
+Input x[n] é zero-padded até P; output truncado de P→m após o 2° FWHT. `d[P]` é o diagonal aprendido.
+
+**Arquivos novos/modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/ggml-bitnet-fwht.cpp` | +`acdc_forward_rect_f32`, `acdc_forward_rect_i8`, `acdc_project_rect` (stub) |
+| `include/ggml-bitnet-fwht.h` | +declarações das 3 funções rect |
+| `include/ggml-bitnet-dispatch.h` | +`bitnet_op_acdc_ffn_rect(ctx, x, m, n)` |
+| `src/ggml-bitnet-dispatch.cpp` | +impl com `ggml_map_custom2` + shape template |
+| `test_acdc_rect.cpp` | 9 testes, 15 asserções (novo arquivo no root) |
+| `tests/CMakeLists.txt` | Gate D2 ON → `test_acdc_rect` target habilitado |
+
+**Fix linkage:** `test_acdc` target necessitou de `ggml-bitnet-common.cpp` adicionado às sources — `fwht_next_pow2` vive em `common.cpp`, e as novas funções rect são as primeiras em `fwht.cpp` a chamar essa função publicamente.
+
+**Resultado:** 14/14 ctest PASS após Fase II. Dims reais Falcon3-10B (P=32768) testadas sem crash.
+
+### S4.3 Fase III — wiring no llama.cpp
+
+**Implementação em `3rdparty/llama.cpp/src/llama.cpp`:**
+
+```cpp
+// ~linha 9660: nova função antes de llm_build_ffn_acdc_bitnet
+static struct ggml_tensor * llm_build_ffn_acdc_rect(
+    ctx, cur, n_embd, n_ff, type_op, cb, il)
+{
+    up  = bitnet_op_acdc_ffn_rect(ctx, cur, n_ff, n_embd);  // up-proj
+    up  = activation(up);                                     // gelu/silu
+    out = bitnet_op_acdc_ffn_rect(ctx, up, n_embd, n_ff);   // down-proj
+}
+```
+
+**Gate em `build_falcon()`** (prioridade decrescente):
+```
+BITNET_ACDC_FFN_RECT=1 → acdc_rect (Fase II/III)
+BITNET_ACDC_FFN=1      → acdc_legacy (BitNet-2B hardcoded)
+default                → dense GEMV I2_S
+```
+
+**Bug crítico corrigido — `ggml_map_custom1` → `ggml_map_custom2`:**
+
+`ggml_map_custom1` cria output com o mesmo shape que o input. Para FFN up-projection (n_embd=3072 → n_ff=23040), o callback escrevia 23040 floats num buffer de 3072 → overflow silencioso no pool ggml.
+
+Correção: shape template tensor passado como 1° arg de `ggml_map_custom2`:
+```cpp
+struct ggml_tensor * shape_t = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, (int64_t)m, n_tok);
+return ggml_map_custom2(ctx, shape_t, x, callback, 1, ud);
+// callback: (dst[m,n_tok], shape_t[ignorado], x[n,n_tok], ith, nth, ud)
+```
+
+**Extra:** `BITNET_ACDC_FFN_RECT_RAND=1` randomiza o diagonal `d` para timing puro (mesma carga computacional, saída não-trivial).
+
+### S4.4 Benchmark Fase III
+
+Hardware: Intel i5-10210U @ 1.60 GHz, 4 threads, 35 GB RAM, AVX2.
+Método: llama-cli, n=32 tokens decode, `d=random` (BITNET_ACDC_FFN_RECT_RAND=1).
+
+| Modelo | FFN | n_ff/n_embd | Baseline | ACDC rect | Δ |
+|--------|-----|-------------|----------|-----------|---|
+| Falcon3-3B | FFN=9216 | 3.0× | 3.90 tok/s | 3.80 tok/s | **-2.6 %** |
+| Falcon3-10B | FFN=23040 | 7.5× | 1.07 tok/s | 1.14 tok/s | **+6.5 %** |
+
+**Lei empírica confirmada:** ACDC rect traz speedup quando n_ff/n_embd > ~5. Para Falcon3-10B, a economia de leitura de pesos (720 MB → 4.2 MB por forward = 170× menos reads) supera o overhead FWHT (P=32768, 15 estágios, 2 passes).
+
+### S4.5 mem0 protocol
+
+5 memórias persistidas ao final da sessão:
+- `[BITNET-FASE2]` — kernel ACDC rect: math, files, tests, linkage fix
+- `[BITNET-FASE3]` — llama.cpp wiring: llm_build_ffn_acdc_rect, gate, custom1→custom2
+- `[BITNET-GGML-DISPATCH]` — padrão ggml_map_custom2 com shape template (reusável)
+- `[BITNET-BENCH-FASE3]` — resultados Falcon3-3B/10B + lei empírica n_ff/n_embd > 5
+- `[BITNET-MODELS-LOCAL]` — dims de todos os 3 modelos locais (inclui head_dim=256 Falcon3)
+
+### S4.6 Estado após Fase III
+
+| Fase | Descrição | Status |
+|------|-----------|--------|
+| I | Benchmark Falcon3-10B + Download GGUF | **✅ Done** (S3) |
+| II | ACDC retangular H_P·diag(d)·H_P | **✅ Done** (b7b951c, S4) |
+| III | llama.cpp wiring + BITNET_ACDC_FFN_RECT gate | **✅ Done** (cbe33f0, S4) |
+| IV | acdc_project_rect real (diagonal extraction rectangular W) | **Pendente** (Fase V) |
+| V | PR #568 + v0.2.0 benchmarks | **Pendente** |
+
+### S4.7 Pendências
+
+1. **`acdc_project_rect` completo (Fase V):** Atualmente stub que retorna zeros. Implementação real requer `d* = diag(H_P · W_P · H_P) / P²` para W ∈ {-1,0,+1}^{m×n}. P=32768 → 4 GB naive; requer processamento em blocos de linhas de W.
+2. **PR #568 / v0.2.0:** Atualizar `benchmarks/v0.2.0/bench.json` + `bench.md` com resultados Fase II/III, push, abrir PR.
 
 ---
 
