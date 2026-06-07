@@ -175,9 +175,20 @@ static void acdc_ffn_rect_init_buffers(struct acdc_ffn_rect_ud * p) {
     p->initialized = true;
 }
 
+/*
+ * custom2 callback: dst shape = [m, n_tokens] (from the shape template in src[0]).
+ * src[0] = shape template tensor (not read — its only role is to set dst shape).
+ * src[1] = actual input x [n, n_tokens].
+ *
+ * Using ggml_map_custom2 (not custom1) is required because the FFN up projection
+ * changes the first dimension (n_embd → n_ff where n_ff ≠ n_embd).  custom1
+ * would produce an output with the same shape as x, leading to a buffer overflow
+ * when writing m > n output elements per batch item.
+ */
 static void acdc_ffn_rect_callback(
     struct ggml_tensor       * dst,
-    const struct ggml_tensor * a,
+    const struct ggml_tensor * /* shape_t */,   /* src[0]: shape template, not read */
+    const struct ggml_tensor * a,               /* src[1]: actual input x */
     int ith, int nth, void * userdata)
 {
     (void)nth;
@@ -194,7 +205,7 @@ static void acdc_ffn_rect_callback(
     for (int b = 0; b < batch; b++) {
         const float * xb = x + b * p->n;
 
-        /* Per-sample int8 quantization (matches the existing ACDC GEMV pattern) */
+        /* Per-sample int8 quantization */
         float mx = 1e-6f;
         for (int i = 0; i < p->n; i++) mx = fmaxf(mx, fabsf(xb[i]));
         float s = 127.0f / mx;
@@ -221,7 +232,13 @@ struct ggml_tensor * bitnet_op_acdc_ffn_rect(
     ud->m = m; ud->n = n;
     ud->d = NULL; ud->x_i8 = NULL;
     ud->initialized = false;
-    return ggml_map_custom1(ctx, x, acdc_ffn_rect_callback, /*n_tasks=*/1, ud);
+
+    /* Shape template: ggml_map_custom2 creates output with same shape as first arg.
+     * We set first arg to a tensor of shape [m, n_tokens] so the output has the
+     * correct dimensions for the FFN projection (m may be > n for up-projection). */
+    int64_t n_tok = (x->ne[1] > 0) ? x->ne[1] : 1;
+    struct ggml_tensor * shape_t = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, (int64_t)m, n_tok);
+    return ggml_map_custom2(ctx, shape_t, x, acdc_ffn_rect_callback, /*n_tasks=*/1, ud);
 }
 
 #else /* BITNET_L3_ACDC not defined */
