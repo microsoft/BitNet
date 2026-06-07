@@ -13,8 +13,7 @@
 # diagnostics and `return 1` on failure. This is intentional — it keeps the
 # test runtime under 1ms and removes a heavy dependency for an already-trim
 # CPU-only build. New T-actions (T005-T008) MUST follow the same convention.
-# Pattern reference: test_bitnet_common.cpp in tests/ subdir (or root for older
-# tests — see top-level test_wht.cpp, test_acdc.cpp etc.).
+# Pattern reference: test_bitnet_common.cpp (and all other test_*.cpp) in tests/.
 
 if (NOT BITNET_BUILD_TESTS)
     return()
@@ -44,7 +43,7 @@ endfunction()
 # This test guards against accidental API drift in the shared utility.
 if (BITNET_L2_WHT OR BITNET_L3_ACDC OR BITNET_L4_TROPICAL OR BITNET_L5_HRR)
     add_executable(test_bitnet_common
-        ${CMAKE_SOURCE_DIR}/test_bitnet_common.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_bitnet_common.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_bitnet_common PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -65,7 +64,7 @@ endif()
 #  library's own unpack_i2s_block — see src/ggml-bitnet-wht.cpp:186-189.)
 if (BITNET_L2_WHT)
     add_executable(test_wht
-        ${CMAKE_SOURCE_DIR}/test_wht.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_wht.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-wht.cpp)
     target_include_directories(test_wht PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -85,7 +84,7 @@ endif()
 #  Verified exact match (max_diff=0) against hadamard_ref for all 4 sizes.)
 if (BITNET_L3_ACDC)
     add_executable(test_acdc
-        ${CMAKE_SOURCE_DIR}/test_acdc.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_acdc.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_acdc PRIVATE
@@ -101,7 +100,7 @@ endif()
 # 5/5 PASS: argmax, topk, attention, gemv, zero-K edge case.
 if (BITNET_L4_TROPICAL)
     add_executable(test_tropical
-        ${CMAKE_SOURCE_DIR}/test_tropical.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_tropical.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp)
     target_include_directories(test_tropical PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -117,7 +116,7 @@ if (BITNET_L4_TROPICAL)
     # float scoring matches a hand-rolled reference implementation.
     # Guards sparse_attention_float (the kernel behind BITNET_SPARSE_TOPK).
     add_executable(test_sparse_attention
-        ${CMAKE_SOURCE_DIR}/test_sparse_attention.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_sparse_attention.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_sparse_attention PRIVATE
@@ -133,7 +132,7 @@ if (BITNET_L4_TROPICAL)
     # fixed K, adaptive K always ≤ k_max across 100 random distributions.
     # Guards tropical_adaptive_k + sparse_attention_float_adaptive.
     add_executable(test_adaptive_k
-        ${CMAKE_SOURCE_DIR}/test_adaptive_k.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_adaptive_k.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_adaptive_k PRIVATE
@@ -153,7 +152,7 @@ if (BITNET_L4_TROPICAL)
     # This guards the K_i8 cache that bitnet_op_tropical_attn uses to avoid
     # re-quantizing all K on every decode step (Phase C).
     add_executable(test_kv_i8_cache
-        ${CMAKE_SOURCE_DIR}/test_kv_i8_cache.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_kv_i8_cache.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-kv-cache.cpp)
     target_include_directories(test_kv_i8_cache PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -170,7 +169,7 @@ endif()
 # hrr_phasor_key_init (exact inverse + capacity at d=256 N=16).
 if (BITNET_L5_HRR)
     add_executable(test_hrr_cleanup
-        ${CMAKE_SOURCE_DIR}/test_hrr_cleanup.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_hrr_cleanup.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-hrr.cpp)
     target_include_directories(test_hrr_cleanup PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -187,7 +186,7 @@ if (BITNET_L5_HRR)
     # bitnet_op_hrr_attn_with_cleanup invoke — a regression here would silently
     # corrupt L5 attention in the entire inference pipeline.
     add_executable(test_hrr_attention
-        ${CMAKE_SOURCE_DIR}/test_hrr_attention.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_hrr_attention.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-hrr.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_hrr_attention PRIVATE
@@ -211,7 +210,7 @@ if (BITNET_L3_ACDC)
     if (Python3_Interpreter_FOUND)
         add_test(NAME test_extract_acdc_diagonal
             COMMAND ${Python3_EXECUTABLE}
-                ${CMAKE_SOURCE_DIR}/test_extract_acdc_diagonal.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/test_extract_acdc_diagonal.py
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
         set_tests_properties(test_extract_acdc_diagonal PROPERTIES
             LABELS "python;L3")
@@ -229,7 +228,7 @@ endif()
 # L3: ACDC properties — 4/4 PASS (T005)
 if (BITNET_L3_ACDC)
     add_executable(test_acdc_properties
-        ${CMAKE_SOURCE_DIR}/test_acdc_properties.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_acdc_properties.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_acdc_properties PRIVATE
@@ -244,7 +243,7 @@ endif()
 # L4: Sparse float properties — 3/3 PASS (T006)
 if (BITNET_L4_TROPICAL)
     add_executable(test_l4_sparse_properties
-        ${CMAKE_SOURCE_DIR}/test_l4_sparse_properties.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_l4_sparse_properties.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-tropical.cpp)
     target_include_directories(test_l4_sparse_properties PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
@@ -258,7 +257,7 @@ endif()
 # L5: HRR properties — 3/3 PASS (T007)
 if (BITNET_L5_HRR)
     add_executable(test_hrr_properties
-        ${CMAKE_SOURCE_DIR}/test_hrr_properties.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_hrr_properties.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-hrr.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_hrr_properties PRIVATE
@@ -273,7 +272,7 @@ endif()
 # Dense-is-default (D-T-01, AC-06) — 3/3 PASS (T008)
 # Static analysis (no kernel dep) — always built when tests are enabled.
 add_executable(test_dense_is_default
-    ${CMAKE_SOURCE_DIR}/test_dense_is_default.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_dense_is_default.cpp)
 target_include_directories(test_dense_is_default PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src)
@@ -291,7 +290,7 @@ add_test(NAME test_dense_is_default COMMAND test_dense_is_default)
 # query=doc[i] → rank-0 always correct).
 if (BITNET_L6_RAG)
     add_executable(test_rag_retrieval
-        ${CMAKE_SOURCE_DIR}/test_rag_retrieval.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_rag_retrieval.cpp
         ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-rag.cpp)
     target_include_directories(test_rag_retrieval PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_compile_definitions(test_rag_retrieval PRIVATE BITNET_L6_RAG)
@@ -308,7 +307,7 @@ option(BITNET_ENABLE_ACDC_RECT "Enable ACDC rectangular shapes (Fase II)" ON)
 if (BITNET_ENABLE_ACDC_RECT)
     if (BITNET_L3_ACDC)
         add_executable(test_acdc_rect
-            ${CMAKE_SOURCE_DIR}/test_acdc_rect.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_acdc_rect.cpp
             ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
             ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
         target_include_directories(test_acdc_rect PRIVATE

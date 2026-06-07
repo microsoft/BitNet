@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 # Adiciona utils/ ao path para poder importar o extractor
-sys.path.insert(0, str(Path(__file__).parent / "utils"))
+# (utils/ está na raiz do projeto, um nível acima de tests/)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "utils"))
 from extract_acdc_diagonal import acdc_extract_diag, next_pow2
 from scipy.linalg import hadamard
 
