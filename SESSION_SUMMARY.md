@@ -1,11 +1,93 @@
-# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06, 2026-06-06b, 2026-06-06c, 2026-06-06d, 2026-06-06e e **2026-06-06f (PR upstream microsoft/BitNet #567)**
+# SESSÃO: BitNet CPU-Universal — v0.1.0 + Sessões 2026-06-06..2026-06-07
 
-**Período:** 2025-06-05 → 2026-06-06
+**Período:** 2025-06-05 → 2026-06-07
 **Tag:** `v0.1.0-cpu-universal` (pushed em 2026-06-05)
 **Branch:** `main` (origin `peder1981/BitNet`)
 **Branch base:** `129557d` (ponto de fork)
-**Total de commits (cumulativo):** 33 (+5 nesta sessão)
-**PR upstream aberto:** [`microsoft/BitNet#567`](https://github.com/microsoft/BitNet/pull/567) — **OPEN, CLA aceito, MERGEABLE**
+**Total de commits (cumulativo):** 35 (+2 em 2026-06-07)
+**PR upstream aberto:** [`microsoft/BitNet#567`](https://github.com/microsoft/BitNet/pull/567) — **OPEN, CLA aceito, MERGEABLE, aguardando review**
+
+---
+
+## SESSÃO 2026-06-07 — Modelos Falcon3-1.58bit + Bug fix head_dim
+
+### S3.1 Resumo executivo
+
+Sessão de continuidade após PR #567. Três entregas:
+
+1. **Downloads de modelos Falcon3-1.58bit** (TII): 3B GGUF (2.22 GB) + 10B GGUF (3.99 GB, em andamento) — ambos no formato `ggml-model-i2_s.gguf`, idêntico ao BitNet-2B
+2. **Bug fix SIGSEGV (`4ad5ad6`)**: `bitnet_kv_i8_cache_get` hardcodava `d=128` (BitNet-2B default); Falcon3-3B tem `head_dim=256` → buffer overflow → crash. Fix: parâmetro `d` explícito + auto-reinit ao detectar mismatch
+3. **Benchmark Falcon3-3B-1.58bit completo**: L1–L5 verificados com novo modelo
+
+### S3.2 Descoberta chave: TII já fez o Caminho C
+
+A TII publicou `Falcon3-{3B,7B,10B}-{Base,Instruct}-1.58bit` — modelos treinados nativamente com pesos ternários. Isso **fecha empiricamente o Caminho C** do roadmap sem necessidade de GPU:
+
+| Repositório HuggingFace | Formato | Tamanho |
+|------------------------|---------|---------|
+| `tiiuae/Falcon3-3B-Instruct-1.58bit-GGUF` | ggml-model-i2_s.gguf | 2.22 GB |
+| `tiiuae/Falcon3-10B-Instruct-1.58bit-GGUF` | ggml-model-i2_s.gguf | 3.99 GB |
+
+### S3.3 Bug fix: `bitnet_kv_i8_cache_get` — `d=128` hardcoded
+
+**Root cause:** `bitnet_kv_i8_cache_get` tinha lazy-init com `d=128` fixo (default BitNet-2B). O Falcon3-3B tem `head_dim=256` (hidden=3072 / n_head=12) → buffer alocado com metade do tamanho → SIGSEGV no token ≥64.
+
+**Fix (commit `4ad5ad6`):** 4 arquivos alterados:
+
+| Arquivo | Mudança |
+|---------|---------|
+| `include/ggml-bitnet-kv-cache.h` | Adiciona `int d` à assinatura de `_get` |
+| `src/ggml-bitnet-kv-cache.cpp` | Usa `d` real no lazy-init; reinit se `g_d != d` |
+| `src/ggml-bitnet-dispatch.cpp` | Passa `d` (já lido de `q_t->ne[0]`) para `_get` |
+| `test_kv_i8_cache.cpp` | Atualiza todos os 20 call-sites com `/*d=*/N` correto |
+
+**13/13 ctest PASS** após o fix.
+
+### S3.4 Arquitetura Falcon3-3B-1.58bit vs BitNet-2B
+
+| Parâmetro | BitNet-2B | Falcon3-3B-1.58bit |
+|-----------|-----------|-------------------|
+| n_layers | 18 | 22 |
+| hidden | 2560 | 3072 |
+| n_head | 20 | 12 |
+| n_head_kv | 5 | 4 |
+| **head_dim** | **128** | **256** |
+| ffn | ~6912 | 9216 |
+| vocab | 32000 | 131072 |
+| context | 4096 | 4096 |
+
+### S3.5 Benchmark Falcon3-3B-1.58bit (L1–L5, 4 threads, n=64)
+
+| Configuração | tok/s | Δ vs L1 |
+|---|---|---|
+| L1 baseline (I2_S GEMV) | 4.40 | 0.0 % |
+| L3 ACDC FFN | 4.21 | -4.3 % |
+| L4 Tropical K=32 | 4.19 | -4.8 % |
+| **L4 Sparse float K=32** | **4.49** | **+2.0 %** |
+| L5 HRR raw | 2.64 | -40.0 % |
+| L5 HRR + cleanup 8 | 2.22 | -49.5 % |
+
+Padrão consistente com BitNet-2B: sparse float bate L1, tropical perde (cache agora funciona com d=256), HRR longe (modelo não treinado com HRR).
+
+### S3.6 Roadmap revisado (sem GPU)
+
+Ver seção completa na conversa. Fases:
+- **I**: Benchmark Falcon3-10B-1.58bit (download em andamento)
+- **II**: ACDC retangular (matrizes FFN gate/up/down)  
+- **III**: Sparse float como default L4, remover K_i8 cache
+- **IV**: HRR phasor keys (retrieval exato)
+- **V**: Diagnóstico ACDC em modelos 1.58bit reais
+- **VI**: Publicação (v0.2.0, PR #568)
+
+### S3.7 Estado dos modelos locais
+
+| Modelo | Path | Tamanho | Status |
+|--------|------|---------|--------|
+| BitNet-2B I2_S | `models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf` | 1.2 GB | ✅ |
+| Falcon3-3B-1.58bit GGUF | `models/Falcon3-3B-Instruct-1.58bit/ggml-model-i2_s.gguf` | 2.22 GB | ✅ |
+| Falcon3-3B Q4_K_M | `models/Falcon3-3B-Instruct-Q4/` | ~2 GB | ✅ |
+| Falcon3-10B-1.58bit safetensors | `models/Falcon3-10B-Instruct-1.58bit/model.safetensors` | 3.8 GB | ✅ |
+| **Falcon3-10B-1.58bit GGUF** | `models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf` | 3.99 GB | ⏳ baixando |
 
 ---
 
