@@ -1457,3 +1457,76 @@ enquanto o repo existir; só o remote é que perdeu o acesso.)
 **Sessão encerrada em 2026-06-05.**
 **Estado entregue:** v0.1.0-cpu-universal — release candidate pronto
 para Caminho C, com CI reproduzível.
+
+---
+
+## SESSÃO 2026-06-07c — Fase V, CI fix, Fase VI, Direção #1
+
+### S5.1 Resumo executivo
+
+1. **Fase V (XOR-convolution):** `acdc_project_rect` implementado com algoritmo de XOR-convolution O(m·n + P log P) e O(P) memória (vs O(P²) naive). 4 novos testes → 19/19 PASS.
+
+2. **CI fix (patch 04):** submodule resetado para commit público `1f86f05`. Mudanças da Fase III extraídas como patch cumulativo `04-ACDC-rect-FFN.patch`. Script `apply-dispatch-patches.sh` reescrito.
+
+3. **Fase VI (benchmarks v0.3.0):** Medições em 3 modelos × 8 configurações. Resultado para Falcon3-10B: +3.6% ACDC rect — **DEPOIS DESCOBERTO COMO ERRADO** (ver S5.5).
+
+4. **Direção #1 (pipeline d* real):** `extract_acdc_diagonals.py` + `acdc_diag_to_bin.py` + patch 05 + dispatch sidecar. Commit `d917147`.
+
+### S5.2 Fase V — acdc_project_rect XOR-convolution
+
+**Algoritmo:**
+```
+C[s] = Σ_{i,j: i⊕j=s} W[i,j]       (XOR-convolution, O(m·n))
+d*[k] = (H_P · C)[k] / P²           (WHT, O(P log P))
+```
+Prova: H[k,i]·H[j,k] = (-1)^{popcount(k&(i⊕j))} = H[k, i⊕j]. Portanto diag(H·W·H)[k] = (H·C)[k] onde C[s] = Σ_{i⊕j=s} W[i,j].
+
+**Implementação:** `src/ggml-bitnet-fwht.cpp:acdc_project_rect`, substituiu placeholder por loop XOR + `fwht_f32`.
+
+### S5.3 CI fix — patch 04 cumulativo
+
+**Problema:** CI não conseguia fazer checkout do commit `164940b` (local, não pushed). Solução: reset submodule para `1f86f05` (público), extrair patch 04 via `git format-patch 1f86f05..164940b`, aplicar via script. Patch 04 = superset de P01+P02+P03+FaseIII.
+
+### S5.4 Fase VI — benchmarks v0.3.0 (parcialmente errados)
+
+Medições para BitNet-2B, Falcon3-3B, Falcon3-10B. O gate `BITNET_ACDC_FFN_RECT` estava APENAS em `build_falcon()`. Falcon3-10B usa `arch=llama` → roteado por `build_llama()` → gate não ativo. Os +3.6% medidos eram ruído de medição.
+
+### S5.5 Direção #1 — Pipeline completo de d* real
+
+**Etapa 1: extract_acdc_diagonals.py**
+- Parser GGUF mínimo (sem dependência de gguf instalado — tipo 36 = I2_S não reconhecido pelo pip)
+- Decode I2_S: blocos de 128 valores em 32 bytes, 4 grupos intercalados, map {0→-1, 1→0, 2→+1}
+- XOR-convolution NumPy (chunks de 512 linhas para limitar memória) + FWHT in-place
+- Falcon3-10B: 120 tensores em 5.5 min, sidecar .npz de 11.3 MB
+
+**Etapa 2: acdc_diag_to_bin.py**
+- Converte NPZ → binário flat: magic `ACDBD\x01` + header [n_layers, n_proj, P, reserved] + float32[n_layers×2×P]
+- Falcon3-10B: .bin de 10.5 MB
+
+**Etapa 3: dispatch sidecar (src/ggml-bitnet-dispatch.cpp)**
+- Global `g_acdc_diag`: carrega .bin de `BITNET_ACDC_FFN_RECT_DIAG` (lazy, uma vez)
+- Prioridade: sidecar > rand > zeros
+- Contador atômico global para indexar (layer × proj) na ordem de inicialização dos callbacks
+
+**Etapa 4: patch 05 (patches/llama.cpp/05-ACDC-rect-LLaMA.patch)**
+- Adiciona gate `BITNET_ACDC_FFN_RECT` ao `build_llama()` (não estava lá antes)
+- Necessário porque Falcon3-10B reporta `arch=llama`
+
+**Resultados corrigidos (Falcon3-10B, n=32, t=4):**
+| Configuração | tok/s | Δ vs baseline |
+|---|---:|---:|
+| Baseline (I2_S GEMV) | 1.12 | 0% |
+| ACDC rect d=0 | 4.11 | **+267%** |
+| ACDC rect d=real | 4.19 | **+274%** |
+
+**Conclusão:** d=real ≈ d=0 em throughput para modelo não-ACDC-treinado (d* magnitude ~10⁻⁵). O speedup de 3.7× vem da eliminação dos reads de peso (720 MB/forward), não da diagonal em si.
+
+### S5.6 Estado final da sessão
+
+- **Commit:** `d917147` — feat(dir1): Direction #1 completo
+- **CI:** scripts/apply-dispatch-patches.sh agora aplica patch 04 + 05
+- **ctests:** 14/14 PASS
+- **Benchmarks corrigidos:** bench.json + bench.md v0.3.0 atualizados com valores reais
+- **Próximo passo:** treinar modelo com ACDC rect FFN (n_ff/n_embd > 5) para fechar o gap P6 e medir perplexidade real vs baseline
+
+**Sessão encerrada em 2026-06-07.**
