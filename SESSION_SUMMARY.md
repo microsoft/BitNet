@@ -1521,12 +1521,75 @@ Medições para BitNet-2B, Falcon3-3B, Falcon3-10B. O gate `BITNET_ACDC_FFN_RECT
 
 **Conclusão:** d=real ≈ d=0 em throughput para modelo não-ACDC-treinado (d* magnitude ~10⁻⁵). O speedup de 3.7× vem da eliminação dos reads de peso (720 MB/forward), não da diagonal em si.
 
-### S5.6 Estado final da sessão
+### S5.6 Estado final da sessão 2026-06-07c
 
 - **Commit:** `d917147` — feat(dir1): Direction #1 completo
 - **CI:** scripts/apply-dispatch-patches.sh agora aplica patch 04 + 05
 - **ctests:** 14/14 PASS
 - **Benchmarks corrigidos:** bench.json + bench.md v0.3.0 atualizados com valores reais
 - **Próximo passo:** treinar modelo com ACDC rect FFN (n_ff/n_embd > 5) para fechar o gap P6 e medir perplexidade real vs baseline
+
+---
+
+## SESSÃO 2026-06-07d — Direção B: FWHT AVX2 in-register prefix
+
+### S6.1 Resumo executivo
+
+Otimização do kernel FWHT (`butterfly_f32_avx2`): fusão dos estágios h=1, h=2, h=4 em um único passo in-register usando intrinsics AVX2, eliminando 3 passagens separadas sobre o array inteiro.
+
+### S6.2 Problema identificado
+
+O `butterfly_f32_avx2` anterior (em `src/ggml-bitnet-fwht.cpp`) vetorizava apenas estágios h ≥ 8 (onde o loop interno tem ≥ 8 iterações). Para h=1, h=2, h=4 usava código scalar — essas 3 passagens juntas representam `3 × n` butterflies escalares para cada chamada de FWHT.
+
+Para Falcon3-10B com P=32768: 3 × 32768 = 98304 operações escalares por FWHT, e FWHT é chamado 2× por camada FFN por token.
+
+### S6.3 Solução: `butterfly_f32_avx2_prefix8`
+
+**Método:** para cada bloco de 8 floats, aplicar os 3 estágios (h=1, h=2, h=4) com shuffles/blends de registrador:
+
+| Stage | Intrinsics | Resultado |
+|-------|-----------|-----------|
+| h=1 | `moveldup` + `movehdup` + `blend_ps(s,d,0xAA)` | adjacent pairs |
+| h=2 | `permute_ps(0x4E)` + `shuffle_ps(s,d,0x44)` | stride-2 pairs |
+| h=4 | `permute2f128(0x01)` + `blend_ps(s,hi-x,0xF0)` | cross-lane pairs |
+
+Verificação matemática:
+- h=1: `blend_ps(s,d,0xAA)` com mask 0xAA=10101010b → posições pares=sum, ímpares=diff ✓
+- h=2: `shuffle_ps(s,d,0x44)` pega s[0],s[1] e d[0],d[1] por lane ✓  
+- h=4: `dn = hi-x` (não `x-hi`) → upper half tem sinal correto ✓
+
+**Redução de tráfego de memória** para small stages: `3×n loads + 3×n stores` → `n/8 loads + n/8 stores` (24× menos para P=32768).
+
+### S6.4 Resultados de benchmark (i5-10210U)
+
+```
+n=32768 (Falcon3-10B P):  208 µs → 105 µs  (2.0× speedup)
+n=4096  (BitNet-2B P):     22 µs →   7 µs  (3.2× speedup)
+n=128   (test size):       625 ns → 183 ns  (3.4× speedup)
+```
+
+Para ACDC rect Falcon3-10B: FWHT 2× mais rápido → throughput potencial de ~8 tok/s (vs 4.11 tok/s atual), assumindo FWHT como bottleneck principal.
+
+### S6.5 Verificação de correção
+
+Teste `fwht_avx2_prefix` adicionado a `test_acdc.cpp`:
+- n=8 (apenas prefix, sem large stages): `max_diff = 0.00e+00` ✓
+- n=16, n=32, n=4096: idem ✓
+
+14/14 ctest PASS após a mudança.
+
+### S6.6 Arquivos modificados
+
+- **`src/ggml-bitnet-fwht.cpp`** — `butterfly_f32_avx2_prefix8()` (nova) + `butterfly_f32_avx2()` (refatorado em 2 fases)
+- **`test_acdc.cpp`** — teste `fwht_avx2_prefix` adicionado (6/6 total)
+- **`tests/CMakeLists.txt`** — comentário atualizado para 6/6
+- **`benchmarks/bench_fwht_avx2.cpp`** — benchmark standalone (não em ctest)
+
+### S6.7 Estado final da sessão 2026-06-07d
+
+- **Commit:** `25fc6b0` — perf(fwht): AVX2 in-register prefix para h=1,2,4
+- **ctests:** 14/14 PASS
+- **Speedup medido:** 2.0× para P=32768, 3.2× para P=4096
+- **Próximo passo:** Direção A — treinar modelo ~300M com FFN ACDC rect (n_ff/n_embd ≥ 7) para fechar gap P6; OU Direção C/D para HRR phasors / Tropical calibration
 
 **Sessão encerrada em 2026-06-07.**
