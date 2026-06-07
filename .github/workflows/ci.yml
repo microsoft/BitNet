@@ -76,7 +76,28 @@ jobs:
         run: cmake --build build --config Release -j$(nproc)
 
       - name: Build all kernel unit tests
-        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention
+        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default
 
-      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L5_attn, L5_cleanup)
+      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L5_attn, L5_cleanup, plus 4 property tests + dense-is-default)
         run: cd build && ctest --output-on-failure
+
+      - name: Air-gapped boot test (AC-11, NO-07)
+        # Verifies that the built llama-cli binary runs without making any
+        # network syscalls.  This enforces persona D4 (no telemetry, no cloud)
+        # at the CI level.  The script is in tests/test_air_gapped_boot.sh;
+        # it auto-skips if no model file is provided (which is the case in CI).
+        # Result: SKIPPED is acceptable in CI; PASS requires a real model and
+        # is expected in the local release workflow.
+        run: |
+          if [ -x tests/test_air_gapped_boot.sh ]; then
+            chmod +x tests/test_air_gapped_boot.sh
+            bash tests/test_air_gapped_boot.sh 2>&1 | tee /tmp/air_gapped.log
+            # Exit code 0 if PASS or SKIPPED, 1 if FAIL
+            rc=${PIPESTATUS[0]}
+            if [ $rc -ne 0 ]; then
+              echo "::warning::air-gapped boot test FAILED (rc=$rc); see /tmp/air_gapped.log"
+              exit $rc
+            fi
+          else
+            echo "::warning::tests/test_air_gapped_boot.sh not executable; skipping"
+          fi

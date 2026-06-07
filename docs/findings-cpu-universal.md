@@ -283,6 +283,82 @@ precisaríamos de modelos com multi-head attention desagrupada, d=512).
 
 ---
 
+## 7.5. Persona Alvo (D4 — Privacidade e Soberania de Dados)
+
+> **Adicionado em T027 (Fase 4: Integração) em 2026-06-06.**
+> **Origem:** `requirements.md#9` (esclarecimento D4, 2026-06-06).
+> **Cross-link:** `requirements.md#9`, `docs/decision-matrix.md` (T015),
+> `docs/hardware-compatibility.md` (T016), `examples/{medical,legal,finance}_offline.md` (T021-T023),
+> `ROADMAP.md#1` (v0.1 features).
+
+### Quem é a persona D4
+
+Usuários que exigem que **nenhum dado saia do dispositivo local**, mas
+que **não podem arcar com o custo** de servidores GPU locais.
+
+**Setores típicos:** saúde (LGPD/HIPAA), jurídico (sigilo profissional
+OAB art. 25), financeiro (compliance BCB/GLBA), usuários finais de
+privacidade em laptops corporativos ou hardware legado.
+
+**Hardware-alvo:**
+- Laptops corporativos comuns: Intel i5/i7 6ª geração em diante, 8-16 GB RAM
+- Hardware legado: qualquer x86_64 com AVX2 (post-2013) ou ARM64 com NEON
+- **Sem** placa de vídeo dedicada; sem clusters; sem internet após instalação
+
+### Por que este fork existe para a persona D4
+
+| Requisito D4 | Como o fork atende (resumo técnico) |
+|--------------|-------------------------------------|
+| Sem CUDA, sem cloud, sem telemetria | CPU-only (NO-02), sem servidor (NO-07), sem telemetria (NO-06). Validado em `tests/test_air_gapped_boot.sh` (T010). |
+| Cabe em hardware legado | Baseline L1 em i5-8250U (laptop 2018): ~5 tok/s, ~4.5 GB RAM. Ver `docs/hardware-compatibility.md`. |
+| Auditável | Modelo determinístico (mesma seed → mesmo output). Tests em `tests/test_*_properties.cpp` (T005-T008). |
+| Sem dependências externas | Submodule `3rdparty/llama.cpp` é read-only; patches vendored em `patches/llama.cpp/`. |
+| Footprint previsível | 1.58 bits/param (P1); BitNet-2B + KV cache 4-bit = ~4-5 GB RAM. |
+
+### Cenários canônicos (cross-link para `examples/`)
+
+| Caso de uso | Persona | Documentação |
+|-------------|---------|---------------|
+| Médico analisa prontuário em laptop de consultório | Saúde | `examples/medical_offline.md` (T021) |
+| Advogado resume petição inicial em escritório | Jurídico | `examples/legal_offline.md` (T022) |
+| Analista financeiro categoriza despesas em workstation restrita | Financeiro | `examples/finance_offline.md` (T023) |
+| Pesquisador roda BitNet-2B em máquina institucional bloqueada | Acadêmico | Mesmo setup de `medical_offline.md` (substituir prompt) |
+| Entusiasta roda em laptop de 2018 | Hobbyista | Baseline T480/Latitude 5490 em `docs/hardware-compatibility.md` |
+
+### Por que L2/L3/L5 **não funcionam** com BitNet-2B sem retreino (P6)
+
+O BitNet-2B foi treinado com arquitetura **clássica** (atenção densa,
+GEMM denso). L2 WHT, L3 ACDC, L5 HRR são **arquiteturas de treinamento**
+(P6 — Estrutura, não compressão). Aplicar essas arquiteturas a um
+modelo clássico dá garbage de output.
+
+**Solução intermediária para D4:** L4 sparse float (opt-in via
+`BITNET_SPARSE_TOPK=32`) **funciona** com BitNet-2B porque é uma
+modificação de complexidade (top-K em vez de softmax full), não uma
+mudança de arquitetura. Ver `docs/decision-matrix.md` linha 2.
+
+**Solução completa para L3/L5:** retreino do zero com a arquitetura
+ACDC ou HRR. **Fora de escopo** deste fork (reserva técnica Q4 2029,
+`ROADMAP.md#2`).
+
+### Trade-offs da persona D4
+
+- **Privacidade > performance:** preferimos modelo menor que cabe no
+  dispositivo a modelo maior que requer cloud.
+- **Compatibilidade > inovação:** kernels algébricos novos são opt-in,
+  não default. Default = comportamento original do BitNet-2B.
+- **Documentação > código:** persona D4 valoriza auditabilidade.
+  Documentação é canônica, código é executável.
+
+### Onde a persona D4 se sobrepõe com contribuidores técnicos
+
+A persona D4 governa **produto e marketing**, não pesquisa. Contribuidores
+que vêm pelo lado "pesquisa pura" (kernel algébrico, prova formal) são
+bem-vindos. O `docs/theory/` permanece intocado como referência acadêmica;
+a persona D4 é **adicional**, não substituta.
+
+---
+
 ## 8. Reproducibilidade
 
 ```bash
