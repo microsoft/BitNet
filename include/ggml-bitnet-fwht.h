@@ -143,6 +143,58 @@ void acdc_project(float * d, const int8_t * W, int n);
  */
 float acdc_error(const int8_t * W, const float * d, int n);
 
+/* ── Rectangular ACDC — Fase II ──────────────────────────────────────────
+ *
+ * Extends ACDC to rectangular weight matrices W ∈ ℝ^{m×n} (m ≠ n).
+ *
+ * Uses a single shared Hadamard size P = next_pow2(max(m,n)):
+ *
+ *   y[m] = first m elements of H_P · (d ⊙ (H_P · [x | 0]))
+ *
+ * The input x[n] is zero-padded to P before the first FWHT, and the
+ * output is truncated from P to m after the second FWHT.
+ *
+ * For Falcon3-10B FFN (n=3072, m=23040):
+ *   P = 32768
+ *   Dense:     3072 × 23040 = 70.8M ops
+ *   ACDC rect: 2 × 32768 × 15 = 983K ops → ~72× fewer
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * acdc_forward_rect_f32: rectangular ACDC, float32 input.
+ *
+ * @param y  output [m floats]
+ * @param m  output dimension
+ * @param x  float input [n floats]
+ * @param n  input dimension
+ * @param d  diagonal [P floats], P = next_pow2(max(m,n))
+ */
+void acdc_forward_rect_f32(float * y, int m, const float * x, int n, const float * d);
+
+/*
+ * acdc_forward_rect_i8: rectangular ACDC, int8 pre-quantized input.
+ *
+ * @param y  output [m floats]
+ * @param m  output dimension
+ * @param x  int8 input [n bytes], values in [-128, 127]
+ * @param n  input dimension
+ * @param d  diagonal [P floats], P = next_pow2(max(m,n))
+ */
+void acdc_forward_rect_i8(float * y, int m, const int8_t * x, int n, const float * d);
+
+/*
+ * acdc_project_rect: best diagonal d for W ∈ {-1,0,+1}^{m×n}.
+ *
+ * Fase V placeholder — currently writes zeros.
+ * Full implementation: d[k] = diag(H_P · W_P · H_P)[k] / P²
+ *
+ * @param d  output diagonal [P floats], P = next_pow2(max(m,n))
+ * @param W  input ternary matrix [m×n int8], row-major
+ * @param m  row dimension
+ * @param n  column dimension
+ */
+void acdc_project_rect(float * d, const int8_t * W, int m, int n);
+
 #ifdef __cplusplus
 }
 #endif

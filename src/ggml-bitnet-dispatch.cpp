@@ -146,6 +146,84 @@ struct ggml_tensor * bitnet_op_acdc_gemv(
     return ggml_map_custom1(ctx, x, acdc_gemv_callback, /*n_tasks=*/1, ud);
 }
 
+/* ── ACDC FFN rect (Fase II: H_P·diag(d)·H_P for rectangular FFN) ────────── */
+
+struct acdc_ffn_rect_ud {
+    int     m;           /* output dim */
+    int     n;           /* input dim */
+    float * d;           /* diagonal [P], P = next_pow2(max(m,n)) */
+    int8_t *x_i8;        /* scratch [n] for per-sample quantization */
+    bool    initialized;
+};
+
+static void acdc_ffn_rect_init_buffers(struct acdc_ffn_rect_ud * p) {
+    const int P = fwht_next_pow2(p->m > p->n ? p->m : p->n);
+    p->d   = (float  *)calloc((size_t)P,    sizeof(float));
+    p->x_i8= (int8_t *)calloc((size_t)p->n, sizeof(int8_t));
+
+    /* Optional: randomize d for timing benchmarks (output is garbage). */
+    const char * env = getenv("BITNET_ACDC_FFN_RECT_RAND");
+    if (env && env[0] == '1' && p->d) {
+        unsigned seed = 0xdeadbeef;
+        float scale = 2.0f / (float)P;
+        for (int i = 0; i < P; i++) {
+            seed = seed * 1664525u + 1013904223u;
+            float u = (float)((int)(seed >> 8) & 0xffffff) / (float)0xffffff - 0.5f;
+            p->d[i] = u * scale;
+        }
+    }
+    p->initialized = true;
+}
+
+static void acdc_ffn_rect_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * a,
+    int ith, int nth, void * userdata)
+{
+    (void)nth;
+    if (ith != 0) return;
+
+    struct acdc_ffn_rect_ud * p = (struct acdc_ffn_rect_ud *)userdata;
+    if (!p->initialized) acdc_ffn_rect_init_buffers(p);
+    if (!p->d || !p->x_i8) return;
+
+    const int batch = (int)(ggml_nelements(a) / p->n);
+    const float * x = (const float *)a->data;
+    float       * y = (float *)dst->data;
+
+    for (int b = 0; b < batch; b++) {
+        const float * xb = x + b * p->n;
+
+        /* Per-sample int8 quantization (matches the existing ACDC GEMV pattern) */
+        float mx = 1e-6f;
+        for (int i = 0; i < p->n; i++) mx = fmaxf(mx, fabsf(xb[i]));
+        float s = 127.0f / mx;
+        for (int i = 0; i < p->n; i++) {
+            float v = xb[i] * s;
+            if (v >  127.0f) v =  127.0f;
+            if (v < -128.0f) v = -128.0f;
+            p->x_i8[i] = (int8_t)(int)v;
+        }
+
+        acdc_forward_rect_i8(y + b * p->m, p->m, p->x_i8, p->n, p->d);
+    }
+}
+
+struct ggml_tensor * bitnet_op_acdc_ffn_rect(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n)
+{
+    struct acdc_ffn_rect_ud * ud =
+        (struct acdc_ffn_rect_ud *)malloc(sizeof(*ud));
+    if (!ud) return x;
+    ud->m = m; ud->n = n;
+    ud->d = NULL; ud->x_i8 = NULL;
+    ud->initialized = false;
+    return ggml_map_custom1(ctx, x, acdc_ffn_rect_callback, /*n_tasks=*/1, ud);
+}
+
 #else /* BITNET_L3_ACDC not defined */
 
 struct ggml_tensor * bitnet_op_acdc(
@@ -166,6 +244,16 @@ struct ggml_tensor * bitnet_op_acdc_gemv(
     int                   n_orig)
 {
     (void)ctx; (void)m; (void)n; (void)K; (void)n_orig;
+    return x;
+}
+
+struct ggml_tensor * bitnet_op_acdc_ffn_rect(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n)
+{
+    (void)ctx; (void)m; (void)n;
     return x;
 }
 

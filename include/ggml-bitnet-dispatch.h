@@ -85,6 +85,31 @@ GGML_API struct ggml_tensor * bitnet_op_acdc_gemv(
     int                   n_orig);
 
 /*
+ * L3 — ACDC FFN rect (Fase II: rectangular FFN projections)
+ *
+ * Replaces W·x for rectangular weight matrices (gate_proj, up_proj,
+ * down_proj) with y[m] = first m elements of H_P · (d ⊙ (H_P · [x | 0]))
+ * where P = next_pow2(max(m, n)).
+ *
+ * Diagonal d[P] is lazy-allocated on first call (zeros by default; set env
+ * BITNET_ACDC_FFN_RECT_RAND=1 for random d — gives garbage output but exercises
+ * the kernel at the correct compute budget for timing benchmarks).
+ *
+ * Input x is quantized to int8 inside the callback (per-sample scale).
+ *
+ * @param ctx  ggml context
+ * @param x    input activations [n]  (F32)
+ * @param m    output dimension
+ * @param n    input dimension
+ * @return     output tensor [m]  (F32)
+ */
+GGML_API struct ggml_tensor * bitnet_op_acdc_ffn_rect(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * x,
+    int                   m,
+    int                   n);
+
+/*
  * L4 — Tropical attention (max,+) semiring with top-K scan
  *
  * Replaces standard softmax attention:

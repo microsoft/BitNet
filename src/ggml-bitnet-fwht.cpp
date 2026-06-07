@@ -473,3 +473,109 @@ float acdc_error(const int8_t * W, const float * d, int n) {
 
     return (den > 0.0) ? (float)sqrt(num / den) : 0.0f;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PUBLIC: acdc_forward_rect_f32  (Fase II)
+ *
+ * Rectangular ACDC — float32 input, float32 output.
+ *
+ * Computes y[m] = first m elements of H_P · (d ⊙ (H_P · [x | 0]))
+ * where P = next_pow2(max(m, n)).
+ *
+ * For m == n and P == n the math reduces to the square case (acdc_forward_f32)
+ * but without the 1/n normalization steps: this matches the unnormalized spec
+ * in CLAUDE.md ("no 1/n² factors; d absorbs the scale during training").
+ *
+ * Operation count for Falcon3-10B gate_proj (n=3072, m=23040, P=32768):
+ *   Dense GEMV:   3072 × 23040 = 70.8M ops
+ *   ACDC rect:    2 × 32768 × log₂32768 = 983K ops → ~72× fewer
+ * ═══════════════════════════════════════════════════════════════════════════ */
+void acdc_forward_rect_f32(float * y, int m, const float * x, int n, const float * d) {
+    const int P = fwht_next_pow2(m > n ? m : n);
+
+    float * zf = (float *)calloc((size_t)P, sizeof(float));
+    if (!zf) return;
+
+    /* Zero-pad x from n → P; calloc provides the trailing zeros */
+    const int copy_n = (n < P) ? n : P;
+    memcpy(zf, x, (size_t)copy_n * sizeof(float));
+
+    /* Step 1: ẑ = H_P · [x | 0]  (zero multiplications) */
+    fwht_f32(zf, P);
+
+    /* Step 2: z = d ⊙ ẑ  (P multiplications — irreducible minimum) */
+    for (int i = 0; i < P; i++) zf[i] *= d[i];
+
+    /* Step 3: y_P = H_P · z  (zero multiplications) */
+    fwht_f32(zf, P);
+
+    /* Output: first m elements */
+    memcpy(y, zf, (size_t)m * sizeof(float));
+
+    free(zf);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PUBLIC: acdc_forward_rect_i8  (Fase II)
+ *
+ * Rectangular ACDC — int8 input (pre-quantized activations), float output.
+ *
+ * Same math as acdc_forward_rect_f32 but uses fwht_i8_to_i32 for Stage 1,
+ * which avoids converting the int8 activation to float before the first WHT.
+ *
+ * Memory layout (single zero-initialised allocation):
+ *   [x_pad: P × int8] [z32: P × int32] [zf: P × float]
+ *   P is a power of 2 ≥ 4, so each section starts 4-byte aligned.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+void acdc_forward_rect_i8(float * y, int m, const int8_t * x, int n, const float * d) {
+    const int P = fwht_next_pow2(m > n ? m : n);
+
+    const size_t sz_i8  = (size_t)P;
+    const size_t sz_i32 = (size_t)P * sizeof(int32_t);
+    const size_t sz_f32 = (size_t)P * sizeof(float);
+    char * buf = (char *)calloc(sz_i8 + sz_i32 + sz_f32, 1);
+    if (!buf) return;
+
+    int8_t  * x_pad = (int8_t  *)buf;
+    int32_t * z32   = (int32_t *)(buf + sz_i8);         /* P ≥ 4 → 4-byte aligned */
+    float   * zf    = (float   *)(buf + sz_i8 + sz_i32);
+
+    /* Zero-pad x from n → P; calloc already zeroed the tail */
+    const int copy_n = (n < P) ? n : P;
+    memcpy(x_pad, x, (size_t)copy_n);
+
+    /* Step 1: ẑ = H_P · [x | 0]  (int8→int32 butterfly, zero multiplications) */
+    fwht_i8_to_i32(x_pad, z32, P);
+
+    /* Step 2: z = d ⊙ ẑ  (P multiplications, int32→float conversion) */
+    for (int i = 0; i < P; i++) zf[i] = (float)z32[i] * d[i];
+
+    /* Step 3: y_P = H_P · z  (float butterfly, zero multiplications) */
+    fwht_f32(zf, P);
+
+    /* Output: first m elements */
+    memcpy(y, zf, (size_t)m * sizeof(float));
+
+    free(buf);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PUBLIC: acdc_project_rect  (Fase V placeholder)
+ *
+ * Find the best diagonal d* ∈ ℝ^P for W ∈ {-1,0,+1}^{m×n}:
+ *
+ *   d*[k] = (H_P · W_P · H_P)[k,k] / P²
+ *
+ * where P = next_pow2(max(m,n)) and W_P is W zero-padded to P×P.
+ *
+ * Cost: O(P² log P).  For P=32768: ~16G ops — batch offline, not at inference.
+ * Memory: O(P²).  For P=32768: 4 GB float32 — requires chunked implementation.
+ *
+ * TODO (Fase V): implement chunked diagonal extraction. Until then, returns
+ * zeros so callers receive a valid (but trivial) diagonal that produces y=0.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+void acdc_project_rect(float * d, const int8_t * W, int m, int n) {
+    const int P = fwht_next_pow2(m > n ? m : n);
+    memset(d, 0, (size_t)P * sizeof(float));
+    (void)W;
+}

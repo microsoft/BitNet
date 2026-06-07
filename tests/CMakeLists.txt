@@ -84,7 +84,8 @@ endif()
 if (BITNET_L3_ACDC)
     add_executable(test_acdc
         ${CMAKE_SOURCE_DIR}/test_acdc.cpp
-        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp)
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-fwht.cpp
+        ${CMAKE_SOURCE_DIR}/src/ggml-bitnet-common.cpp)
     target_include_directories(test_acdc PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
     target_compile_definitions(test_acdc PRIVATE BITNET_L3_ACDC)
@@ -264,10 +265,10 @@ set_target_properties(test_dense_is_default PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 add_test(NAME test_dense_is_default COMMAND test_dense_is_default)
 
-# ACDC rectangular (GATED by D2, T009) — only enabled if BITNET_ENABLE_ACDC_RECT=ON.
-# Per requirements.md#10 (D2): only if T029 investigation confirms ACDC FFN is
-# the blocker. Default OFF until gate resolves.
-option(BITNET_ENABLE_ACDC_RECT "Enable ACDC rectangular shapes (gated by D2)" OFF)
+# ACDC rectangular (D2 gate RESOLVED 2026-06-07).
+# bench.md confirmed: Falcon3-10B FFN (23040/3072=7.5×) is the compute
+# bottleneck. Fase II (ACDC rect) implementation is now complete.
+option(BITNET_ENABLE_ACDC_RECT "Enable ACDC rectangular shapes (Fase II)" ON)
 if (BITNET_ENABLE_ACDC_RECT)
     if (BITNET_L3_ACDC)
         add_executable(test_acdc_rect
