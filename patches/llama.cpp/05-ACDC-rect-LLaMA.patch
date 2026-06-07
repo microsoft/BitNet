@@ -1,0 +1,304 @@
+diff --git a/src/llama.cpp b/src/llama.cpp
+index 666fcc4..877ac71 100644
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -28,6 +28,13 @@
+ 
+ #include "ggml-bitnet.h"
+ 
++#if defined(BITNET_L4_TROPICAL) || defined(BITNET_L3_ACDC) || defined(BITNET_L5_HRR)
++#  include "ggml-bitnet-dispatch.h"
++#endif
++#if defined(BITNET_L4_TROPICAL)
++#  include "ggml-bitnet-kv-cache.h"
++#endif
++
+ // TODO: replace with ggml API call
+ #define QK_K 256
+ 
+@@ -9650,6 +9657,115 @@ static struct ggml_tensor * llm_build_ffn(
+     return cur;
+ }
+ 
++/* ─── Generic 2-projection FFN with rectangular ACDC layers (Fase II) ───────
++ *
++ * Model-agnostic replacement for any 2-projection FFN (up + down, no gate).
++ * Uses H_P·diag(d)·H_P with P = next_pow2(max(m, n)); reads dimensions from
++ * the caller's hparams at build time.
++ *
++ * For Falcon3-10B (n_embd=3072, n_ff=23040, P=32768):
++ *   Dense:     2 × 3072 × 23040 = 141.6M ops/layer
++ *   ACDC rect: 2 × 2 × 32768 × 15 = 1.97M ops/layer → ~72× fewer
++ *
++ * IMPORTANT (P6): d = 0 by default (model not trained with ACDC).  Output is
++ * numerically garbage.  Enable timing benchmark without quality: set env
++ * BITNET_ACDC_FFN_RECT_RAND=1 to randomize d (output still garbage, same cost).
++ */
++#if defined(BITNET_L3_ACDC)
++static struct ggml_tensor * llm_build_ffn_acdc_rect(
++        struct ggml_context * ctx,
++          struct ggml_tensor * cur,        /* input [n_embd, n_tokens] */
++                   int64_t   n_embd,       /* hidden dim (FFN input/output) */
++                   int64_t   n_ff,         /* FFN intermediate dim */
++            llm_ffn_op_type   type_op,
++          const llm_build_cb & cb,
++                        int   il) {
++    /* up projection: n_embd → n_ff */
++    struct ggml_tensor * up = bitnet_op_acdc_ffn_rect(
++        ctx, cur, (int)n_ff, (int)n_embd);
++    cb(up, "ffn_acdc_rect_up", il);
++
++    /* Activation */
++    switch (type_op) {
++        case LLM_FFN_GELU:
++            up = ggml_gelu(ctx, up);
++            break;
++        case LLM_FFN_SILU:
++            up = ggml_silu(ctx, up);
++            break;
++        default:
++            GGML_ABORT("llm_build_ffn_acdc_rect: unsupported activation");
++    }
++    cb(up, "ffn_acdc_rect_act", il);
++
++    /* down projection: n_ff → n_embd */
++    struct ggml_tensor * out = bitnet_op_acdc_ffn_rect(
++        ctx, up, (int)n_embd, (int)n_ff);
++    cb(out, "ffn_acdc_rect_down", il);
++
++    return out;
++}
++#endif /* BITNET_L3_ACDC */
++
++/* ─── BitNet 2-projection FFN with ACDC structured layers (L3) ─────────────
++ *
++ * Replaces the standard dense up/down GEMV in BitNet's simplified FFN with
++ * the ACDC kernel (`bitnet_op_acdc_gemv`), which is O(n log n) instead of
++ * O(mn) per projection.
++ *
++ *   Standard: y_up   = ffn_up   · x      (2560 → 6912, dense ternary)
++ *             y_dn   = ffn_down · gelu(y_up)   (6912 → 2560, dense ternary)
++ *   ACDC:     y_up   = proj_up · stack_k(H(d_k ⊙ (H·x_pad)))   (2560 → 6912)
++ *             y_dn   = proj_dn · stack_k(H(d_k ⊙ (H·gelu(y_up)_pad)))  (6912 → 2560)
++ *
++ * Where x_pad is the input zero-padded to next_pow2, K = ⌈m/n⌉ blocks per
++ * projection, and proj_* is a partial identity placeholder (top-m of K*n).
++ *
++ * IMPORTANT (P6): the model was trained with dense FFN, not ACDC.  This
++ * helper produces garbage output; it exists to exercise the ACDC dispatch
++ * path and measure its compute characteristics end-to-end.  See
++ * docs/theory/03-acdc-structured-layers.md:159-189 for why training is
++ * the only path to non-garbage output.
++ *
++ * BitNet FFN dims:
++ *   up:   2560 → 6912   →   n=4096, m=6912, K=2, n_orig=2560
++ *   down: 6912 → 2560   →   n=8192, m=2560, K=1, n_orig=6912
++ */
++#if defined(BITNET_L3_ACDC)
++static struct ggml_tensor * llm_build_ffn_acdc_bitnet(
++        struct ggml_context * ctx,
++          struct ggml_tensor * cur,        /* attn_norm [n_embd=2560, n_tokens] */
++             llm_ffn_op_type   type_op,    /* LLM_FFN_GELU                       */
++          const llm_build_cb & cb,
++                        int   il) {
++    const int n_embd_in  = 2560;
++    const int n_ff       = 6912;
++
++    /* ACDC up: 2560 → 4096 (padded) → K=2 blocks → proj to 6912 */
++    struct ggml_tensor * up = bitnet_op_acdc_gemv(
++        ctx, cur, /*m=*/n_ff, /*n=*/4096, /*K=*/2, /*n_orig=*/n_embd_in);
++    cb(up, "ffn_acdc_up", il);
++
++    /* GELU activation (operates on padded 8192-dim output of up) */
++    switch (type_op) {
++        case LLM_FFN_GELU:
++            up = ggml_gelu(ctx, up);
++            cb(up, "ffn_acdc_gelu", il);
++            break;
++        default:
++            GGML_ABORT("llm_build_ffn_acdc_bitnet: only LLM_FFN_GELU implemented");
++    }
++
++    /* ACDC down: 6912 → 8192 (padded) → K=1 block → proj to 2560 */
++    struct ggml_tensor * out = bitnet_op_acdc_gemv(
++        ctx, up, /*m=*/n_embd_in, /*n=*/8192, /*K=*/1, /*n_orig=*/n_ff);
++    cb(out, "ffn_acdc_down", il);
++
++    return out;
++}
++#endif /* BITNET_L3_ACDC */
++
++
+ static struct ggml_tensor * llm_build_moe_ffn(
+         struct ggml_context * ctx,
+        struct llama_context & lctx,
+@@ -9790,6 +9906,83 @@ static struct ggml_tensor * llm_build_kqv(
+ 
+     struct ggml_tensor * cur;
+ 
++#if defined(BITNET_L5_HRR)
++    /* Declared here (before the if-chain) so it can be referenced in the else-if clause below. */
++    static const bool bitnet_hrr_attn = []() {
++        const char * e = getenv("BITNET_HRR_ATTN");
++        return e && atoi(e) > 0;
++    }();
++#endif
++
++#if defined(BITNET_L4_TROPICAL)
++    /* Tropical attention — env-gated, replaces both flash and standard paths.
++     * Enable at runtime: BITNET_TROPICAL_TOPK=<N> (N > 0 = number of top-K keys).
++     * Reads env once per process (function-level static).
++     * K and V are cast to F32 since the KV cache may be F16. */
++    static const int bitnet_tropical_topk = []() {
++        const char * e = getenv("BITNET_TROPICAL_TOPK");
++        int v = e ? atoi(e) : 0;
++        return (v > 0) ? v : 0;
++    }();
++    if (bitnet_tropical_topk > 0) {
++        /* kq_mask must be in the compute graph so llama_set_inputs can allocate
++         * and populate its buffer.  In the standard/flash paths it's consumed by
++         * ggml_soft_max_ext / ggml_flash_attn_ext.  In the tropical path we don't
++         * use it, so we must add it to the graph explicitly here. */
++        ggml_build_forward_expand(graph, kq_mask);
++
++        struct ggml_tensor * v_t =
++            ggml_view_3d(ctx, kv.v_l[il],
++                    n_embd_head_v, n_kv, n_head_kv,
++                    ggml_row_size(kv.v_l[il]->type, n_embd_v_gqa),
++                    ggml_row_size(kv.v_l[il]->type, n_embd_head_v),
++                    0);
++        struct ggml_tensor * k_f32 = (k->type == GGML_TYPE_F32) ?
++            k : ggml_cast(ctx, k, GGML_TYPE_F32);
++        struct ggml_tensor * v_f32 = (v_t->type == GGML_TYPE_F32) ?
++            v_t : ggml_cast(ctx, v_t, GGML_TYPE_F32);
++        bitnet_kv_i8_cache_set_layer(il);
++        cur = bitnet_op_tropical_attn(ctx, q, k_f32, v_f32,
++                                      bitnet_tropical_topk, kq_scale);
++        cur = ggml_reshape_2d(ctx, cur, n_embd_head_v * n_head, n_tokens);
++    } else
++#endif /* BITNET_L4_TROPICAL */
++#if defined(BITNET_L5_HRR)
++    /* HRR attention — holographic circular-convolution memory.
++     * Enable at runtime: BITNET_HRR_ATTN=1 (set before first inference call).
++     * Complexity O(n·d·log d) build + O(n_q·d·log d) retrieve per head.
++     * NOTE: retrieval degrades when d < 10·n_kv (HRR capacity limit). */
++    if (bitnet_hrr_attn) {
++        ggml_build_forward_expand(graph, kq_mask);
++
++        struct ggml_tensor * v_h =
++            ggml_view_3d(ctx, kv.v_l[il],
++                    n_embd_head_v, n_kv, n_head_kv,
++                    ggml_row_size(kv.v_l[il]->type, n_embd_v_gqa),
++                    ggml_row_size(kv.v_l[il]->type, n_embd_head_v),
++                    0);
++        struct ggml_tensor * k_f32h = (k->type == GGML_TYPE_F32) ?
++            k : ggml_cast(ctx, k, GGML_TYPE_F32);
++        struct ggml_tensor * v_f32h = (v_h->type == GGML_TYPE_F32) ?
++            v_h : ggml_cast(ctx, v_h, GGML_TYPE_F32);
++
++        /* Optional Frady 2021 iterative cleanup: recovers usable SNR when
++         * n_kv > d/10.  Enable with BITNET_HRR_ATTN_CLEANUP=1 (default 8 iters).
++         * max_iters=0 falls back to no-cleanup (raw unbind). */
++        static const int bitnet_hrr_cleanup_iters = []() {
++            const char * e = getenv("BITNET_HRR_ATTN_CLEANUP");
++            int v = e ? atoi(e) : 0;
++            return v >= 0 ? v : 0;
++        }();
++        if (bitnet_hrr_cleanup_iters > 0) {
++            cur = bitnet_op_hrr_attn_with_cleanup(ctx, q, k_f32h, v_f32h,
++                                                  bitnet_hrr_cleanup_iters);
++        } else {
++            cur = bitnet_op_hrr_attn(ctx, q, k_f32h, v_f32h);
++        }
++        cur = ggml_reshape_2d(ctx, cur, n_embd_head_v * n_head, n_tokens);
++    } else
++#endif /* BITNET_L5_HRR */
+     if (cparams.flash_attn) {
+         GGML_UNUSED(model);
+         GGML_UNUSED(n_ctx);
+@@ -10787,6 +10980,21 @@ struct llm_build_context {
+                         LLM_NORM_RMS, cb, il);
+                 cb(cur, "ffn_norm", il);
+ 
++#if defined(BITNET_L3_ACDC)
++                /* BITNET_ACDC_FFN_RECT=1: rectangular ACDC H_P·diag(d)·H_P.
++                 * Works for any LLaMA-arch model (Falcon3-3B/10B, etc.).
++                 * Output is garbage without ACDC-trained weights (P6 gap). */
++                static const bool bitnet_acdc_ffn_rect_llama = []() {
++                    const char * e = getenv("BITNET_ACDC_FFN_RECT");
++                    return e && atoi(e) > 0;
++                }();
++                if (bitnet_acdc_ffn_rect_llama) {
++                    cur = llm_build_ffn_acdc_rect(ctx0, cur,
++                        n_embd, hparams.n_ff(), LLM_FFN_SILU, cb, il);
++                    cb(cur, "ffn_out", il);
++                } else
++#endif /* BITNET_L3_ACDC */
++                {
+                 cur = llm_build_ffn(ctx0, lctx, cur,
+                         model.layers[il].ffn_up,   model.layers[il].ffn_up_b,   NULL,
+                         model.layers[il].ffn_gate, model.layers[il].ffn_gate_b, NULL,
+@@ -10794,6 +11002,7 @@ struct llm_build_context {
+                         NULL,
+                         LLM_FFN_SILU, LLM_FFN_PAR, cb, il);
+                 cb(cur, "ffn_out", il);
++                }
+             } else {
+                 // MoE branch
+                 cur = llm_build_norm(ctx0, ffn_inp, hparams,
+@@ -11153,12 +11362,49 @@ struct llm_build_context {
+ 
+             // feed forward
+             {
+-                cur = llm_build_ffn(ctx0, lctx, attn_norm, // !! use the attn norm, not the result
+-                        model.layers[il].ffn_up,   NULL, NULL,
+-                        NULL,                      NULL, NULL,
+-                        model.layers[il].ffn_down, NULL, NULL,
+-                        NULL,
+-                        LLM_FFN_GELU, LLM_FFN_SEQ, cb, il);
++#if defined(BITNET_L3_ACDC)
++                /* L3 ACDC FFN — env-gated.  Three modes, checked in priority order:
++                 *
++                 * BITNET_ACDC_FFN_RECT=1  (Fase II, preferred for any model)
++                 *   Rectangular ACDC: H_P·diag(d)·H_P, P=next_pow2(max(n_ff,n_embd)).
++                 *   Works for any model (Falcon3-3B/10B, BitNet-2B).
++                 *   For Falcon3-10B: 3072↔23040, P=32768, ~72× fewer ops than dense.
++                 *
++                 * BITNET_ACDC_FFN=1  (legacy, BitNet-2B only)
++                 *   K-block ACDC GEMV with hardcoded BitNet-2B dims (2560↔6912).
++                 *   Kept for backwards-compat; will be removed in Fase III cleanup.
++                 *
++                 * Default: standard dense GEMV via llm_build_ffn.
++                 *
++                 * Output is garbage for all ACDC modes (P6: models not trained with
++                 * ACDC architecture).  Set BITNET_ACDC_FFN_RECT_RAND=1 alongside
++                 * BITNET_ACDC_FFN_RECT=1 to use random diagonal (same compute cost,
++                 * slightly different garbage — useful for timing-only benchmarks).
++                 */
++                static const bool bitnet_acdc_ffn_rect = []() {
++                    const char * e = getenv("BITNET_ACDC_FFN_RECT");
++                    return e && atoi(e) > 0;
++                }();
++                static const bool bitnet_acdc_ffn = []() {
++                    const char * e = getenv("BITNET_ACDC_FFN");
++                    return e && atoi(e) > 0;
++                }();
++                if (bitnet_acdc_ffn_rect) {
++                    cur = llm_build_ffn_acdc_rect(ctx0, attn_norm,
++                        n_embd, hparams.n_ff(), LLM_FFN_GELU, cb, il);
++                } else if (bitnet_acdc_ffn) {
++                    cur = llm_build_ffn_acdc_bitnet(ctx0, attn_norm,
++                                                    LLM_FFN_GELU, cb, il);
++                } else
++#endif /* BITNET_L3_ACDC */
++                {
++                    cur = llm_build_ffn(ctx0, lctx, attn_norm, // !! use the attn norm, not the result
++                            model.layers[il].ffn_up,   NULL, NULL,
++                            NULL,                      NULL, NULL,
++                            model.layers[il].ffn_down, NULL, NULL,
++                            NULL,
++                            LLM_FFN_GELU, LLM_FFN_SEQ, cb, il);
++                }
+                 cb(cur, "ffn_out", il);
+             }
+ 

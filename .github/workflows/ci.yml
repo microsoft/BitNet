@@ -35,9 +35,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Apply dispatch patches (combined L3+L5+L4cache+FaseIII)
+      - name: Apply dispatch patches (04 + 05)
         run: |
-          echo "Applying cumulative patch 04 (L3 ACDC + L5 HRR + L4 K_i8 cache + Fase III ACDC rect)..."
+          echo "Applying patches 04+05 (L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect + LLaMA gate)..."
           chmod +x ./scripts/apply-dispatch-patches.sh
           ./scripts/apply-dispatch-patches.sh
           echo "Verifying idempotence..."

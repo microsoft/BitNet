@@ -88,10 +88,11 @@
         "head_dim": 256, "ffn": 23040, "ffn_ratio": 7.5, "vocab": 131072, "context": 32768
       },
       "rows": [
-        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 1.40,  "status": "ok",  "delta_pct": 0.0},
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 1.12,  "status": "ok",  "delta_pct": 0.0, "note": "re-measured 2026-06-07 with patch05"},
         {"id": "L3_ACDC_FFN",            "tok_per_sec": 1.25,  "status": "ok",  "delta_pct": -10.7, "note": "carried from v0.2.0"},
-        {"id": "L3_ACDC_FFN_RECT_d0",   "tok_per_sec": 1.45,  "status": "ok",  "delta_pct": 3.6},
-        {"id": "L3_ACDC_FFN_RECT_rand", "tok_per_sec": 1.43,  "status": "ok",  "delta_pct": 2.1},
+        {"id": "L3_ACDC_FFN_RECT_d0",   "tok_per_sec": 4.11,  "status": "ok",  "delta_pct": 267.0, "note": "corrected: build_llama gate now active (patch05)"},
+        {"id": "L3_ACDC_FFN_RECT_rand", "tok_per_sec": null,  "status": "skip", "note": "superseded by d=real measurement"},
+        {"id": "L3_ACDC_FFN_RECT_real", "tok_per_sec": 4.19,  "status": "ok",  "delta_pct": 274.0, "note": "Direction #1: real d* from extract_acdc_diagonals.py"},
         {"id": "L4_Tropical_topK_32",    "tok_per_sec": 1.16,  "status": "ok",  "delta_pct": -17.1, "note": "carried from v0.2.0"},
         {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 1.14,  "status": "ok",  "delta_pct": -18.6, "note": "carried from v0.2.0"},
         {"id": "L5_HRR_raw",             "tok_per_sec": 0.89,  "status": "ok",  "delta_pct": -36.4, "note": "carried from v0.2.0"},
@@ -100,13 +101,11 @@
     }
   ],
   "findings": [
-    "ACDC rect law confirmed: d=rand is beneficial when n_ff/n_embd > ~5. Falcon3-10B (7.5×): +2.1% to +3.6%. Falcon3-3B (3.0×): -2.2% to -3.5%.",
-    "d=0 (zero diagonal) outperforms d=rand for Falcon3-10B (+3.6% vs +2.1%): skipping weight reads is the dominant effect; FWHT of zero-filled buffer is cache-friendly.",
-    "BitNet-2B (n_ff/n_embd=2.7×) shows marginal +1.7% with ACDC rect d=rand — within noise, not conclusive.",
-    "L4 sparse float is +0% to +2% for small FFN (BitNet-2B/Falcon3-3B) but -17% to -19% for large FFN (Falcon3-10B): attention savings vanish when FFN dominates.",
-    "L3 ACDC FFN (square, legacy): overhead grows with model depth (-2.8% BitNet-2B → -8.7% Falcon3-3B → -10.7% Falcon3-10B). FWHT lacks AVX2 throughput of I2_S GEMV.",
-    "L5 HRR+cleanup > L5 raw only on Falcon3-10B (head_dim=256, d/N capacity ratio higher). head_dim=128 shows no cleanup benefit.",
-    "ACDC rect target bottleneck identified: FFN weight reads dominate Falcon3-10B (720 MB/forward). ACDC rect reduces to 4.2 MB (170× less memory traffic).",
-    "Next step: train with ACDC rect architecture (P6 gap) to get non-trivial d* and measure quality vs throughput tradeoff."
+    "CORRECTION v0.3.1 (2026-06-07): previous Falcon3-10B ACDC rect numbers (+3.6%/+2.1%) were wrong. Gate was only in build_falcon(); Falcon3-10B uses arch=llama -> build_llama(). Patch 05 fixed this. Actual: +267% d=0, +274% d=real.",
+    "ACDC rect law confirmed: n_ff/n_embd > ~5 needed for speedup. Falcon3-10B (7.5x): +267-274%. Falcon3-3B (3.0x): -2.2% to -3.5%.",
+    "Direction #1 pipeline complete: extract_acdc_diagonals.py -> .acdc_diag.npz -> acdc_diag_to_bin.py -> .acdc_diag.bin -> BITNET_ACDC_FFN_RECT_DIAG. Falcon3-10B: 120 tensors 5.5min, 11.3 MB sidecar. d=real ~= d=0 in throughput (d* magnitude ~1e-5 for non-ACDC-trained model).",
+    "Speedup mechanism: Falcon3-10B FFN reads 720 MB/forward; ACDC rect -> in-cache FWHT (zero weight reads) -> 3.7x throughput.",
+    "L4 sparse float and L5 HRR numbers unchanged (carried from v0.2.0).",
+    "Next step: train ACDC rect model (n_ff/n_embd > 5) to close P6 quality gap."
   ]
 }

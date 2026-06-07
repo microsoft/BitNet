@@ -67,46 +67,57 @@
 
 | Configuração | tok/s | Δ vs L1 |
 |---|---:|---:|
-| L1 baseline (I2_S GEMV) | 1.40 | 0.0% |
-| L3 ACDC FFN | 1.25 | −10.7% |
-| **L3 ACDC rect d=0** | **1.45** | **+3.6%** |
-| **L3 ACDC rect d=rand** | **1.43** | **+2.1%** |
-| L4 Tropical K=32 | 1.16 | −17.1% |
-| L4 Sparse float K=32 | 1.14 | −18.6% |
-| L5 HRR raw | 0.89 | −36.4% |
-| L5 HRR + cleanup 8 | 0.97 | −30.7% |
+| L1 baseline (I2_S GEMV) | 1.12 | 0.0% |
+| L3 ACDC FFN | 1.25 | −10.7% (v0.2.0) |
+| **L3 ACDC rect d=0** | **4.11** | **+267%** |
+| **L3 ACDC rect d=real** | **4.19** | **+274%** |
+| L4 Tropical K=32 | 1.16 | −17.1% (v0.2.0) |
+| L4 Sparse float K=32 | 1.14 | −18.6% (v0.2.0) |
+| L5 HRR raw | 0.89 | −36.4% (v0.2.0) |
+| L5 HRR + cleanup 8 | 0.97 | −30.7% (v0.2.0) |
 
-> n_ff/n_embd=7.5× — **acima do limiar**. Reads de pesos (720 MB/forward) dominam;  
-> ACDC rect reduz para 4.2 MB (170× menos I/O de memória) → speedup líquido.  
+> n_ff/n_embd=7.5× — **acima do limiar**. Reads de pesos (720 MB/forward) dominam;
+> ACDC rect reduz para 4.2 MB (170× menos I/O de memória) → **3.7× speedup líquido**.
+>
+> **Correção v0.3.1 (2026-06-07):** benchmarks anteriores (+3.6%) eram errados —
+> o gate `BITNET_ACDC_FFN_RECT` estava apenas em `build_falcon()`, mas Falcon3-10B
+> reporta `arch=llama` e roteia por `build_llama()`. Patch 05 adicionou o gate
+> ao `build_llama()`. Baseline re-medido na mesma sessão.
+>
+> **d=real vs d=0 (4.19 vs 4.11 tok/s):** marginal, dentro do ruído térmico.
+> Para modelos não treinados com ACDC, d=real ≈ d=0 em throughput e qualidade.
 > L3/L4/L5 (exceto rect) levados do v0.2.0.
 
 ---
 
 ## Tabela comparativa: ACDC rect × 3 modelos
 
-| Modelo | n_ff/n_embd | Baseline | ACDC rect d=0 | ACDC rect d=rand |
+| Modelo | n_ff/n_embd | Baseline | ACDC rect d=0 | ACDC rect d=real |
 |--------|-------------|----------|---------------|-----------------|
-| BitNet-2B | 2.7× | 5.27 tok/s | — | +1.7% |
-| Falcon3-3B | 3.0× | 4.61 tok/s | −2.2% | −3.5% |
-| **Falcon3-10B** | **7.5×** | **1.40 tok/s** | **+3.6%** | **+2.1%** |
+| BitNet-2B | 2.7× | 5.27 tok/s | — | — |
+| Falcon3-3B | 3.0× | 4.61 tok/s | −2.2% | n/a |
+| **Falcon3-10B** | **7.5×** | **1.12 tok/s** | **+267%** | **+274%** |
 
-**Lei empírica confirmada:** ACDC rect traz speedup quando `n_ff/n_embd > ~5`.  
-**Mecanismo:** FFN rectangular (gate/up/down proj) lê pesos diretamente da RAM;  
-ACDC rect substitui por FWHT (P log P ops, zero peso lido) → 170× menos tráfego de memória.
+**Lei empírica confirmada (revisada):** ACDC rect traz speedup quando `n_ff/n_embd > ~5`.
+**Mecanismo:** FFN rectangular lê 720 MB/forward de pesos (Falcon3-10B);
+ACDC rect substitui por FWHT in-cache → **3.7× speedup real** (não os +3.6% errados do v0.3.0).
+
+> **Nota (v0.3.1):** d=real vem de `extract_acdc_diagonals.py` + `acdc_diag_to_bin.py`
+> (pipeline completo de Direção #1). d=real ≈ d=0 em throughput para modelo não-ACDC-treinado.
 
 ---
 
 ## Achados chave
 
-1. **ACDC rect d=0 > d=rand no 10B (+3.6% vs +2.1%):** diagonal zero zera o output, mas skipa completamente os reads de peso. FWHT de zeros é cache-trivial. O FWHT em si não é o gargalo — o I/O de memória é.
+1. **Speedup real de 3.7× no Falcon3-10B (correção v0.3.1):** benchmarks anteriores (+3.6%) estavam errados — o gate `BITNET_ACDC_FFN_RECT` só estava em `build_falcon()`, não em `build_llama()`. Falcon3-10B usa arch=llama, então ACDC rect não estava ativo. Patch 05 corrigiu isso. O speedup real é **+267% d=0, +274% d=real**.
 
-2. **Limiar empírico n_ff/n_embd ≈ 5:** Falcon3-10B (7.5×) é o único modelo com speedup consistente. Falcon3-3B (3.0×) e BitNet-2B (2.7×) ficam no ruído ou perdem levemente.
+2. **d=real ≈ d=0 em throughput:** para modelos não treinados com ACDC, a diagonal real `d*` extraída via XOR-convolution é essencialmente ruído (magnitude ~10⁻⁵). A diferença de throughput (4.19 vs 4.11 tok/s) é dentro da variância térmica.
 
-3. **L3 ACDC quadrado piora com escala:** −2.8% (BitNet-2B) → −8.7% (Falcon3-3B) → −10.7% (Falcon3-10B). FWHT sem otimização AVX2 perde para GEMV I2_S. ACDC rect resolve isso via redução de I/O em vez de redução de ops.
+3. **Pipeline Direction #1 completo:** `extract_acdc_diagonals.py` → `.acdc_diag.npz` → `acdc_diag_to_bin.py` → `.acdc_diag.bin` → carregado em `ggml-bitnet-dispatch.cpp` via `BITNET_ACDC_FFN_RECT_DIAG`. Falcon3-10B: 120 tensores em 5.5min, sidecar de 11.3 MB.
 
-4. **Gap P6 permanece:** todos os kernels L2-L5 produzem output degradado — modelos não treinados com essas arquiteturas. Medições refletem overhead/speedup do kernel, não qualidade de saída.
+4. **Limiar empírico n_ff/n_embd ≈ 5 confirmado:** Falcon3-10B (7.5×) — 3.7× speedup; Falcon3-3B (3.0×) — −2.2%. O mecanismo é redução de I/O de memória (720 MB/forward → ~0 com ACDC rect).
 
-5. **Próximo passo:** treinar um modelo com n_ff/n_embd ≥ 7 com FFN ACDC rect para fechar o gap P6 e medir perplexidade real.
+5. **Gap P6 permanece:** todos os kernels L2-L5 produzem output degradado — modelos não treinados com essas arquiteturas. Próximo passo: treinar modelo com n_ff/n_embd ≥ 7 com FFN ACDC rect.
 
 ---
 

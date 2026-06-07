@@ -110,6 +110,16 @@ GGML_API struct ggml_tensor * bitnet_op_acdc_ffn_rect(
     int                   n);
 
 /*
+ * Reset the ACDC diagonal sidecar call counter.
+ *
+ * Must be called once before building or executing the compute graph for
+ * a new inference run when BITNET_ACDC_FFN_RECT_DIAG is set, so that
+ * acdc_ffn_rect_init_buffers indexes the correct (layer, proj) pair.
+ * Safe to call even when BITNET_ACDC_FFN_RECT_DIAG is not set (no-op).
+ */
+GGML_API void bitnet_acdc_diag_reset_counter(void);
+
+/*
  * L4 — Tropical attention (max,+) semiring with top-K scan
  *
  * Replaces standard softmax attention:

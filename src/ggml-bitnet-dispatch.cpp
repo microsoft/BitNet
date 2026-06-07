@@ -19,10 +19,93 @@
 #include <cstdlib>
 #include <cstdint>
 #include <algorithm>
+#include <stdio.h>
+#include <stdatomic.h>
 
 #if defined(BITNET_L3_ACDC)
 #include "ggml-bitnet-fwht.h"
-#endif
+
+/* ── Global ACDC diagonal store (loaded from BITNET_ACDC_FFN_RECT_DIAG) ──── */
+
+/* Binary format:
+ *   magic[8]:    b"ACDBD\x01\x00\x00"
+ *   n_layers:    uint32
+ *   n_proj:      uint32   (= 2: proj0=up, proj1=down)
+ *   P:           uint32
+ *   reserved:    uint32   (= 0)
+ *   data:        float32[n_layers × n_proj × P]
+ *                index:  layer * n_proj * P + proj * P + k
+ *                proj 0 → up  (m=n_ff, n=n_embd)
+ *                proj 1 → down (m=n_embd, n=n_ff)
+ *
+ * Populated by: utils/acdc_diag_to_bin.py (reads .acdc_diag.npz sidecar).
+ * Env var: BITNET_ACDC_FFN_RECT_DIAG=path/to/file.bin
+ */
+static struct {
+    float   * data;       /* flat float array [n_layers × n_proj × P] */
+    uint32_t  n_layers;
+    uint32_t  n_proj;
+    uint32_t  P;
+    bool      loaded;
+} g_acdc_diag = { nullptr, 0, 2, 0, false };
+
+/* Thread-safe call counter: tracks which (layer, proj) pair the next
+ * acdc_ffn_rect_init_buffers call corresponds to.  Initialized lazily and
+ * reset before each inference run via bitnet_acdc_diag_reset_counter(). */
+static _Atomic int g_acdc_rect_call_count = 0;
+
+static void acdc_diag_load_once(void) {
+    if (g_acdc_diag.loaded) return;
+    g_acdc_diag.loaded = true;  /* mark even on failure — no retry */
+
+    const char * path = getenv("BITNET_ACDC_FFN_RECT_DIAG");
+    if (!path || !path[0]) return;
+
+    FILE * f = fopen(path, "rb");
+    if (!f) { fprintf(stderr, "[ACDC] cannot open sidecar: %s\n", path); return; }
+
+    /* Header */
+    uint8_t magic[8];
+    uint32_t nl, np, P, reserved;
+    if (fread(magic, 1, 8, f) != 8 ||
+        fread(&nl, 4, 1, f) != 1 ||
+        fread(&np, 4, 1, f) != 1 ||
+        fread(&P,  4, 1, f) != 1 ||
+        fread(&reserved, 4, 1, f) != 1) {
+        fprintf(stderr, "[ACDC] sidecar header read error: %s\n", path);
+        fclose(f); return;
+    }
+    static const uint8_t EXPECTED_MAGIC[8] = {
+        'A','C','D','B','D','\x01','\x00','\x00'
+    };
+    if (memcmp(magic, EXPECTED_MAGIC, 8) != 0) {
+        fprintf(stderr, "[ACDC] sidecar bad magic: %s\n", path);
+        fclose(f); return;
+    }
+
+    size_t n_floats = (size_t)nl * np * P;
+    float * buf = (float *)malloc(n_floats * sizeof(float));
+    if (!buf) { fclose(f); return; }
+    if (fread(buf, sizeof(float), n_floats, f) != n_floats) {
+        fprintf(stderr, "[ACDC] sidecar data read error (expected %zu floats)\n", n_floats);
+        free(buf); fclose(f); return;
+    }
+    fclose(f);
+
+    g_acdc_diag.data     = buf;
+    g_acdc_diag.n_layers = nl;
+    g_acdc_diag.n_proj   = np;
+    g_acdc_diag.P        = P;
+    fprintf(stderr, "[ACDC] loaded sidecar: %s (n_layers=%u n_proj=%u P=%u)\n",
+            path, nl, np, P);
+}
+
+/* Call this before building/executing the compute graph for a new run. */
+void bitnet_acdc_diag_reset_counter(void) {
+    atomic_store_explicit(&g_acdc_rect_call_count, 0, memory_order_relaxed);
+}
+
+#endif /* BITNET_L3_ACDC */
 
 #if defined(BITNET_L4_TROPICAL)
 #include "ggml-bitnet-tropical.h"
@@ -161,7 +244,30 @@ static void acdc_ffn_rect_init_buffers(struct acdc_ffn_rect_ud * p) {
     p->d   = (float  *)calloc((size_t)P,    sizeof(float));
     p->x_i8= (int8_t *)calloc((size_t)p->n, sizeof(int8_t));
 
-    /* Optional: randomize d for timing benchmarks (output is garbage). */
+    /* Priority 1: load real d* from sidecar binary (highest quality). */
+    acdc_diag_load_once();
+    if (g_acdc_diag.data && p->d) {
+        int call_idx = atomic_fetch_add_explicit(&g_acdc_rect_call_count, 1,
+                                                  memory_order_relaxed);
+        /* call_idx layout: layer * n_proj + proj_idx
+         *   proj 0 → up  (m > n, i.e. n_ff > n_embd)
+         *   proj 1 → down (m < n, i.e. n_embd < n_ff)
+         * Guard: only use sidecar data if P matches and we're in range. */
+        uint32_t np = g_acdc_diag.n_proj;   /* = 2 */
+        uint32_t nl = g_acdc_diag.n_layers;
+        uint32_t sP = g_acdc_diag.P;
+        uint32_t layer = (uint32_t)(call_idx / np);
+        uint32_t proj  = (uint32_t)(call_idx % np);
+        if ((uint32_t)P == sP && layer < nl) {
+            size_t offset = ((size_t)layer * np + proj) * sP;
+            memcpy(p->d, g_acdc_diag.data + offset, (size_t)P * sizeof(float));
+            p->initialized = true;
+            return;
+        }
+        /* P mismatch or out of range — fall through to default. */
+    }
+
+    /* Priority 2: randomize d for timing benchmarks (output is garbage). */
     const char * env = getenv("BITNET_ACDC_FFN_RECT_RAND");
     if (env && env[0] == '1' && p->d) {
         unsigned seed = 0xdeadbeef;
@@ -172,6 +278,7 @@ static void acdc_ffn_rect_init_buffers(struct acdc_ffn_rect_ud * p) {
             p->d[i] = u * scale;
         }
     }
+    /* Priority 3 (default): d = all-zeros (calloc above). */
     p->initialized = true;
 }
 
@@ -273,6 +380,8 @@ struct ggml_tensor * bitnet_op_acdc_ffn_rect(
     (void)ctx; (void)m; (void)n;
     return x;
 }
+
+void bitnet_acdc_diag_reset_counter(void) {}   /* no-op without L3_ACDC */
 
 #endif /* BITNET_L3_ACDC */
 
