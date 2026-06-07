@@ -133,6 +133,7 @@ int8_t * bitnet_kv_i8_cache_get(
     int            kv_head,
     const float  * K_f32,
     int            n_kv,
+    int            d,
     float        * k_scale_out,
     int          * last_n_out,
     int          * n_new_out)
@@ -140,14 +141,16 @@ int8_t * bitnet_kv_i8_cache_get(
     if (last_n_out) *last_n_out = 0;
     if (n_new_out)  *n_new_out  = 0;
     if (k_scale_out) *k_scale_out = 0.0f;
+    if (d <= 0) return NULL;
 
-    /* Lazy init with default dimensions if unset. llama.cpp's KQV site
-     * doesn't always call init explicitly; the first tropical call gets
-     * us into the right code path. We use a small heuristic: d=128,
-     * n_layer=32, n_head_kv=20 (BitNet-2B defaults), max_n_kv=4096. */
-    if (!g_cache) {
-        bitnet_kv_i8_cache_init(/*n_layer=*/32, /*n_head_kv=*/20,
-                                /*d=*/128, /*max_n_kv=*/4096);
+    /* Auto-init or reinit when d doesn't match the current cache.
+     * This handles: first call (g_cache==NULL), model swap (different
+     * head_dim), and the original lazy-init that hardcoded d=128. */
+    if (!g_cache || g_d != d) {
+        int n_l = (g_n_layer   > 0) ? g_n_layer   : 64;
+        int n_h = (g_n_head_kv > 0) ? g_n_head_kv : 64;
+        int mx  = (g_max_n_kv  > 0) ? g_max_n_kv  : 4096;
+        bitnet_kv_i8_cache_init(n_l, n_h, d, mx);
     }
     if (!g_cache) return NULL;
     if (il < 0 || il >= g_n_layer) return NULL;

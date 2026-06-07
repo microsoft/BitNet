@@ -93,6 +93,9 @@ int  bitnet_kv_i8_current_layer(void);
  * @param kv_head       KV head index (0..n_head_kv-1)
  * @param K_f32         source float keys [n_kv * d]
  * @param n_kv          number of keys (must be >= last n_kv for this slot)
+ * @param d             head dimension (must match the value used at init time;
+ *                      triggers auto-reinit if the cache was built with a
+ *                      different d — handles model-swap within a session)
  * @param k_scale_out   output: quantization scale used (locked after first call)
  * @param last_n_out    optional output: n_quantized BEFORE this call
  *                      (0 = first call, >0 = incremental)
@@ -105,6 +108,7 @@ int8_t * bitnet_kv_i8_cache_get(
     int            kv_head,
     const float  * K_f32,
     int            n_kv,
+    int            d,
     float        * k_scale_out,
     int          * last_n_out,
     int          * n_new_out);

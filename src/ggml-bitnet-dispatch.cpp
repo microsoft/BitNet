@@ -260,7 +260,7 @@ static void tropical_callback(
         float    k_scale = 0.0f;
         int      last_n  = 0;
         int      n_new   = 0;
-        int8_t * k_i8 = bitnet_kv_i8_cache_get(p->layer, kv_h, k_head, n_kv,
+        int8_t * k_i8 = bitnet_kv_i8_cache_get(p->layer, kv_h, k_head, n_kv, d,
                                                 &k_scale, &last_n, &n_new);
         int k_i8_owned = (k_i8 != NULL);  /* 1 = cache owns, 0 = we malloc'd */
 
