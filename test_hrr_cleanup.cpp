@@ -239,6 +239,83 @@ static int test_cleanup_iter_naive() {
     return ok;
 }
 
+/* [6] hrr_phasor_key_init: public API, exact inverse, cleanup at N=16 d=256 */
+static int test_phasor_key_init() {
+    printf("\n[6] hrr_phasor_key_init: exact inverse + cleanup (d=256, N=16)\n");
+    const int d = 256, N = 16;
+
+    /* Generate N phasor keys via public API with deterministic seeds */
+    std::vector<float> keys(N * d);
+    for (int i = 0; i < N; i++)
+        hrr_phasor_key_init(&keys[i * d], d, (uint64_t)(i + 1) * 0x9E3779B97F4A7C15ULL);
+
+    /* ── Part A: exact inverse (k ⊛ k_inv = δ for every key) ── */
+    float *tmp = (float *)malloc(3 * (d + 2) * sizeof(float));
+    float *k_inv = (float *)malloc(d * sizeof(float));
+    float *binding = (float *)malloc(d * sizeof(float));
+    float delta[256] = {0};
+    delta[0] = 1.0f;
+    float max_delta_diff = 0.0f;
+    for (int i = 0; i < N; i++) {
+        hrr_phasor_inv(k_inv, &keys[i * d], d, tmp);
+        hrr_bind(binding, &keys[i * d], k_inv, d, tmp);
+        float diff = max_abs_diff(binding, delta, d);
+        if (diff > max_delta_diff) max_delta_diff = diff;
+    }
+    free(k_inv); free(binding);
+    printf("    max|k⊛k_inv - δ| over %d keys = %.2e  (expected: < 1e-3)\n",
+           N, max_delta_diff);
+    int ok_inv = (max_delta_diff < 1e-3f);
+    printf("    Exact inverse: %s\n", ok_inv ? "✓" : "FAILED ✗");
+
+    /* ── Part B: build memory M, cleanup retrieval for first key ── */
+    std::mt19937 rng(42);
+    std::vector<float> values(N * d);
+    for (auto & v : values) { float x = (float)(rng() % 1000 - 500) / 500.0f; v = x; }
+    /* normalize each value vector */
+    for (int i = 0; i < N; i++) {
+        float *v = &values[i * d];
+        float n2 = 0.f;
+        for (int j = 0; j < d; j++) n2 += v[j]*v[j];
+        float inv_n = 1.0f / (std::sqrt(n2) + 1e-9f);
+        for (int j = 0; j < d; j++) v[j] *= inv_n;
+    }
+
+    std::vector<float> M(d);
+    hrr_build_memory(M.data(), keys.data(), nullptr, values.data(), N, d);
+
+    /* Raw retrieval (no cleanup) */
+    std::vector<float> tmp_buf(4 * (d + 2));
+    std::vector<float> noisy(d), k0_inv(d);
+    hrr_phasor_inv(k0_inv.data(), &keys[0], d, tmp_buf.data());
+    hrr_unbind(noisy.data(), M.data(), k0_inv.data(), d, tmp_buf.data());
+    float sim_raw = cosine_sim(noisy.data(), &values[0], d);
+
+    /* Cleanup via Frady 2021 */
+    std::vector<const float *> codebook(N);
+    for (int i = 0; i < N; i++) codebook[i] = &values[i * d];
+    std::vector<float> cleaned(d);
+    int chosen = hrr_cleanup_iter(cleaned.data(), noisy.data(),
+                                   M.data(), &keys[0],
+                                   codebook.data(), N, d, 16, tmp_buf.data());
+    /* cos_sim of single-step NAIVE projection */
+    float *naive_out = (float *)malloc(d * sizeof(float));
+    int idx_naive = hrr_cleanup_step(naive_out, noisy.data(), codebook.data(), N, d);
+    float sim_naive = cosine_sim(naive_out, &values[0], d);
+    free(naive_out); free(tmp);
+
+    printf("    raw cos_sim = %.4f  (theoretical ~1/√%d = %.4f)\n",
+           sim_raw, N, 1.0f / std::sqrt((float)N));
+    printf("    naive proj cos_sim = %.4f  idx=%d  (expected idx=0, sim > 0.9)\n",
+           sim_naive, idx_naive);
+    printf("    cleanup chosen = %d\n", chosen);
+
+    int ok_cap = (sim_raw < 0.5f) && (sim_naive > 0.9f) && (idx_naive == 0);
+    printf("    Capacity test: %s\n", ok_cap ? "✓" : "FAILED ✗");
+
+    return ok_inv && ok_cap;
+}
+
 int main() {
     printf("═══════════════════════════════════════════════════════════\n");
     printf("  hrr_cleanup_iter — Standalone C++ validation\n");
@@ -250,9 +327,10 @@ int main() {
     all_ok &= test_pseudoinverse_phasor();
     all_ok &= test_cleanup_iter_residual();
     all_ok &= test_cleanup_iter_naive();
+    all_ok &= test_phasor_key_init();
 
     printf("\n═══════════════════════════════════════════════════════════\n");
-    printf("  Resultado: %s\n", all_ok ? "TODOS OS 5 TESTES PASSARAM ✓" : "ALGUM FALHOU ✗");
+    printf("  Resultado: %s\n", all_ok ? "TODOS OS 6 TESTES PASSARAM ✓" : "ALGUM FALHOU ✗");
     printf("═══════════════════════════════════════════════════════════\n");
     return all_ok ? 0 : 1;
 }

@@ -149,8 +149,9 @@ if (BITNET_L4_TROPICAL)
 endif()
 
 # ─── L5: HRR (Holographic Reduced Representations) ─────────────────────────
-# 5/5 PASS: FFT roundtrip, bind, phasor inv,
-# RESIDUAL Frady 2021, NAIVE projection.
+# 6/6 PASS: FFT roundtrip, bind, phasor inv,
+# RESIDUAL Frady 2021, NAIVE projection,
+# hrr_phasor_key_init (exact inverse + capacity at d=256 N=16).
 if (BITNET_L5_HRR)
     add_executable(test_hrr_cleanup
         ${CMAKE_SOURCE_DIR}/test_hrr_cleanup.cpp

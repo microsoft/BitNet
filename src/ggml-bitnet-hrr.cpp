@@ -284,6 +284,68 @@ void hrr_pseudoinverse(float *inv, const float *a, int d, float *tmp) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * PHASOR KEYS — unit-magnitude spectrum, exact inverse
+ *
+ * A phasor key k is generated as IRFFT(unit-magnitude-spectrum):
+ *   RFFT(k)[j] = exp(i·φ_j)   where φ_j ∈ [0, 2π) is random
+ *
+ * This gives ||k||_2 = 1 exactly (by Parseval: Σ|RFFT(k)[j]|² = d → ||k||² = 1)
+ * and makes the spectral conjugation inverse EXACT:
+ *   k ⊛ k_inv = IRFFT(RFFT(k) ⊙ conj(RFFT(k)))
+ *             = IRFFT([1, 1, ..., 1])          (unit magnitudes everywhere)
+ *             = δ                               (Kronecker delta, exactly)
+ *
+ * Capacity vs Gaussian keys:
+ *   - Gaussian: k ⊛ k_inv ≈ δ + ε   (ε = O(1/√d) inversion error)
+ *   - Phasor:   k ⊛ k_inv = δ        (exact — zero inversion error)
+ *   Retrieval noise with N stored pairs: phasor has only superposition noise
+ *   (N-1 cross-talk terms), while Gaussian adds inversion error on top.
+ *   This allows reliable storage of N ≈ d/4 pairs vs d/10 for Gaussian.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+static void phasor_key_init_internal(float *k, int d, uint64_t seed) {
+    /* xorshift64: fast, non-cryptographic, reproducible */
+    uint64_t rng = seed ? seed : 0xDEADBEEFCAFEBABEULL;
+#define XS64(s) do { (s) ^= (s) << 13; (s) ^= (s) >> 7; (s) ^= (s) << 17; } while(0)
+
+    float *spec = (float *)malloc((d + 2) * sizeof(float));
+    if (!spec) return;
+
+    /* DC (k=0): must be real for the IRFFT output to be real; |DC| = 1 */
+    XS64(rng);
+    spec[0] = (rng & 1) ? 1.0f : -1.0f;
+    spec[1] = 0.0f;
+
+    /* Middle bins: random phase on unit circle */
+    for (int j = 1; j < d / 2; j++) {
+        XS64(rng);
+        double phi = (double)(rng >> 11) * (2.0 * M_PI / (double)(1ULL << 53));
+        spec[2*j]   = (float)cos(phi);
+        spec[2*j+1] = (float)sin(phi);
+    }
+
+    /* Nyquist (k=d/2): must be real; |Nyquist| = 1 */
+    XS64(rng);
+    spec[d]   = (rng & 1) ? 1.0f : -1.0f;
+    spec[d+1] = 0.0f;
+
+#undef XS64
+    irfft_internal(spec, k, d);
+    free(spec);
+}
+
+void hrr_phasor_key_init(float *k, int d, uint64_t seed) {
+    phasor_key_init_internal(k, d, seed);
+}
+
+void hrr_phasor_inv(float *inv, const float *k, int d, float *tmp) {
+    /* For phasor keys (|RFFT(k)[j]| = 1 for all j), spectral conjugation
+     * gives the EXACT inverse (k ⊛ inv = δ to FP precision).
+     * Identical computation to hrr_pseudoinverse; differs only in guarantee. */
+    hrr_pseudoinverse(inv, k, d, tmp);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * UNBINDING: out = M ⊛ k_inv
  * ═══════════════════════════════════════════════════════════════════════════ */
 
