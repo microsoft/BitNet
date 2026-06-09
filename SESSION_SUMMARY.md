@@ -1732,4 +1732,68 @@ externo ao graph ggml — não trivial sem modelo treinado como referência de q
   2. Benchmark L4 adaptive-K a n=256 (contexto longo) — confirmar se avg_K realmente ≈ 17
   3. Avaliar `BITNET_ACDC_FFN_RECT` como **default** para modelos com n_ff/n_embd > 3
 
+---
+
+## SESSÃO 2026-06-09 (continuação) — Phasor + Adaptive-K + Auto-detect ACDC
+
+### S7.12 HRR Phasor Keys implementado e benchmarkado
+
+**Implementação:** `bitnet_op_hrr_attn_phasor()` em `src/ggml-bitnet-dispatch.cpp`:
+- Gera `n_kv` phasor keys determinísticas por posição (seed = `(head_idx+1)<<20 | pos`)
+- Build: `M = Σᵢ phasor_k[i] ⊛ V[i]`
+- Retrieval: `Q·phasor_k[i]` → best_i → `M ⊛ phasor_inv[best_i]`
+
+**Hook em `llama.cpp`:** `BITNET_HRR_ATTN=1 BITNET_HRR_PHASOR=1` (prioridade máxima dentro do bloco HRR).
+
+**Benchmarks — phasor vs random HRR (n=64, t=4):**
+
+| Kernel | BitNet-2B | Falcon3-3B | Falcon3-10B |
+|---|---|---|---|
+| HRR raw | -57.6% | -23.2% | -36.7% |
+| HRR cleanup 8 | -44.3% | -29.2% | -43.1% |
+| **HRR phasor** | **-67.2%** | **-50.8%** | **-45.0%** |
+
+**Causa:** overhead O(n_kv × d) do matching Q→phasor_key (16.384 dot products por token para
+d=256, n_kv=64) anula o benefício de inversion error zero.
+
+**Decisão D-PHASOR (fechada):** phasor keys posicionais sem retreino são **inviáveis** como
+kernel de inferência. Requer projeção aprendida Q→espaço phasor (gap P6). Permanece como
+opt-in experimental. Commits: `7761e86` (llama.cpp), `a03c827` (dispatch + benchmark).
+
+### S7.13 Adaptive-K Sparse Attention implementado e benchmarkado
+
+**Implementação:** `bitnet_op_sparse_attn_adaptive()` em `src/ggml-bitnet-dispatch.cpp`:
+- `sparse_float_adaptive_callback` chama `sparse_attention_float_adaptive()` do tropical.cpp
+- Userdata: `{coverage, k_min, k_max}`
+- Hook em `llama.cpp`: terceiro sub-modo no bloco L4 (tropical > adaptive-K > sparse-fixo)
+- Env vars: `BITNET_SPARSE_TOPK_ADAPTIVE=<cov>`, `BITNET_SPARSE_TOPK_KMIN`, `BITNET_SPARSE_TOPK_KMAX`
+
+**Benchmarks (n=64, t=4):**
+
+| Config | BitNet-2B | Falcon3-3B | Falcon3-10B |
+|---|---|---|---|
+| L1 baseline | 3.75 | 2.50 | 1.09 |
+| Tropical K=32 | +3.2% | +17.6% | -17.4% |
+| Sparse fixo K=32 | -31.7% | +12.4% | -20.2% |
+| **Adaptive cov=0.90** | **-1.3%** | **+28.8%** | **-17.4%** |
+| Adaptive cov=0.99 | -9.3% | +33.2% | -20.2% |
+
+**Achado crítico:** adaptive-K cov=0.90 supera tropical e sparse-fixo no Falcon3-3B.
+No BitNet-2B é quase neutro (-1.3%), confirmando que avg_K ≪ 32 (distribuição concentrada).
+
+**Decisão D-ADAPTIVE (fechada):** `BITNET_SPARSE_TOPK_ADAPTIVE=0.90` é o **modo L4 recomendado**
+para modelos com `n_ff/n_embd < 5`. Para o Falcon3-10B, L3 ACDC rect domina — atenção não é
+o gargalo. Commits: `d365665` (llama.cpp), `224fca3` (dispatch + benchmark + bench.md).
+
+### S7.14 Estado acumulado (2026-06-09 sessão completa)
+
+- **ctests:** 16/16 PASS (verificado após cada build)
+- **Commits desta sessão (após `ebe058d`):**
+  - `7761e86` — HRR phasor hookado em llama.cpp (submodule)
+  - `a03c827` — bitnet_op_hrr_attn_phasor() implementado + benchmarks + bench.md
+  - `d365665` — BITNET_SPARSE_TOPK_ADAPTIVE hookado em llama.cpp (submodule)
+  - `224fca3` — bitnet_op_sparse_attn_adaptive() implementado + benchmarks + bench.md
+- **Decisões fechadas:** D-PHASOR, D-ADAPTIVE, D-SPARSE, D-RAG
+- **Próximo passo:** auto-detect `BITNET_ACDC_FFN_RECT` para modelos com n_ff/n_embd > 3
+
 **Sessão encerrada em 2026-06-09.**

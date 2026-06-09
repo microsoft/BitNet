@@ -92,6 +92,8 @@ def main():
                                           {"BITNET_ACDC_FFN": "1"}),
         ("L3 ACDC FFN rect (BITNET_ACDC_FFN_RECT=1)",
                                           {"BITNET_ACDC_FFN_RECT": "1"}),
+        ("L3 ACDC FFN rect auto (BITNET_ACDC_FFN_RECT=auto)",
+                                          {"BITNET_ACDC_FFN_RECT": "auto"}),
         ("L4 Tropical top-K=32 (BITNET_TROPICAL_TOPK=32)",
                                           {"BITNET_TROPICAL_TOPK": "32"}),
         ("L4 Sparse float top-K=32 (BITNET_SPARSE_TOPK=32)",
