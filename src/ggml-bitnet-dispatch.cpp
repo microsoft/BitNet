@@ -587,6 +587,80 @@ struct ggml_tensor * bitnet_op_sparse_attn(
     return ggml_map_custom3(ctx, q, k, v, sparse_float_callback, GGML_N_TASKS_MAX, ud);
 }
 
+/* ─── L4 variant: Adaptive-K float sparse attention ─────────────────────
+ *
+ * Per-query dynamic K via cumulative softmax threshold.
+ * Activated by BITNET_SPARSE_TOPK_ADAPTIVE=<coverage> (e.g. "0.90").
+ */
+struct sparse_adaptive_ud {
+    float coverage;
+    int   k_min;
+    int   k_max;
+};
+
+static void sparse_float_adaptive_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * q_t,
+    const struct ggml_tensor * k_t,
+    const struct ggml_tensor * v_t,
+    int ith, int nth, void * userdata)
+{
+    const struct sparse_adaptive_ud * p = (const struct sparse_adaptive_ud *)userdata;
+
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
+
+    const float * q_f = (const float *)q_t->data;
+    const float * k_f = (const float *)k_t->data;
+    const float * v_f = (const float *)v_t->data;
+    float       * out = (float *)dst->data;
+
+    for (int h = ith; h < n_head; h += nth) {
+        const int    kv_h   = h / gqa;
+        const float *q_head = q_f + (size_t)h    * n_tokens * d;
+        const float *k_head = k_f + (size_t)kv_h * n_kv     * d;
+        const float *v_head = v_f + (size_t)kv_h * n_kv     * d;
+        float       *out_hd = out + (size_t)h    * n_tokens * d;
+
+        for (int qi = 0; qi < n_tokens; qi++) {
+            sparse_attention_float_adaptive(
+                out_hd + qi * d,
+                q_head + qi * d,
+                k_head,
+                v_head,
+                n_kv,
+                d,
+                p->coverage,
+                p->k_min,
+                p->k_max);
+        }
+    }
+}
+
+struct ggml_tensor * bitnet_op_sparse_attn_adaptive(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    float                 coverage,
+    int                   k_min,
+    int                   k_max)
+{
+    struct sparse_adaptive_ud * ud =
+        (struct sparse_adaptive_ud *)malloc(sizeof(*ud));
+    if (!ud) return q;
+    ud->coverage = coverage;
+    ud->k_min    = k_min;
+    ud->k_max    = k_max;
+    return ggml_map_custom3(ctx, q, k, v,
+                            sparse_float_adaptive_callback,
+                            GGML_N_TASKS_MAX, ud);
+}
+
 #else /* BITNET_L4_TROPICAL not defined */
 
 struct ggml_tensor * bitnet_op_tropical_attn(
@@ -610,6 +684,19 @@ struct ggml_tensor * bitnet_op_sparse_attn(
     float                 scale)
 {
     (void)ctx; (void)k; (void)v; (void)topk; (void)scale;
+    return q;
+}
+
+struct ggml_tensor * bitnet_op_sparse_attn_adaptive(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    float                 coverage,
+    int                   k_min,
+    int                   k_max)
+{
+    (void)ctx; (void)k; (void)v; (void)coverage; (void)k_min; (void)k_max;
     return q;
 }
 

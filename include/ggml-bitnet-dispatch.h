@@ -173,6 +173,28 @@ GGML_API struct ggml_tensor * bitnet_op_sparse_attn(
     float                 scale);
 
 /*
+ * bitnet_op_sparse_attn_adaptive: L4 adaptive-K sparse float attention.
+ *
+ * Per-query dynamic K via cumulative softmax threshold (coverage).
+ * K is chosen as the smallest K such that Σᵢ softmax(scores)[i] >= coverage.
+ *
+ * Enable at runtime: BITNET_SPARSE_TOPK_ADAPTIVE=<coverage>  (e.g. "0.90")
+ * Optional overrides: BITNET_SPARSE_TOPK_KMIN, BITNET_SPARSE_TOPK_KMAX
+ *
+ * @param coverage  cumulative softmax threshold in (0, 1]  (typ. 0.90)
+ * @param k_min     minimum K per query (default 1)
+ * @param k_max     maximum K per query (default 32)
+ */
+GGML_API struct ggml_tensor * bitnet_op_sparse_attn_adaptive(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v,
+    float                 coverage,
+    int                   k_min,
+    int                   k_max);
+
+/*
  * L5 — HRR attention via holographic reduced representations
  *
  * Replaces standard attention with circular-convolution memory:
