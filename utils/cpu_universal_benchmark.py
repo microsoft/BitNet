@@ -88,15 +88,18 @@ def main():
 
     configurations = [
         ("L1 baseline (I2_S GEMV)",        {}),
-        ("L3 ACDC FFN (env BITNET_ACDC_FFN=1)", {"BITNET_ACDC_FFN": "1"}),
-        ("L4 Tropical top-K=32 (env BITNET_TROPICAL_TOPK=32)",
+        ("L3 ACDC FFN square (BITNET_ACDC_FFN=1)",
+                                          {"BITNET_ACDC_FFN": "1"}),
+        ("L3 ACDC FFN rect (BITNET_ACDC_FFN_RECT=1)",
+                                          {"BITNET_ACDC_FFN_RECT": "1"}),
+        ("L4 Tropical top-K=32 (BITNET_TROPICAL_TOPK=32)",
                                           {"BITNET_TROPICAL_TOPK": "32"}),
-        ("L4 Sparse float top-K=32 (env BITNET_SPARSE_TOPK=32)",
+        ("L4 Sparse float top-K=32 (BITNET_SPARSE_TOPK=32)",
                                           {"BITNET_SPARSE_TOPK": "32"}),
-        ("L5 HRR raw (env BITNET_HRR_ATTN=1)",
+        ("L5 HRR raw (BITNET_HRR_ATTN=1)",
                                           {"BITNET_HRR_ATTN": "1",
                                            "BITNET_HRR_ATTN_CLEANUP": "0"}),
-        ("L5 HRR + cleanup 8 (env BITNET_HRR_ATTN=1, CLEANUP=8)",
+        ("L5 HRR + cleanup 8 (BITNET_HRR_ATTN=1, CLEANUP=8)",
                                           {"BITNET_HRR_ATTN": "1",
                                            "BITNET_HRR_ATTN_CLEANUP": "8"}),
     ]

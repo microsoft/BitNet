@@ -1,8 +1,8 @@
 # ROADMAP — BitNet CPU-Universal
 
 > Roadmap **público** do fork, separado em 3 seções por horizonte temporal
-> e compromisso. **Versão:** v0.2 — atualizado por T035 (Fase 5: Polimento)
-> em 2026-06-06. **Ancoragem:** `requirements.md#8` (marcos M1-M5) e
+> e compromisso. **Versão:** v0.2.1 — atualizado em 2026-06-09 (S7: L6 RAG + bench v0.2.0).
+> **Ancoragem:** `requirements.md#8` (marcos M1-M5) e
 > `.reversa/scout/gap-analysis.md`.
 >
 > **Persona-alvo:** D4 (Privacidade/Soberania) — ver `requirements.md#9`.
@@ -55,6 +55,7 @@ jurídico, financeiro, privacidade individual).
 | **L3 ACDC** | Adaptive Circulant Diagonal Conv (FWHT) | ✅ Pronto | `src/ggml-bitnet-fwht.cpp` | `test_acdc` + `test_acdc_properties` (T005) |
 | **L4 tropical** | (max,+) semiring, top-K argmax | ✅ Pronto (opt-in) | `src/ggml-bitnet-tropical.cpp` | `test_tropical` + `test_l4_sparse_properties` (T006) |
 | **L5 HRR** | Holographic Reduced Representations (FFT) | ✅ Pronto (opt-in) | `src/ggml-bitnet-hrr.cpp` | `test_hrr_*` + `test_hrr_properties` (T007) |
+| **L6 RAG** | CPU-RAG flat-index ANN (inner-product + adaptive-K) | ✅ Standalone (opt-in) | `src/ggml-bitnet-rag.cpp` | `test_rag_retrieval` (4/4) |
 
 **Invariantes P1-P7** estão documentadas em `docs/invariants.md` (T013).
 **P6 (Estrutura, não compressão)** é a tese central: L3 e L5 **não são
@@ -76,7 +77,7 @@ métodos de compressão**; são arquiteturas de treinamento (ver §2).
 
 ### 1.3. Métricas de qualidade (RNF-01, RNF-02)
 
-- **ctest:** 9/9 verde, ≥ 50 subtests (RNF-01)
+- **ctest:** 16/16 verde, ≥ 50 subtests (RNF-01)
 - **Performance:** baseline L1 dentro de ±2 % em `n=128, t=4` (RNF-02)
 - **Documentação:** pt-BR (RNF-03)
 - **Patches:** 3 patches vendored em `patches/llama.cpp/` (RNF-04)

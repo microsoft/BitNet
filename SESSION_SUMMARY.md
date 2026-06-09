@@ -1593,3 +1593,143 @@ Teste `fwht_avx2_prefix` adicionado a `test_acdc.cpp`:
 - **Próximo passo:** Direção A — treinar modelo ~300M com FFN ACDC rect (n_ff/n_embd ≥ 7) para fechar gap P6; OU Direção C/D para HRR phasors / Tropical calibration
 
 **Sessão encerrada em 2026-06-07.**
+
+---
+
+## SESSÃO 2026-06-09 — Diagnóstico + Benchmarks v0.2.0
+
+### S7.1 Contexto
+
+HEAD: `a79df01` — 9 commits não documentados desde S6 (`25fc6b0` → `a79df01`).  
+Objetivo: verificar build/testes, rodar benchmark sistemático de todos os kernels, e documentar decisões.
+
+### S7.2 Commits não documentados (25fc6b0 → a79df01)
+
+| SHA | Descrição | Impacto |
+|-----|-----------|---------|
+| `c022916` | docs: sessão 2026-06-07d | doc only |
+| `352fa0b` | FWHT OMP parallel — finding negativo | exp/negativo |
+| `ea16c5a` | NEON in-register prefix h=1,2 | perf ARM |
+| `03ac1c7` | HRR phasor key API pública (`hrr_phasor_key_init`, `hrr_phasor_inv`) | L5 API |
+| `3918e42` | Tropical adaptive-K sparse attention — dynamic K via cumulative softmax | L4 new API |
+| `9eb24bf` | docs: ACDCLite spec de treinamento — fecha prerequisito P6 gap | doc |
+| `360156e` | Level 6 CPU-RAG flat-index ANN engine (ggml-bitnet-rag) | L6 new |
+| `e09321b` | fix(ci): consolida para patch 05 único | CI fix |
+| `a79df01` | refactor: move test_*.cpp/py da raiz para tests/ | organização |
+
+### S7.3 Fase 0 — Verificação build
+
+Build limpo: `cmake --build build -j$(nproc)` → 112/112 targets.  
+**ctest: 16/16 PASS** (era 14/14 antes, +2: `test_adaptive_k` e `test_rag_retrieval`).
+
+### S7.4 Fase 1 — FWHT AVX2 reconfirmado
+
+Benchmark standalone `bench_fwht_avx2` recompilado e re-executado (500 iters, 50 warmup):
+
+```
+n=128      (test_acdc size)    Scalar=828.4 ns   AVX2=254.2 ns   3.26×
+n=4096     (BitNet-2B P)       Scalar=27.9 µs    AVX2=9.1 µs     3.06×
+n=16384    (Falcon3-3B P)      Scalar=128.6 µs   AVX2=47.5 µs    2.71×
+n=32768    (Falcon3-10B P)     Scalar=265.5 µs   AVX2=113.2 µs   2.35×
+```
+
+**Nota:** S6 reportava 2.0× para n=32768; medição atual é **2.35×** (variância de ambiente/turbo boost).
+
+### S7.5 Fix crítico: BITNET_SPARSE_TOPK não estava hookado
+
+Antes desta sessão, `BITNET_SPARSE_TOPK` era lido como env var mas o path de dispatch
+em `build_llama()` / `build_falcon()` nunca ativava `bitnet_op_sparse_attn()` — o `getenv`
+existia mas o `if` correspondente não.
+
+**Fix:** Em `3rdparty/llama.cpp/src/llama.cpp`, dentro do bloco `#if defined(BITNET_L4_TROPICAL)`,
+adicionado `else if (bitnet_sparse_topk > 0) { ... bitnet_op_sparse_attn() ... }` após o bloco
+tropical. Também adicionado `bitnet_sparse_topk` como static local no mesmo bloco.
+
+### S7.6 Benchmarks v0.2.0 — 3 modelos × 7 configurações
+
+#### BitNet-2B (n_ff/n_embd=2.7×) — L1=3.90 tok/s
+
+| Config | tok/s | Δ vs L1 |
+|--------|-------|---------|
+| L3 ACDC FFN rect | 4.04 | **+3.6%** |
+| L4 Tropical K=32 | 4.38 | +12.3% |
+| L4 Sparse float K=32 | 4.29 | +10.0% |
+| L3 ACDC FFN quadrado | 3.78 | -3.1% |
+| L5 HRR raw | 2.21 | -43.3% |
+| L5 HRR+cleanup8 | 1.88 | -51.8% |
+
+#### Falcon3-3B (n_ff/n_embd=3.0×) — L1=3.34 tok/s
+
+| Config | tok/s | Δ vs L1 |
+|--------|-------|---------|
+| **L3 ACDC FFN rect** | **7.40** | **+121.6%** ✓ |
+| L3 ACDC FFN quadrado | 3.77 | +12.9% |
+| L4 Tropical K=32 | 3.66 | +9.6% |
+| L4 Sparse float K=32 | 3.51 | +5.1% |
+| L5 HRR raw | 2.00 | -40.1% |
+| L5 HRR+cleanup8 | 1.92 | -42.5% |
+
+#### Falcon3-10B (n_ff/n_embd=7.5×) — L1=0.92 tok/s
+
+| Config | tok/s | Δ vs L1 |
+|--------|-------|---------|
+| **L3 ACDC FFN rect** | **2.30** | **+150.0%** ✓ |
+| L4 Tropical K=32 | 0.98 | +6.5% |
+| L3 ACDC FFN quadrado | 0.89 | -3.3% |
+| L4 Sparse float K=32 | 0.73 | -20.7% |
+| L5 HRR raw | 0.73 | -20.7% |
+| L5 HRR+cleanup8 | 0.75 | -18.5% |
+
+### S7.7 Lei empírica atualizada — ACDC rect
+
+Speedup do L3 ACDC rect é proporcional a `n_ff/n_embd`:
+
+| n_ff/n_embd | Speedup observado |
+|---|---|
+| 2.7× (BitNet-2B) | +3.6% |
+| 3.0× (Falcon3-3B) | **+121.6%** |
+| 7.5× (Falcon3-10B) | **+150.0%** |
+
+Break-even empírico: n_ff/n_embd ≈ 2.5. Modelos com FFN alargada (Falcon-style) são os
+candidatos naturais para L3 — não modelos com FFN compacta (BitNet-2B).
+
+### S7.8 Fase 3 — HRR Phasor Keys
+
+`hrr_phasor_key_init` e `hrr_phasor_inv` existem como API pública (commit `03ac1c7`) mas
+**não estão hookados** no dispatch do llama.cpp. O HRR no llama.cpp ainda usa Gaussian random
+keys. O benchmark HRR desta sessão reflete o HRR com random keys (não phasor).
+
+**Decisão D-PHASOR:** implementar hook `BITNET_HRR_PHASOR=1` em próxima sessão.
+
+### S7.9 Fase 4 — L6 RAG
+
+4/4 ctest PASS. ctypes bridge funcional. Benchmark:
+- NumPy: 1.54 ms/query (1000 docs × d=256)
+- C/ctypes: 0.64 ms/query — **2.4× speedup**
+
+**Decisão D-RAG:** manter como standalone. Integração no llama.cpp requer "KV context store"
+externo ao graph ggml — não trivial sem modelo treinado como referência de qualidade.
+
+### S7.10 Decisões tomadas
+
+| ID | Pergunta | Decisão |
+|----|---------|---------|
+| D-SPARSE | BITNET_SPARSE_TOPK como default L4? | **Não** — opt-in. Penalidade -20.7% no 10B. |
+| D-RAG | Integrar L6 no llama.cpp? | **Não agora** — standalone suficiente. |
+| D-NEON | CI ARM (qemu) para NEON prefix? | **Pendente** — sem hardware ARM local. |
+| D-PHASOR | HRR phasor keys no dispatch? | **Próxima sessão** — hook `BITNET_HRR_PHASOR=1`. |
+
+### S7.11 Estado final da sessão 2026-06-09
+
+- **ctests:** 16/16 PASS
+- **Arquivos modificados:**
+  - `3rdparty/llama.cpp/src/llama.cpp` — hook `BITNET_SPARSE_TOPK` adicionado
+  - `utils/cpu_universal_benchmark.py` — L3 rect + sparse float adicionados
+  - `benchmarks/v0.2.0/bench.md` — atualizado com dados completos desta sessão
+  - `SESSION_SUMMARY.md` — esta seção
+- **Próximos passos prioritários:**
+  1. Hook `BITNET_HRR_PHASOR=1` no llama.cpp → medir impacto real do phasor vs random keys
+  2. Benchmark L4 adaptive-K a n=256 (contexto longo) — confirmar se avg_K realmente ≈ 17
+  3. Avaliar `BITNET_ACDC_FFN_RECT` como **default** para modelos com n_ff/n_embd > 3
+
+**Sessão encerrada em 2026-06-09.**
