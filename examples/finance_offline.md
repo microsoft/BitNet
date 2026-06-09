@@ -4,7 +4,7 @@
 > canônico: analista financeiro categoriza despesas em workstation
 > bancária **sem internet**, com BitNet-2B rodando 100% local.
 >
-> **Versão:** v0.1 — gerado por T023 (Fase 3: Núcleo) em 2026-06-06.
+> **Versão:** v0.2 — atualizado em 2026-06-09 (bench v0.2.0 + adaptive-K + fix encoding).
 > **Ancoragem:** `requirements.md#9` (persona D4), AC-11/AC-12
 > (`requirements.md#6`), `docs/decision-matrix.md` (T015).
 
@@ -130,6 +130,16 @@ cat chunk_*.categorizado > extrato_jan2024_categorizado.txt
 **Tempo esperado:** ~40-60 segundos por chunk (30 transações) em
 i5-8350U. Para 500 transações: ~15-20 min total.
 
+### Passo 3b (opcional): ativar adaptive-K para throughput
+
+```bash
+# Adaptive-K cov=0.90: quase neutro em BitNet-2B (-1.3%).
+# Em lote de 500 transações, cada segundo economizado importa.
+BITNET_SPARSE_TOPK_ADAPTIVE=0.90 build/bin/llama-cli \
+  -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf \
+  -p "$PROMPT" -n 200 -t 4
+```
+
 ### Passo 4: revisar e gerar relatório
 
 ```bash
@@ -214,7 +224,7 @@ Assinatura: ___   Data: ___   Matrícula: ___
    **triagem inicial**, não como detecção final.
 3. **BitNet-2B é pequeno (2B).** Para padrões muito sutis
    (lavagem de dinheiro estruturada, smurfing), use software
-  专门izado (ex: ACL, SAS, OFAC screening).
+   especializado (ex: ACL, SAS, OFAC screening).
 4. **Língua:** primariamente inglês. Para descrições em português,
    valide a qualidade com extratos antigos antes de usar em produção.
 5. **Sem integração com ERP/sistema bancário.** Você precisa
@@ -226,7 +236,7 @@ Assinatura: ___   Data: ___   Matrícula: ___
 ## Quando **NÃO** usar BitNet-2B
 
 - **Detecção de fraude crítica** (lavagem, financiamento ao
-  terrorismo) — use software专门izado com regras atualizadas.
+  terrorismo) — use software especializado com regras atualizadas.
 - **Compliance OFAC / sanções internacionais** — use listas
   atualizadas diariamente (BitNet não tem dados de sanções).
 - **Auditoria final** — BitNet é triagem; auditoria humana é
@@ -253,7 +263,7 @@ Assinatura: ___   Data: ___   Matrícula: ___
 ## Referências
 
 - **Persona D4:** `requirements.md#9`
-- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (sparse opt-in)
+- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (L4 adaptive-K)
 - **Hardware-compatibility:** `docs/hardware-compatibility.md` (T016) linha "ThinkPad T480"
 - **Air-gapped test:** `tests/test_air_gapped_boot.sh` (T010)
 - **ROADMAP público:** `ROADMAP.md` (T014)
@@ -261,7 +271,8 @@ Assinatura: ___   Data: ___   Matrícula: ___
 
 ---
 
-*v0.1 — gerado por T023 em 2026-06-06T22:45:00Z*
+*v0.2 — atualizado em 2026-06-09 (T023)*
 *Walkthrough persona D4 setor financeiro: setup 1× online, uso diário
 offline em workstation restrita, categorização em lote, auditoria
 BCB/GLBA, limitações honestas (heurística ≠ auditoria forense).*
+*v0.1 gerado por T023 em 2026-06-06T22:45:00Z.*

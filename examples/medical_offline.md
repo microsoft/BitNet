@@ -4,7 +4,7 @@
 > analisa prontuário em laptop de consultório, **sem internet**, com
 > BitNet-2B rodando 100% local.
 >
-> **Versão:** v0.1 — gerado por T021 (Fase 3: Núcleo) em 2026-06-06.
+> **Versão:** v0.2 — atualizado em 2026-06-09 (bench v0.2.0 + adaptive-K).
 > **Ancoragem:** `requirements.md#9` (persona D4), AC-11/AC-12
 > (`requirements.md#6`), `docs/decision-matrix.md` (T015).
 
@@ -105,15 +105,18 @@ Resumo:" \
 **Tempo esperado:** ~40 segundos para 200 tokens em i5-8350U (RNF-02, ±2 %).
 **Memória:** ~4.5 GB (modelo + KV cache + inferência).
 
-### Passo 3 (opcional): ativar sparse opt-in para velocidade
+### Passo 3 (opcional): ativar adaptive-K para velocidade
 
 ```bash
-# Sparse float top-K=32: ~50% mais rápido (RNF-02 ~+44%),
-# com risco de pequena degradação de qualidade.
+# Adaptive-K cov=0.90: seleciona K por head dinamicamente.
+# Para BitNet-2B: quase neutro (−1.3%); seguro de ativar.
 # Teste em prontuários antigos antes de usar em produção.
-BITNET_SPARSE_TOPK=32 python run_inference.py \
+BITNET_SPARSE_TOPK_ADAPTIVE=0.90 build/bin/llama-cli \
   -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf \
   -p "$PROMPT" -n 200 -t 4
+
+# Alternativa (legado): sparse float K fixo
+# BITNET_SPARSE_TOPK=32 build/bin/llama-cli ...
 ```
 
 ### Passo 4: salvar e revisar
@@ -205,7 +208,7 @@ Assinatura: ___   Data: ___
 ## Referências
 
 - **Persona D4:** `requirements.md#9`
-- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (sparse opt-in)
+- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (L4 adaptive-K)
 - **Hardware-compatibility:** `docs/hardware-compatibility.md` (T016) linha "ThinkPad T480"
 - **Air-gapped test:** `tests/test_air_gapped_boot.sh` (T010)
 - **ROADMAP público:** `ROADMAP.md` (T014)
@@ -213,6 +216,7 @@ Assinatura: ___   Data: ___
 
 ---
 
-*v0.1 — gerado por T021 em 2026-06-06T22:15:00Z*
+*v0.2 — atualizado em 2026-06-09 (T021)*
 *Walkthrough persona D4 setor saúde: setup 1× online, uso diário offline,
 validação air-gapped, auditoria LGPD, limitações honestas.*
+*v0.1 gerado por T021 em 2026-06-06T22:15:00Z.*

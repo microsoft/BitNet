@@ -4,7 +4,7 @@
 > canônico: advogado resume petição inicial em escritório pequeno,
 > **sem internet**, com BitNet-2B rodando 100% local.
 >
-> **Versão:** v0.1 — gerado por T022 (Fase 3: Núcleo) em 2026-06-06.
+> **Versão:** v0.2 — atualizado em 2026-06-09 (bench v0.2.0 + adaptive-K).
 > **Ancoragem:** `requirements.md#9` (persona D4), AC-11/AC-12
 > (`requirements.md#6`), `docs/decision-matrix.md` (T015).
 
@@ -122,6 +122,16 @@ python run_inference.py \
 **Tempo esperado:** ~40-50 segundos para 200 tokens em i5-8250U.
 **Memória:** ~4.5 GB (modelo + KV cache).
 
+### Passo 3b (opcional): ativar adaptive-K para velocidade
+
+```bash
+# Adaptive-K cov=0.90: quase neutro em BitNet-2B (-1.3%).
+# Seguro de ativar como default; revisar output como sempre.
+BITNET_SPARSE_TOPK_ADAPTIVE=0.90 build/bin/llama-cli \
+  -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf \
+  -p "$PROMPT" -n 200 -t 4
+```
+
 ### Passo 4: salvar e revisar
 
 ```bash
@@ -225,7 +235,7 @@ Assinatura: ___   Data: ___   OAB: ___
 ## Referências
 
 - **Persona D4:** `requirements.md#9`
-- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (sparse opt-in)
+- **Decision matrix:** `docs/decision-matrix.md` (T015) linha 1 (BitNet-2B denso) e linha 2 (L4 adaptive-K)
 - **Hardware-compatibility:** `docs/hardware-compatibility.md` (T016) linha "Dell Latitude 5490"
 - **Air-gapped test:** `tests/test_air_gapped_boot.sh` (T010)
 - **ROADMAP público:** `ROADMAP.md` (T014)
@@ -233,7 +243,8 @@ Assinatura: ___   Data: ___   OAB: ___
 
 ---
 
-*v0.1 — gerado por T022 em 2026-06-06T22:30:00Z*
+*v0.2 — atualizado em 2026-06-09 (T022)*
 *Walkthrough persona D4 setor jurídico: setup 1× online, uso diário
 offline, validação air-gapped, auditoria OAB, limitações honestas
 (inventar artigos é o risco mais alto).*
+*v0.1 gerado por T022 em 2026-06-06T22:30:00Z.*
