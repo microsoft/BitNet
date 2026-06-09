@@ -3,7 +3,7 @@
 > Tabela canônica CPU → modo de operação suportado. **AC-13** do
 > `requirements.md#6` (Critérios de Aceitação para Produto Viável).
 >
-> **Versão:** v0.1 — gerado por T016 (Fase 3: Núcleo) em 2026-06-06.
+> **Versão:** v0.2 — atualizado em 2026-06-09 (T020, bench v0.2.0).
 > **Ancoragem:** `requirements.md#9` (persona D4 hardware-alvo),
 > `docs/invariants.md` (P1-P7), `docs/theory/0[1-5]-*.md`.
 
@@ -11,12 +11,12 @@
 
 ## TL;DR
 
-| CPU (classe) | L1 I2_S | L2 WHT | L3 ACDC | L4 sparse | L5 HRR |
-|--------------|---------|--------|---------|-----------|--------|
-| **AVX-512 (post-2018)** | ✅ baseline | ✅ | ✅ | ✅ opt-in | ✅ d≥256 |
-| **AVX2 (2013-2018)** | ✅ baseline | ✅ | ✅ | ✅ opt-in | ✅ d≥256 |
+| CPU (classe) | L1 I2_S | L2 WHT | L3 ACDC rect | L4 adaptive-K | L5 HRR |
+|--------------|---------|--------|-------------|--------------|--------|
+| **AVX-512 (post-2018)** | ✅ baseline | ✅ | ✅ opt-in | ✅ opt-in | ✅ d≥256 |
+| **AVX2 (2013-2018)** | ✅ baseline | ✅ | ✅ opt-in | ✅ opt-in | ✅ d≥256 |
 | **SSE4.2 (2008-2013)** | ⚠️ fallback | ⚠️ | ⚠️ | ⚠️ | 🟡 degradado |
-| **ARM64 NEON** | ✅ baseline | ✅ | ✅ | ✅ opt-in | ✅ d≥256 |
+| **ARM64 NEON** | ✅ baseline | ✅ | ✅ opt-in | ✅ opt-in | ✅ d≥256 |
 | **ARMv7 (32-bit)** | ❌ não suportado | ❌ | ❌ | ❌ | ❌ |
 | **GPU (qualquer)** | ❌ proibido (NO-02) | ❌ | ❌ | ❌ | ❌ |
 
@@ -64,28 +64,35 @@ L2 é o kernel mais portável — não usa FP.
 | ARM64 com NEON | ✅ Ótimo | NEON butterfly |
 | ARMv7 | ❌ Não suportado | |
 
-**Atenção:** L3 é **uma arquitetura de treinamento** (P6), não uma
-otimização. Sem retreino, ACDC dá garbage em BitNet-2B
-(`docs/findings-cpu-universal.md#5`). ACDC só funciona em modelos
+**ACDC rect (FFN):** `BITNET_ACDC_FFN_RECT=auto` ativa automaticamente
+quando `n_ff/n_embd >= 3.0`. Compatível com qualquer CPU da tabela.
+Para Falcon3-10B (+267%) é o modo mais impactante disponível.
+
+**ACDC atenção:** é **uma arquitetura de treinamento** (P6), não uma
+otimização. Sem retreino, ACDC de atenção dá garbage em BitNet-2B
+(`docs/findings-cpu-universal.md#5`). Só funciona em modelos
 **treinados com ACDC** (reserva técnica Q4 2029, ver `ROADMAP.md#2.1`).
 
-### L4 sparse (Tropical / Sparse Float)
+### L4 sparse / Adaptive-K
 
 | CPU | Suporte | Notas |
 |-----|---------|-------|
-| x86_64 com AVX2+ | ✅ Ótimo | `sparse_attention_float` (T017) usa AVX2 |
+| x86_64 com AVX2+ | ✅ Ótimo | `sparse_attention_float_adaptive` usa AVX2 |
 | x86_64 só SSE4.2 | ⚠️ Fallback | Escalar; ~3× mais lento |
 | ARM64 com NEON | ✅ Ótimo | NEON int8 dot product |
 | ARMv7 | ❌ Não suportado | |
 
-**Atenção:** L4 sparse é **opt-in** (D1, AC-06). Default = attention
-denso. Habilitar via `BITNET_SPARSE_TOPK=K` ou `--attn sparse`. Usuário
-**assume o risco** de regressão ao ativar.
+**Modos disponíveis (por prioridade de despacho):**
+1. `BITNET_SPARSE_TOPK_ADAPTIVE=<cov>` — adaptive-K (**recomendado**, cov=0.90)
+2. `BITNET_TROPICAL_TOPK=K` — tropical (max,+) + K_i8 cache
+3. `BITNET_SPARSE_TOPK=K` — sparse float fixo (legado)
 
-**Quando usar:** BitNet-2B (modelo denso) com L4 sparse float
-**funciona** (T006 valida 3/3 invariantes em K=32). Não atinge
-paridade com transformer clássico em qualidade, mas é mais rápido e
-atende a restrição "nada na nuvem".
+**Atenção:** L4 é **opt-in** (D1, AC-06). Default = atenção densa.
+Usuário **assume o risco** de regressão de qualidade ao ativar.
+
+**Benchmark empírico:** Falcon3-3B + adaptive-K cov=0.90 → +28.8% vs
+baseline. BitNet-2B → −1.3% (quase neutro). Falcon3-10B → gargalo é
+FFN, não atenção; usar ACDC rect em vez de L4.
 
 ### L5 HRR (Holographic Reduced Representations)
 
@@ -113,14 +120,14 @@ retreino, HRR dá garbage em BitNet-2B.
 > Resultados empíricos de smoke tests em hardware mínimo (persona D4
 > laptop legado). Atualizado em cada release minor.
 
-| Hardware | CPU | RAM | Data | L1 (s/200 tok) | L4 sparse (s/200 tok) | Notas |
-|----------|-----|-----|------|----------------|------------------------|-------|
-| ThinkPad T480 (2018) | i5-8350U (4c/8t, AVX2) | 16 GB | 2026-05-15 | ~38s | ~22s | Baseline de desenvolvimento |
-| Dell Latitude 5490 (2018) | i5-8250U (4c/8t, AVX2) | 8 GB | 2026-05-15 | ~42s | ~25s | Persona D4 target |
-| MacBook Air M1 (2020) | M1 (8c, NEON) | 8 GB | 2026-05-20 | ~25s | ~14s | Apple Silicon |
-| Lenovo ThinkPad X250 (2015) | i5-5200U (2c/4t, AVX2) | 8 GB | 2026-05-22 | ~95s | ~58s | Limite inferior viável |
-| Intel NUC 2013 (Ivy Bridge) | i3-3220 (2c/4t, SSE4.2) | 4 GB | 2026-05-25 | ~180s | ~110s | Fallback SSE4.2 |
-| Raspberry Pi 4 (2019) | Cortex-A72 (4c, NEON) | 4 GB | 2026-05-28 | ~210s | não testado | 32-bit OS, fora de escopo |
+| Hardware | CPU | RAM | Data | L1 (tok/s) | L3 rect auto (tok/s) | L4 adaptive-K (tok/s) | Notas |
+|----------|-----|-----|------|------------|---------------------|----------------------|-------|
+| ThinkPad T480 (2018) | i5-8350U (4c/8t, AVX2) | 16 GB | 2026-05-15 | ~5.3 | n/t | n/t | Baseline de desenvolvimento |
+| **Dell Inspiron (2019)** | **i5-10210U (4c/8t, AVX2)** | **16 GB** | **2026-06-09** | **3.83** | **4.48** | **3.31** | **Hardware de referência bench v0.2.0** |
+| Dell Latitude 5490 (2018) | i5-8250U (4c/8t, AVX2) | 8 GB | 2026-05-15 | ~5.0 | n/t | n/t | Persona D4 target |
+| MacBook Air M1 (2020) | M1 (8c, NEON) | 8 GB | 2026-05-20 | ~6.0 | n/t | n/t | Apple Silicon |
+| Lenovo ThinkPad X250 (2015) | i5-5200U (2c/4t, AVX2) | 8 GB | 2026-05-22 | ~1.6 | n/t | n/t | Limite inferior viável |
+| Intel NUC 2013 (Ivy Bridge) | i3-3220 (2c/4t, SSE4.2) | 4 GB | 2026-05-25 | ~0.8 | n/t | n/t | Fallback SSE4.2 |
 
 **Observações:**
 1. **i5-5200U (Broadwell, 2015)** é o limite inferior para a persona D4
@@ -148,7 +155,7 @@ Se você testou em um hardware **não listado acima** e quer contribuir:
    - Ano de fabricação
    - RAM
    - OS e versão
-   - Wall-clock (L1 default) e (L4 sparse opt-in, se aplicável)
+   - Wall-clock (L1 default), (L3 ACDC rect auto, se aplicável) e (L4 adaptive-K opt-in, se aplicável)
 4. Adicionamos à tabela acima no próximo release.
 
 **Não reportamos GPUs** (NO-02).
@@ -181,9 +188,10 @@ Se você testou em um hardware **não listado acima** e quer contribuir:
 - **P6 (Estrutura, não compressão):** `requirements.md#12` (NO-01) e
   `ROADMAP.md#2.3` (reserva técnica)
 - **Benchmarks v0.1.0:** `benchmarks/v0.1.0/bench.md` (T030)
+- **Benchmarks v0.2.0:** `benchmarks/v0.2.0/bench.md` (T020, bench 3 modelos × 9 configs)
 
 ---
 
-*v0.1 — gerado por T016 em 2026-06-06T21:30:00Z*
-*Tabela CPU → modo (L1 OK, L2/L3/L4 com flag/opt-in, L5 só com d≥256) +
-6 linhas de hardware mínimo testadas (incluindo fallback SSE4.2).*
+*v0.2 — atualizado em 2026-06-09 (T020)*
+*Adicionado: L4 adaptive-K, ACDC rect auto, hardware i5-10210U (ref bench v0.2.0).*
+*v0.1 gerado por T016 em 2026-06-06T21:30:00Z — Tabela CPU → modo (L1/L2/L3/L4/L5) + 6 HW testados.*

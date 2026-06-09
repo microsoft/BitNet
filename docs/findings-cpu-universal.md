@@ -419,3 +419,105 @@ Ver `.reversa/scout/gap-analysis.md` para o estado consolidado:
 - Integração dispatch: 100 %
 - Validação empírica: parcial (limitada por modelo não-treinado)
 - **Gap principal: P6 (retreino GPU, fora de escopo deste fork)**
+
+---
+
+## 9. Achados do Bench v0.2.0 — Falcon3 + Adaptive-K + ACDC rect auto
+
+> **Data:** 2026-06-09 (Sessões S7.8–S7.14)
+> **Hardware:** Intel i5-10210U (4c/8t, AVX2), 16 GB RAM, t=4, n=64
+> **Modelos testados:** BitNet-2B (2.7×), Falcon3-3B (3.0×), Falcon3-10B (7.5×)
+> **Dados canônicos:** `benchmarks/v0.2.0/bench.md`
+
+### 9.1 ACDC rect (L3) é o maior ganho sem retreino
+
+Antes desta sessão, o ACDC rect só foi testado em BitNet-2B onde o speedup
+era modesto. Com Falcon3-3B e 10B (modelos com `n_ff/n_embd` maior):
+
+| Modelo | n_ff/n_embd | ACDC rect=1 | vs baseline |
+|--------|-------------|-------------|-------------|
+| BitNet-2B | 2.7× | 3.64 tok/s | +17.5% |
+| Falcon3-3B | 3.0× | 3.43 tok/s | +46% |
+| Falcon3-10B | 7.5× | 4.11 tok/s | **+267%** |
+
+**Mecanismo:** ACDC rect lê diagonal d (4 KB) em vez de matriz W
+(720 MB para o 10B) → redução de 170× no I/O de memória. O gargalo da
+inferência em CPU com modelos grandes é **bandwidth de memória**, não
+FLOP.
+
+**Lei empírica confirmada:** `n_ff/n_embd > 5` → speedup líquido
+expressivo. `n_ff/n_embd ≈ 3` → speedup moderado. `< 2.7` → neutro.
+
+### 9.2 BITNET_ACDC_FFN_RECT=auto — zero-config
+
+Implementamos auto-detecção via threshold `n_ff/n_embd >= 3.0`:
+
+```
+BITNET_ACDC_FFN_RECT=auto   →   ativa se n_ff/n_embd >= 3.0
+BITNET_ACDC_FFN_RECT=1      →   sempre ativa
+(unset)                     →   FFN densa (default)
+```
+
+**Bug histórico corrigido:** threshold inicial era `> 3.0f`, que excluía
+Falcon3-3B com ratio exato 3.0000 (9216/3072 = 3.0). Corrigido para `>= 3.0f`.
+
+**Verificação runtime:**
+- BitNet-2B (2.7×): usa `build_bitnet_158()`, fora dos call sites → no-op ✓
+- Falcon3-3B (3.0×): usa `build_llama()` → ENABLED ✓
+- Falcon3-10B (7.5×): usa `build_llama()` → ENABLED ✓
+
+### 9.3 Adaptive-K sparse attention (L4)
+
+Adaptive-K seleciona K dinamicamente por head via threshold de cobertura
+softmax: acumula pesos softmax dos top-k_max scores até `∑ ≥ coverage`.
+
+```
+BITNET_SPARSE_TOPK_ADAPTIVE=0.90   →   cov=0.90, K_max=32 (default)
+```
+
+Benchmarks (n=64, t=4):
+
+| Modelo | adaptive-K cov=0.90 | vs baseline | vs tropical K=32 |
+|--------|---------------------|-------------|------------------|
+| BitNet-2B | 3.31 tok/s | −1.3% (quase neutro) | −19.7% |
+| Falcon3-3B | 2.81 tok/s | +28.8% | +18.1% |
+| Falcon3-10B | n/a | − | − |
+
+**Interpretação BitNet-2B:** avg_K ≪ 32 (heads concentradas) → aggregation
+cai para O(avg_K·d) mas o scoring O(n_kv·log K_max) domina em n=64.
+
+**Interpretação Falcon3-3B:** gargalo é atenção (n_ff/n_embd = 3.0, FFN
+já é lenta) → adaptive-K reduz aggregation e supera tropical e sparse fixo.
+
+**Interpretação Falcon3-10B:** gargalo é FFN (7.5×), não atenção →
+adaptive-K não ajuda; ACDC rect é a alavanca certa.
+
+### 9.4 HRR phasor keys (L5) — descartado para inferência
+
+Phasor keys têm inversa exata (zero inversion error) mas o overhead de
+matching O(n_kv × d) por token domina:
+
+| Modelo | HRR phasor | vs baseline |
+|--------|------------|-------------|
+| BitNet-2B | 1.75 tok/s | −54% |
+| Falcon3-3B | 1.15 tok/s | −51% |
+
+**Decisão (D-PHASOR, fechada):** phasor keys são viáveis apenas com
+projeção aprendida Q → espaço phasor (P6 gap). Sem retreino, overhead
+domina. Permanece como opt-in experimental via `BITNET_HRR_PHASOR=1`.
+
+### 9.5 Guia de decisão atualizado (v0.2)
+
+| Modelo | Recomendação principal | Env vars |
+|--------|------------------------|----------|
+| BitNet-2B | L1 baseline | — |
+| Falcon3-3B | L3 ACDC rect auto | `BITNET_ACDC_FFN_RECT=auto` |
+| Falcon3-10B | L3 ACDC rect auto | `BITNET_ACDC_FFN_RECT=auto` |
+| Qualquer + n_ff/n_embd 2-5 | L4 adaptive-K | `BITNET_SPARSE_TOPK_ADAPTIVE=0.90` |
+
+Ver `docs/decision-matrix.md` (v0.2) para tabela completa com critérios.
+
+---
+
+*Seção §9 adicionada em 2026-06-09 (T020, bench v0.2.0). Seções §1–§8
+cobrem v0.1 (Sessões S1–S2d, 2026-06-05 a 2026-06-06).*
