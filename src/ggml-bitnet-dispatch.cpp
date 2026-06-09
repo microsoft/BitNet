@@ -691,6 +691,111 @@ struct ggml_tensor * bitnet_op_hrr_attn(
     return ggml_map_custom3(ctx, q, k, v, hrr_callback, GGML_N_TASKS_MAX, NULL);
 }
 
+/* ─── L5: HRR attention with phasor positional keys ───────────────────────
+ *
+ * Replaces the model's K projections with deterministic phasor keys
+ * (one per position, seeded by head_index * MAX_KV + position).
+ *
+ * Advantage vs ternary-derived keys:
+ *   k_phasor ⊛ k_phasor_inv = δ  (exact — zero inversion error)
+ *   Gaussian/ternary: k ⊛ k_inv ≈ δ + O(1/√d) error
+ *
+ * The V values from the model are still used unchanged.
+ * Memory layout: M = Σᵢ phasor_k[i] ⊛ V[i]
+ * Retrieval: out ≈ M ⊛ argmin_k(‖Q - phasor_k[k]‖₂)⁻¹
+ *
+ * Enable at runtime: BITNET_HRR_PHASOR=1
+ */
+static void hrr_phasor_callback(
+    struct ggml_tensor       * dst,
+    const struct ggml_tensor * q_t,
+    const struct ggml_tensor * k_t,
+    const struct ggml_tensor * v_t,
+    int ith, int nth, void * userdata)
+{
+    (void)userdata; (void)k_t;
+
+    const int d         = (int)q_t->ne[0];
+    const int n_tokens  = (int)q_t->ne[1];
+    const int n_head    = (int)(q_t->ne[2] > 0 ? q_t->ne[2] : 1);
+    const int n_kv      = (int)k_t->ne[1];
+    const int n_head_kv = (int)(k_t->ne[2] > 0 ? k_t->ne[2] : 1);
+    const int gqa       = n_head / n_head_kv;
+
+    const float * q_f = (const float *)q_t->data;
+    const float * v_f = (const float *)v_t->data;
+    float       * out = (float *)dst->data;
+
+    /* Per-thread scratch */
+    float * M          = (float *)malloc((size_t)d * sizeof(float));
+    float * tmp        = (float *)malloc((size_t)4 * (d + 2) * sizeof(float));
+    /* All n_kv phasor keys + their exact inverses for one head */
+    float * pk_all     = (float *)malloc((size_t)n_kv * d * sizeof(float));
+    float * pk_inv_all = (float *)malloc((size_t)n_kv * d * sizeof(float));
+
+    if (!M || !tmp || !pk_all || !pk_inv_all) {
+        free(M); free(tmp); free(pk_all); free(pk_inv_all);
+        return;
+    }
+
+    for (int h = ith; h < n_head; h += nth) {
+        const int    kv_h   = h / gqa;
+        const float *v_head = v_f + (size_t)kv_h * n_kv * d;
+        float       *out_hd = out + (size_t)h    * n_tokens * d;
+
+        /* 1. Generate phasor keys for all positions in this head.
+         *    Seed: (head_index << 20) | position — unique per (head, pos). */
+        for (int i = 0; i < n_kv; i++) {
+            uint64_t seed = ((uint64_t)(kv_h + 1) << 20) | (uint64_t)i;
+            float * pki     = pk_all     + (size_t)i * d;
+            float * pki_inv = pk_inv_all + (size_t)i * d;
+            hrr_phasor_key_init(pki, d, seed);
+            hrr_phasor_inv(pki_inv, pki, d, tmp);
+        }
+
+        /* 2. Build holographic memory: M = Σᵢ phasor_k[i] ⊛ V[i] */
+        memset(M, 0, (size_t)d * sizeof(float));
+        for (int i = 0; i < n_kv; i++) {
+            hrr_accumulate(M, pk_all + (size_t)i * d,
+                           v_head   + (size_t)i * d, d, tmp);
+        }
+
+        /* 3. Retrieve for each query token.
+         *    Strategy: find best-matching phasor key via dot product Q·phasor_k,
+         *    then unbind with its exact inverse. */
+        const float * q_head = q_f + (size_t)h * n_tokens * d;
+        for (int t = 0; t < n_tokens; t++) {
+            const float * q_tok = q_head + (size_t)t * d;
+            float       * out_t = out_hd + (size_t)t * d;
+
+            /* Find closest phasor key to query (cosine proxy = dot product,
+             * all phasor keys have ||k||=1 exactly). */
+            int   best_i   = 0;
+            float best_dot = 0.0f;
+            for (int i = 0; i < n_kv; i++) {
+                const float * pki = pk_all + (size_t)i * d;
+                float dot = 0.0f;
+                for (int j = 0; j < d; j++) dot += q_tok[j] * pki[j];
+                if (dot > best_dot) { best_dot = dot; best_i = i; }
+            }
+
+            /* Unbind: out ≈ M ⊛ phasor_k_inv[best_i] */
+            hrr_unbind(out_t, M, pk_inv_all + (size_t)best_i * d, d, tmp);
+        }
+    }
+
+    free(M); free(tmp); free(pk_all); free(pk_inv_all);
+}
+
+struct ggml_tensor * bitnet_op_hrr_attn_phasor(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v)
+{
+    return ggml_map_custom3(ctx, q, k, v, hrr_phasor_callback, GGML_N_TASKS_MAX, NULL);
+}
+
 /* ─── L5: HRR attention + Frady 2021 cleanup_iter ─────────────────────── */
 
 struct hrr_cleanup_ud {
@@ -791,6 +896,16 @@ struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
     int                   max_iters)
 {
     (void)ctx; (void)k; (void)v; (void)max_iters;
+    return q;
+}
+
+struct ggml_tensor * bitnet_op_hrr_attn_phasor(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v)
+{
+    (void)ctx; (void)k; (void)v;
     return q;
 }
 

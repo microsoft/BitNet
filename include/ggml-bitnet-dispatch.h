@@ -225,6 +225,25 @@ GGML_API struct ggml_tensor * bitnet_op_hrr_attn_with_cleanup(
     struct ggml_tensor  * v,
     int                  max_iters);
 
+/*
+ * bitnet_op_hrr_attn_phasor: HRR attention with phasor positional keys.
+ *
+ * Instead of deriving keys from the model's K projections (ternary approx),
+ * uses deterministic phasor keys per position: seed = (head_idx+1)<<20 | pos.
+ * Phasor keys satisfy k ⊛ k_inv = δ exactly (zero inversion error).
+ *
+ * Retrieval: for each query, finds the closest phasor key via dot product,
+ * then unbinds with its exact inverse.
+ *
+ * Enable at runtime: BITNET_HRR_PHASOR=1
+ * Requires: BITNET_L5_HRR=ON at compile time.
+ */
+GGML_API struct ggml_tensor * bitnet_op_hrr_attn_phasor(
+    struct ggml_context * ctx,
+    struct ggml_tensor  * q,
+    struct ggml_tensor  * k,
+    struct ggml_tensor  * v);
+
 #ifdef __cplusplus
 }
 #endif

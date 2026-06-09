@@ -102,6 +102,9 @@ def main():
         ("L5 HRR + cleanup 8 (BITNET_HRR_ATTN=1, CLEANUP=8)",
                                           {"BITNET_HRR_ATTN": "1",
                                            "BITNET_HRR_ATTN_CLEANUP": "8"}),
+        ("L5 HRR phasor keys (BITNET_HRR_ATTN=1, PHASOR=1)",
+                                          {"BITNET_HRR_ATTN": "1",
+                                           "BITNET_HRR_PHASOR": "1"}),
     ]
 
     print(f"CPU-Universal smoke benchmark")
