@@ -93,9 +93,16 @@ output garbage. Para funcionar, o modelo precisa ser **treinado do zero**
 com a arquitetura. Esse retreino é **reserva técnica** (Q4 2029, ver
 `ROADMAP.md#2`).
 
-**Recomendação para BitNet-2B atual:** use **L1 (baseline)** ou **L4
-sparse opt-in** (`BITNET_SPARSE_TOPK=32`). Ver `docs/decision-matrix.md`
-para detalhes.
+**Recomendação (v0.2, dados empíricos):**
+
+| Modelo | Modo recomendado | Env var | Speedup |
+|--------|-----------------|---------|--------|
+| BitNet-2B | L1 baseline | — | — |
+| Falcon3-3B | L3 ACDC rect auto | `BITNET_ACDC_FFN_RECT=auto` | +144% |
+| Falcon3-10B | L3 ACDC rect auto | `BITNET_ACDC_FFN_RECT=auto` | +267% |
+| Qualquer (n_ff/n_embd 2-5) | L4 adaptive-K | `BITNET_SPARSE_TOPK_ADAPTIVE=0.90` | +29% |
+
+Ver `docs/decision-matrix.md` para critérios completos.
 
 ---
 
@@ -166,12 +173,27 @@ python run_inference.py \
   -cnv
 ```
 
-### Atenção esparsa (L4 sparse float, opt-in)
+### FFN acelerada: ACDC rect auto (L3, recomendado para Falcon3)
 
 ```bash
-# Sparse float top-K=32: ~50% mais rápido, com risco de pequena
-# degradação de qualidade. Teste antes em produção.
-BITNET_SPARSE_TOPK=32 python run_inference.py \
+# Ativa automaticamente quando n_ff/n_embd >= 3.0.
+# Falcon3-3B: +144%; Falcon3-10B: +267%. Zero configuração extra.
+BITNET_ACDC_FFN_RECT=auto build/bin/llama-cli \
+  -m models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf \
+  -p "..." -n 64 -t 4
+```
+
+### Atenção esparsa adaptativa (L4 adaptive-K, opt-in)
+
+```bash
+# Adaptive-K cov=0.90: seleciona K por head via threshold softmax.
+# +28.8% Falcon3-3B; quase neutro (-1.3%) BitNet-2B.
+BITNET_SPARSE_TOPK_ADAPTIVE=0.90 build/bin/llama-cli \
+  -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf \
+  -p "..." -n 64 -t 4
+
+# Sparse float K fixo (legado, superado por adaptive-K):
+BITNET_SPARSE_TOPK=32 build/bin/llama-cli \
   -m models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf \
   -p "..." -n 200 -t 4
 ```
@@ -238,7 +260,7 @@ grep -rn "http://\|https://" src/ 3rdparty/llama.cpp/ggml/src/ 2>/dev/null | gre
 
 ```bash
 cd build && ctest --output-on-failure
-# esperado: 13/13 PASS, runtime < 3s
+# esperado: 16/16 PASS, runtime < 3s
 ```
 
 Cobre: kernel L1-L5 (WHT, FWHT, ACDC, tropical, HRR, K_i8 cache),
