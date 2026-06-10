@@ -1859,4 +1859,48 @@ Todas as tarefas de produto pendentes de M2 e M5 concluídas:
 **Estado final M5:** ✅ Concluído (T021-T023 ✅, T016 ✅, T028 ✅)
 **Único pendente M1:** T029 — smoke test Llama-2-7B (~13 GB, sem GPU, sem autorização) — **pausado indefinidamente** conforme `requirements.md#11` (LR-01).
 
+### S7.18 Bug fix: ctest count e path incorreto no build_tests
+
+**Bug:** `build_tests/tests/CTestTestfile.cmake` gerado com path errado:
+- Incorreto: `/home/peder/Projetos/BitNet/test_extract_acdc_diagonal.py`
+- Correto: `/home/peder/Projetos/BitNet/tests/test_extract_acdc_diagonal.py`
+
+**Causa raiz:** `build_tests` foi configurado sem ter o `CMAKE_CURRENT_SOURCE_DIR`
+resolvido corretamente para o subdiretório `tests/`. Provavelmente o diretório
+estava em estado stale de uma configuração anterior.
+
+**Fix:** `cmake -B build_tests -S . --reconfigure` regenerou o `CTestTestfile.cmake`
+com o path correto. Resultado: **15/15 PASS**.
+
+**Descoberta:** o test count canônico é 15/15 (não 16/16 como documentado).
+O 16º teste (`test_acdc_rect`) é opt-in via `-DBITNET_ENABLE_ACDC_RECT=ON`,
+gateado por D2/T029. README.md e ROADMAP.md corrigidos. Commit: `0f48930`.
+
+---
+
+### S7 — Estado final completo (2026-06-09, todas as subseções)
+
+**Commits desta sessão (S7, 2026-06-09):**
+
+| Hash | Descrição |
+|------|-----------|
+| `ebe058d` | auto-detect ACDC rect via n_ff/n_embd + fix >= vs > |
+| `7761e86` | HRR phasor hookado em llama.cpp (submodule) |
+| `a03c827` | bitnet_op_hrr_attn_phasor() + benchmarks + bench.md |
+| `d365665` | BITNET_SPARSE_TOPK_ADAPTIVE hookado em llama.cpp (submodule) |
+| `224fca3` | bitnet_op_sparse_attn_adaptive() + benchmarks + bench.md |
+| `bea2889` | decision-matrix.md v0.2 |
+| `6cf0328` | findings-cpu-universal.md §9 + hardware-compatibility.md v0.2 |
+| `ce1ce21` | README.md v0.2 |
+| `b22d883` | examples/*.md v0.2 + fix encoding CJK |
+| `6f23302` | ROADMAP v0.2.2 + SESSION_SUMMARY S7.15-S7.17 |
+| `0f48930` | fix ctest 15/15 + reconfigure build_tests |
+
+**Estado final:**
+- ctest: **15/15 PASS** (build_tests default CI)
+- M2: ✅ Concluído (T015, T020, RF-05b/c)
+- M5: ✅ Concluído (T021-T023, T016, T028)
+- M1: 🟡 Aguardando T029 (Llama-2-7B, pausado indefinidamente)
+- M3: 🚧 Gateado por D2 (T029)
+
 **Sessão encerrada em 2026-06-09.**

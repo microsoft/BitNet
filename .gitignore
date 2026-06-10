@@ -46,3 +46,4 @@ poetry.toml
 build/
 build_tests/
 logs/Testing/
+Testing/
