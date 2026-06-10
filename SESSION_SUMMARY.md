@@ -1796,4 +1796,67 @@ o gargalo. Commits: `d365665` (llama.cpp), `224fca3` (dispatch + benchmark + ben
 - **Decisões fechadas:** D-PHASOR, D-ADAPTIVE, D-SPARSE, D-RAG
 - **Próximo passo:** auto-detect `BITNET_ACDC_FFN_RECT` para modelos com n_ff/n_embd > 3
 
+### S7.15 BITNET_ACDC_FFN_RECT=auto implementado
+
+**Motivação:** Evitar que o usuário precise saber o threshold manualmente.
+Auto-detect em runtime via `n_ff/n_embd >= 3.0f`.
+
+**Implementação** (dois call sites em `3rdparty/llama.cpp/src/llama.cpp`):
+- `build_llama()` linha ~11056 — usado por Falcon3-3B e Falcon3-10B (arch=llama no GGUF)
+- `build_falcon()` linha ~11459 — para modelos falcon nativos
+
+**Bug corrigido:** threshold inicial `> 3.0f` excluía Falcon3-3B (ratio exato = 3.0000).
+Corrigido para `>= 3.0f`.
+
+**Pattern de implementação:** `static const bool` com lambda `[capture_by_value]`:
+```cpp
+const float bitnet_ff_ratio = (float)hparams.n_ff() / (float)n_embd;
+static const bool bitnet_acdc_ffn_rect = [bitnet_ff_ratio]() {
+    const char * e = getenv("BITNET_ACDC_FFN_RECT");
+    if (!e) return false;
+    if (std::string(e) == "auto") return bitnet_ff_ratio >= 3.0f;
+    return atoi(e) > 0;
+}();
+```
+
+**Verificação runtime:** BitNet-2B (2.7×) → no-op (usa `build_bitnet_158`, fora dos call sites).
+Falcon3-3B (3.0×) → ENABLED ✓. Falcon3-10B (7.5×) → ENABLED ✓.
+
+Commits: submodule `c9542bc`, parent `0089b39`. 16/16 ctest PASS.
+
+---
+
+### S7.16 Auditoria e atualização do mem0
+
+**Problema identificado:** regra `[AGENTS]` (mem0_search antes de qualquer tool externa,
+mem0_add após descoberta não-trivial) não estava sendo seguida na sessão.
+
+**Ação corretiva:** 4 novas entradas adicionadas ao mem0:
+- `[BITNET-L4-ADAPTIVE-K]` — benchmarks + decisão D-ADAPTIVE
+- `[BITNET-HRR-PHASOR]` — descartado, causa do overhead
+- `[BITNET-ACDC-RECT-AUTO]` — implementação + bug >= vs > 3.0f
+- `[BITNET-ARCH-DISPATCH-MAP]` — mapa build_*() por modelo (correção crítica)
+
+**Correção de inconsistência:** entrada `[BITNET-MODELS-LOCAL]` dizia que todos os modelos
+usam `build_falcon()` — **ERRADO**. Falcon3-3B/10B no formato GGUF reportam
+`general.architecture=llama` e usam `build_llama()`. Entrada corrigida.
+
+---
+
+### S7.17 Sprint de documentação (T015/T016/T020-T023/T028)
+
+Todas as tarefas de produto pendentes de M2 e M5 concluídas:
+
+| Commit | Tarefa | O que foi feito |
+|--------|--------|-----------------|
+| `bea2889` | T015 (RF-02) | `decision-matrix.md` v0.2 — 7 linhas com dados empíricos |
+| `6cf0328` | T020 (RF-07) | `findings-cpu-universal.md` §9 + `hardware-compatibility.md` v0.2 |
+| `ce1ce21` | T028 | `README.md` v0.2 — tabela speedups + exemplos CLI |
+| `b22d883` | T021-T023 (AC-12) | `examples/*.md` v0.2 — adaptive-K; fix encoding CJK em finance |
+| (este) | ROADMAP | v0.2.2 — marcos M2/M5 marcados concluídos; RF-05b/c adicionados |
+
+**Estado final M2:** ✅ Concluído (T015 ✅, T020 ✅, RF-05b/c ✅)
+**Estado final M5:** ✅ Concluído (T021-T023 ✅, T016 ✅, T028 ✅)
+**Único pendente M1:** T029 — smoke test Llama-2-7B (~13 GB, sem GPU, sem autorização) — **pausado indefinidamente** conforme `requirements.md#11` (LR-01).
+
 **Sessão encerrada em 2026-06-09.**

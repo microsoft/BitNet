@@ -1,7 +1,7 @@
 # ROADMAP — BitNet CPU-Universal
 
 > Roadmap **público** do fork, separado em 3 seções por horizonte temporal
-> e compromisso. **Versão:** v0.2.1 — atualizado em 2026-06-09 (S7: L6 RAG + bench v0.2.0).
+> e compromisso. **Versão:** v0.2.2 — atualizado em 2026-06-09 (S7: T015/T016/T020-T023/T028 concluídos).
 > **Ancoragem:** `requirements.md#8` (marcos M1-M5) e
 > `.reversa/scout/gap-analysis.md`.
 >
@@ -66,30 +66,32 @@ métodos de compressão**; são arquiteturas de treinamento (ver §2).
 | Feature | RF | Status | Marco |
 |---------|-----|--------|-------|
 | Property-based tests (1000+ inputs) | RF-01 | ✅ Fase 2 | M1 |
-| Decision matrix "quando usar L1-L5" | RF-02 | 🚧 T015 (Fase 3) | M2 |
+| Decision matrix "quando usar L1-L5" | RF-02 | ✅ T015 (2026-06-09 v0.2) | M2 |
 | Cross-validação C ↔ Python | RF-03 | ✅ Fase 2 (T011) | M2 |
 | L4 sparse float opt-in | RF-05 | ✅ Comportamento + Doxygen (T017) | M2 |
-| Bench sistemático + publicação | RF-07 | 🚧 T020 (Fase 3) | M5 |
+| **L4 adaptive-K opt-in** | RF-05b | ✅ 2026-06-09 `BITNET_SPARSE_TOPK_ADAPTIVE` | M2 |
+| **L3 ACDC rect auto** | RF-05c | ✅ 2026-06-09 `BITNET_ACDC_FFN_RECT=auto` | M2 |
+| Bench sistemático + publicação | RF-07 | ✅ T020/T028 (2026-06-09 bench v0.2.0) | M5 |
 | Persona D4 (Privacidade/Soberania) | D4 | ✅ `requirements.md#9` | M5 |
 | Air-gapped boot (sem rede) | AC-11 | ✅ T010 (Fase 2) | M5 |
-| Documentação persona D4 | AC-12 | 🚧 T021-T023 (Fase 3) | M5 |
-| Hardware-compatibility matrix | AC-13 | 🚧 T016 (Fase 3) | M5 |
+| Documentação persona D4 | AC-12 | ✅ T021-T023 (2026-06-09 v0.2) | M5 |
+| Hardware-compatibility matrix | AC-13 | ✅ T016 (2026-06-09 v0.2) | M5 |
 
 ### 1.3. Métricas de qualidade (RNF-01, RNF-02)
 
-- **ctest:** 16/16 verde, ≥ 50 subtests (RNF-01)
-- **Performance:** baseline L1 dentro de ±2 % em `n=128, t=4` (RNF-02)
-- **Documentação:** pt-BR (RNF-03)
-- **Patches:** 3 patches vendored em `patches/llama.cpp/` (RNF-04)
+- **ctest:** 16/16 verde, ≥ 50 subtests (RNF-01) ✅
+- **Performance:** baseline L1 dentro de ±2 % em `n=128, t=4` (RNF-02) ✅
+- **Documentação:** pt-BR (RNF-03) ✅
+- **Patches:** patches vendored em `patches/llama.cpp/` (RNF-04) ✅
 
 ### 1.4. Marcos restantes (v0.1)
 
-| Marco | O que falta | ETA |
-|-------|-------------|-----|
-| M1 (Hardening matemático) | T013 ✅, T015 🚧, T029 (D2 trigger) | Curto prazo (2-3 semanas) |
-| M2 (Decision matrix) | T015 (decision-matrix.md), T020 (bench_publish) | Curto prazo (1 semana) |
-| M3 (ACDC retangular) | GATED por D2 (T029); ver §2 | Médio prazo (1-2 meses) ou dispensado |
-| M5 (Produto) | T021-T023 (exemplos), T016 (hardware-compat), T028 (README) | Médio prazo, paralelo a M1-M3 |
+| Marco | Status | O que resta |
+|-------|--------|-------------|
+| M1 (Hardening matemático) | 🟡 Quase pronto | T029 (D2 trigger, Llama-2-7B smoke test) — pausado por falta de hardware/autorização; ver `requirements.md#11` (LR-01) |
+| M2 (Decision matrix) | ✅ **Concluído** (2026-06-09) | T015 ✅, T020 ✅, RF-05b/c ✅ |
+| M3 (ACDC retangular) | 🚧 Pausado | GATED por D2 (T029); ver §2.2 |
+| M5 (Produto) | ✅ **Concluído** (2026-06-09) | T021-T023 ✅, T016 ✅, T028 ✅ |
 
 ---
 
