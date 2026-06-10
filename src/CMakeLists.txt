@@ -110,6 +110,12 @@ if (_bitnet_math_srcs)
 
     target_compile_features(bitnet_math PUBLIC cxx_std_11)
 
+    # Required when ggml is built as a shared library (BUILD_SHARED_LIBS=ON or
+    # when ggml/src/CMakeLists.txt sets POSITION_INDEPENDENT_CODE on ggml).
+    # OBJECT libraries do not inherit PIC from consuming targets in all CMake
+    # versions, so we set it explicitly here.  Has no effect on static builds.
+    set_target_properties(bitnet_math PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
     # Propagate level defines so callers can use #ifdef BITNET_L2_WHT etc.
     target_compile_definitions(bitnet_math PUBLIC ${_bitnet_math_defs})
 

@@ -40,7 +40,11 @@ static int fails = 0;
 
 static void make_K(float * K, int n, int d, float s) {
     for (int i = 0; i < n * d; i++) {
-        K[i] = s * (((i * 1103515245 + 12345) % 1000) / 1000.0f - 0.5f);
+        /* Use unsigned arithmetic to avoid signed overflow UB (LCG constant
+         * 1103515245 * i overflows int for i >= 2). GCC -O3 exploits signed
+         * overflow UB to create infinite loops. */
+        unsigned u = ((unsigned)i * 1103515245u + 12345u) % 1000u;
+        K[i] = s * ((float)u / 1000.0f - 0.5f);
     }
 }
 

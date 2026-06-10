@@ -20,7 +20,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <stdio.h>
-#include <stdatomic.h>
+#include <atomic>
 
 #if defined(BITNET_L3_ACDC)
 #include "ggml-bitnet-fwht.h"
@@ -52,7 +52,7 @@ static struct {
 /* Thread-safe call counter: tracks which (layer, proj) pair the next
  * acdc_ffn_rect_init_buffers call corresponds to.  Initialized lazily and
  * reset before each inference run via bitnet_acdc_diag_reset_counter(). */
-static _Atomic int g_acdc_rect_call_count = 0;
+static std::atomic<int> g_acdc_rect_call_count{0};
 
 static void acdc_diag_load_once(void) {
     if (g_acdc_diag.loaded) return;
@@ -102,7 +102,7 @@ static void acdc_diag_load_once(void) {
 
 /* Call this before building/executing the compute graph for a new run. */
 void bitnet_acdc_diag_reset_counter(void) {
-    atomic_store_explicit(&g_acdc_rect_call_count, 0, memory_order_relaxed);
+    g_acdc_rect_call_count.store(0, std::memory_order_relaxed);
 }
 
 #endif /* BITNET_L3_ACDC */
@@ -247,8 +247,7 @@ static void acdc_ffn_rect_init_buffers(struct acdc_ffn_rect_ud * p) {
     /* Priority 1: load real d* from sidecar binary (highest quality). */
     acdc_diag_load_once();
     if (g_acdc_diag.data && p->d) {
-        int call_idx = atomic_fetch_add_explicit(&g_acdc_rect_call_count, 1,
-                                                  memory_order_relaxed);
+        int call_idx = g_acdc_rect_call_count.fetch_add(1, std::memory_order_relaxed);
         /* call_idx layout: layer * n_proj + proj_idx
          *   proj 0 → up  (m > n, i.e. n_ff > n_embd)
          *   proj 1 → down (m < n, i.e. n_embd < n_ff)

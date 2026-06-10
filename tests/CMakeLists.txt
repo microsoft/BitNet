@@ -24,6 +24,10 @@ if (NOT BITNET_MATH_TARGET)
     return()
 endif()
 
+# Threads: required by test_kv_i8_cache (pthread_create/join) and any other
+# test that spawns threads.  Must be found before the targets that use it.
+find_package(Threads REQUIRED)
+
 # Helper: per-arch SIMD flags. Mirrors src/CMakeLists.txt.
 function(bitnet_test_set_simd_flags target)
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686")
@@ -157,6 +161,7 @@ if (BITNET_L4_TROPICAL)
     target_include_directories(test_kv_i8_cache PRIVATE
         ${CMAKE_SOURCE_DIR}/include)
     target_compile_definitions(test_kv_i8_cache PRIVATE BITNET_L4_TROPICAL)
+    target_link_libraries(test_kv_i8_cache PRIVATE Threads::Threads)
     bitnet_test_set_simd_flags(test_kv_i8_cache)
     set_target_properties(test_kv_i8_cache PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
