@@ -79,7 +79,7 @@ métodos de compressão**; são arquiteturas de treinamento (ver §2).
 
 ### 1.3. Métricas de qualidade (RNF-01, RNF-02)
 
-- **ctest:** 16/16 verde, ≥ 50 subtests (RNF-01) ✅
+- **ctest:** 15/15 verde (default CI), 16/16 com `-DBITNET_ENABLE_ACDC_RECT=ON`; ≥ 50 subtests (RNF-01) ✅
 - **Performance:** baseline L1 dentro de ±2 % em `n=128, t=4` (RNF-02) ✅
 - **Documentação:** pt-BR (RNF-03) ✅
 - **Patches:** patches vendored em `patches/llama.cpp/` (RNF-04) ✅

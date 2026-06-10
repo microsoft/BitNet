@@ -260,7 +260,8 @@ grep -rn "http://\|https://" src/ 3rdparty/llama.cpp/ggml/src/ 2>/dev/null | gre
 
 ```bash
 cd build && ctest --output-on-failure
-# esperado: 16/16 PASS, runtime < 3s
+# esperado: 15/15 PASS (default CI, test_acdc_rect opt-in via D2 gate)
+# ou 16/16 com -DBITNET_ENABLE_ACDC_RECT=ON
 ```
 
 Cobre: kernel L1-L5 (WHT, FWHT, ACDC, tropical, HRR, K_i8 cache),
