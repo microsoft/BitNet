@@ -124,12 +124,28 @@ do pipeline.**
 
 ---
 
+## Addendum: teste formal com fp16 original (2026-06-09)
+
+> Modelo fp16 nativo (`TheBloke/Llama-2-7B-fp16`, convertido para GGUF f16 via
+> `convert_hf_to_gguf.py`, 13.5 GB). Resultados idênticos ao Q4_K_M — confirma
+> que a conclusão D2 não depende da quantização.
+
+| Run | Configuração | Output | Conclusão |
+|-----|-------------|--------|-----------|
+| 1 | Baseline fp16 | "a beautiful city to explore and see, but it's also home to some of the best French cuisine" | ✅ Coerente |
+| 2 | `BITNET_ACDC_FFN_RECT=1` fp16 | "Kreuzansedagethodatformimat Rö Düsseldorf Sãoрисatformimat京 Bür̀anse？ières Tokyo..." | ❌ Garbage — confirma P6 gap em fp16 nativo |
+| 3 | `BITNET_ACDC_FFN_RECT=auto` fp16 | "a wonderful city, which is home to the Eiffel Tower and countless other famous attractions" | ✅ Coerente — no-op correto |
+
+**Conclusão mantida:** classificação D2 = DIFERENCIAL. Independente de quantização (Q4_K_M ou fp16).
+
+---
+
 ## Modelo Llama-2-7B — informações para o registro
 
-- **Fonte:** `TheBloke/Llama-2-7B-GGUF`, arquivo `llama-2-7b.Q4_K_M.gguf`
-- **Localização:** `models/Llama-2-7B-GGUF/llama-2-7b.Q4_K_M.gguf` (3.9 GB)
+- **Q4_K_M:** `TheBloke/Llama-2-7B-GGUF` → `models/Llama-2-7B-GGUF/llama-2-7b.Q4_K_M.gguf` (3.9 GB, `/media/peder/DATA/BitNet/models/`)
+- **fp16 original:** `TheBloke/Llama-2-7B-fp16` → convertido para `Llama-2-7B-fp16/llama-2-7b-fp16.gguf` (13.5 GB, `/media/peder/DATA/BitNet/models/`)
 - **Licença:** Meta Llama 2 Community License (uso não-comercial aceitável para R&D)
-- **Nota:** arquivo adicionado ao `.gitignore` (não versionado)
+- **Nota:** ambos adicionados ao `.gitignore` via `models/` (não versionados)
 
 ---
 
