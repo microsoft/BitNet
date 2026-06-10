@@ -88,9 +88,9 @@ métodos de compressão**; são arquiteturas de treinamento (ver §2).
 
 | Marco | Status | O que resta |
 |-------|--------|-------------|
-| M1 (Hardening matemático) | 🟡 Quase pronto | T029 (D2 trigger, Llama-2-7B smoke test) — pausado por falta de hardware/autorização; ver `requirements.md#11` (LR-01) |
+| M1 (Hardening matemático) | ✅ **Concluído** (2026-06-09) | T013 ✅, T015 ✅, T029 ✅ (D2=DIFERENCIAL confirmado — `investigation-d2-result.md`) |
 | M2 (Decision matrix) | ✅ **Concluído** (2026-06-09) | T015 ✅, T020 ✅, RF-05b/c ✅ |
-| M3 (ACDC retangular) | 🚧 Pausado | GATED por D2 (T029); ver §2.2 |
+| M3 (ACDC retangular) | 🚧 Pausado | D2 resolvido (DIFERENCIAL); agora gateado apenas por **P6** (retreino Q4 2029); T009/T018/T019 `[ ]` por design |
 | M5 (Produto) | ✅ **Concluído** (2026-06-09) | T021-T023 ✅, T016 ✅, T028 ✅ |
 
 ---

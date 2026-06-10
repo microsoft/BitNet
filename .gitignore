@@ -47,3 +47,4 @@ build/
 build_tests/
 logs/Testing/
 Testing/
+models/Llama-2-7B-GGUF/

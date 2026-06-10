@@ -92,10 +92,10 @@
 | T026 | `tests/test_air_gapped_boot.sh` (script final): usar `unshare -rn` + `strace -e network -f` se primeira tentativa falhar. Exit code 0 = pass. | T010 | [//] | `tests/test_air_gapped_boot.sh` | 🟢 | [X] |
 | T027 | `docs/findings-cpu-universal.md`: adicionar seção "## Persona Alvo" com cross-link para `requirements.md#9`. | T015, T016 | [//] | `docs/findings-cpu-universal.md` | 🟢 | [X] |
 | T028 | `README.md` (reescrita persona D4): headline "Inferência 1.58-bit local-first, sem CUDA, sem cloud", casos de uso D4, instalação, build, link para `examples/`. Preserva `docs/theory/` como referência. | T015, T021, T022, T023, T027 | — | `README.md` | 🟢 | [X] |
-| T029 | `investigation-d2-result.md` (gate D2): documento que registra o resultado do smoke test com Llama-2-7B. Estrutura: comando executado, output (perplexity, sample de texto), conclusão ("bloqueador" ou "diferencial"). Atualiza `requirements.md#11` (LR-01) com o resultado. | T001 | — | `investigation-d2-result.md` (na raiz) | 🟡 | [ ] |
+| T029 | `investigation-d2-result.md` (gate D2): documento que registra o resultado do smoke test com Llama-2-7B. Estrutura: comando executado, output (perplexity, sample de texto), conclusão ("bloqueador" ou "diferencial"). Atualiza `requirements.md#11` (LR-01) com o resultado. | T001 | — | `investigation-d2-result.md` (na raiz) | � | [X] 2026-06-09: D2=DIFERENCIAL confirmado. Llama-2-7B Q4_K_M testado: baseline coerente, RECT=1 garbage (P6 gap esperado), RECT=auto no-op (ratio 2.69 < 3.0). RF-04 não é bloqueador. |
 | T030 | `benchmarks/v0.1.0/`: executar `utils/bench_publish.py --json > benchmarks/v0.1.0/bench.json && python utils/bench_publish.py --from-json benchmarks/v0.1.0/bench.json --md > benchmarks/v0.1.0/bench.md`. Commitar ambos + `methodology.md`. | T020 | — | `benchmarks/v0.1.0/` | 🟡 | [X] |
 
-**Subtotal fase 4:** 7 ações (2 paralelizáveis, 1 condicional via T029). **Status pós-Fase 4:** 6/7 [X] (T029 gated by D2, requer Llama-2-7B + horas de inferência fora do escopo CPU-only).
+**Subtotal fase 4:** 7 ações (2 paralelizáveis, 1 condicional via T029). **Status pós-Fase 4:** 7/7 [X] (T029 concluído 2026-06-09: D2=DIFERENCIAL confirmado).
 
 ---
 
