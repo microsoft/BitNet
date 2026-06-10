@@ -1,5 +1,7 @@
 # BitNet CPU-Universal — Inferência 1.58-bit local-first
 
+[![CI](https://github.com/peder1981/BitNet/actions/workflows/ci.yml/badge.svg)](https://github.com/peder1981/BitNet/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/peder1981/BitNet?label=release)](https://github.com/peder1981/BitNet/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![CPU Only](https://img.shields.io/badge/compute-CPU%20only-orange.svg)]()
 [![No CUDA](https://img.shields.io/badge/no%20CUDA-required-red.svg)]()
@@ -386,6 +388,9 @@ python utils/tune_gemm_config.py
 ---
 
 ## Contribuindo
+
+Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) para setup, política de PR e restrições §3.
+Resumo das invariantes:
 
 1. Leia `docs/invariants.md` (P1-P7 são **invariantes**; quebrar uma = bloquear o PR).
 2. Cada kernel algébrico novo/modificado precisa de **test de contra-exemplo exato** (P7).
