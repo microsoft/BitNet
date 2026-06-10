@@ -54,13 +54,19 @@ jobs:
             libstdc++-14-dev \
             python3 \
             python3-pip \
-            python3-scipy \
-            python3-numpy
+            python3-venv
 
-      - name: Install safetensors (PyPI only; not in Ubuntu 24.04 apt)
-        run: python3 -m pip install --break-system-packages --no-cache-dir safetensors
+      - name: Create Python venv and install test dependencies
+        # Use an isolated venv to avoid PEP-668 conflicts between apt numpy/scipy
+        # and PyPI packages (safetensors has no numpy dep; still isolate for safety).
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --no-cache-dir numpy scipy safetensors
 
-      - name: Configure (Release, all kernels)
+      - name: Configure (Release, all kernels + ACDC_RECT)
+        # BITNET_ENABLE_ACDC_RECT defaults ON → 16 tests in CI.
+        # Python3_EXECUTABLE points to the venv so test_extract_acdc_diagonal
+        # finds the installed numpy/safetensors.
         run: |
           cmake -B build -G Ninja \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -71,34 +77,78 @@ jobs:
             -DBITNET_L4_TROPICAL=ON \
             -DBITNET_L5_HRR=ON \
             -DBITNET_L6_RAG=ON \
-            -DBITNET_BUILD_TESTS=ON
+            -DBITNET_BUILD_TESTS=ON \
+            -DPython3_EXECUTABLE=$(pwd)/.venv/bin/python3
 
-      - name: Build (compiles L1 + L2-L6 + dispatch into libggml)
+      - name: Build (compiles L1 + L2-L6 + all test targets)
+        # Single build step — cmake discovers all targets from CMakeLists.txt.
+        # No hardcoded --target list: avoids breakage when targets are added/renamed.
         run: cmake --build build --config Release -j$(nproc)
 
-      - name: Build all kernel unit tests
-        run: cmake --build build --config Release -j$(nproc) --target test_bitnet_common test_wht test_acdc test_tropical test_sparse_attention test_kv_i8_cache test_hrr_cleanup test_hrr_attention test_acdc_properties test_l4_sparse_properties test_hrr_properties test_dense_is_default test_acdc_rect test_adaptive_k test_rag_retrieval
+      - name: ctest — 16/16 kernel unit tests
+        # BITNET_ENABLE_ACDC_RECT=ON (default) adds test_acdc_rect → 16 tests.
+        # -j$(nproc): parallel execution; --output-on-failure: full log on fail.
+        # PYTHON3_EXECUTABLE env var ensures the venv Python is used for
+        # test_extract_acdc_diagonal (the add_test() COMMAND is cmake-resolved).
+        run: |
+          ctest --test-dir build \
+            --output-on-failure \
+            -j$(nproc) \
+            --timeout 120
 
-      - name: ctest (runs all add_test() targets — common, L2, L3, L4, L4_sparse, L4_cache, L4_adaptive, L5_attn, L5_cleanup, 4 property tests, dense-is-default, acdc_rect, L6_rag)
-        run: cd build && ctest --output-on-failure
+      - name: NO-06 — telemetry audit (zero hits required)
+        # Persona D4: binário nunca envia dados a endpoints externos.
+        # Any match = CI failure.
+        run: |
+          HITS=$(grep -rn \
+            "telemetry\|upload_data\|send_metrics\|POST.*http" \
+            src/ utils/ run_inference*.py setup_env.py 2>/dev/null | \
+            grep -v "^Binary\|\.pyc" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::NO-06 FAIL — telemetry code found:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "NO-06 PASS — 0 telemetry hits"
 
-      - name: Air-gapped boot test (AC-11, NO-07)
+      - name: NO-07 — cloud URL audit (zero hits in production code)
+        # Ensures no hard-coded HTTP endpoints in C/C++ production sources.
+        # URLs in comments (// http) and docs are excluded.
+        run: |
+          HITS=$(grep -rn "http://\|https://" \
+            src/ include/ \
+            --include="*.cpp" --include="*.h" | \
+            grep -v "//.*http\|/\*.*http\| \* http" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::NO-07 FAIL — cloud URLs in production code:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "NO-07 PASS — 0 cloud URL hits"
+
+      - name: Cross-validation C ↔ Python (L3/L4/L5)
+        # Verifies that the Python reference implementations match the C kernels
+        # to rtol=1e-5, atol=1e-7. No model required.
+        # --build-dir points to the cmake output dir (build/tests/), not the
+        # local development build (build_tests/).
+        run: |
+          .venv/bin/python3 tests/cross_validation.py \
+            --all \
+            --build-dir build/tests
+          echo "Cross-validation: PASS"
+
+      - name: Air-gapped boot test (AC-11)
         # Verifies that the built llama-cli binary runs without making any
         # network syscalls.  This enforces persona D4 (no telemetry, no cloud)
         # at the CI level.  The script is in tests/test_air_gapped_boot.sh;
         # it auto-skips if no model file is provided (which is the case in CI).
-        # Result: SKIPPED is acceptable in CI; PASS requires a real model and
-        # is expected in the local release workflow.
+        # Result: SKIPPED is acceptable in CI; PASS requires a real model.
         run: |
-          if [ -x tests/test_air_gapped_boot.sh ]; then
-            chmod +x tests/test_air_gapped_boot.sh
-            bash tests/test_air_gapped_boot.sh 2>&1 | tee /tmp/air_gapped.log
-            # Exit code 0 if PASS or SKIPPED, 1 if FAIL
-            rc=${PIPESTATUS[0]}
-            if [ $rc -ne 0 ]; then
-              echo "::warning::air-gapped boot test FAILED (rc=$rc); see /tmp/air_gapped.log"
-              exit $rc
-            fi
-          else
-            echo "::warning::tests/test_air_gapped_boot.sh not executable; skipping"
+          chmod +x tests/test_air_gapped_boot.sh
+          bash tests/test_air_gapped_boot.sh 2>&1 | tee /tmp/air_gapped.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            echo "::error::AC-11 air-gapped boot FAILED (rc=$rc)"
+            cat /tmp/air_gapped.log
+            exit $rc
           fi

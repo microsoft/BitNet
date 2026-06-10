@@ -180,11 +180,19 @@ def main():
     parser.add_argument("--atol", type=float, default=1e-7)
     parser.add_argument("--skip-cpp", action="store_true",
                         help="skip C++ test (Python reference only)")
+    parser.add_argument("--build-dir", default="build_tests/tests",
+                        help="directory containing compiled test binaries (default: build_tests/tests)")
     args = parser.parse_args()
 
     kernels = ["acdc", "sparse", "hrr"] if args.all else ([args.kernel] if args.kernel else [])
     if not kernels:
         parser.error("specify --kernel X or --all")
+
+    CPP_NAMES = {
+        "acdc":   "test_acdc_properties",
+        "sparse": "test_l4_sparse_properties",
+        "hrr":    "test_hrr_properties",
+    }
 
     n_pass = 0
     n_total = 0
@@ -192,7 +200,7 @@ def main():
         print(f"\n── cross-validation: {k} (seed=0x{SEEDS[k]:08X}) ──")
         # 1) Run C++ test
         if not args.skip_cpp:
-            cpp_pass, cpp_total = run_cpp_test(f"build_tests/{k.replace('acdc', 'acdc_properties') if k=='acdc' else 'l4_sparse_properties' if k=='sparse' else 'hrr_properties'}")
+            cpp_pass, cpp_total = run_cpp_test(f"{args.build_dir}/{CPP_NAMES[k]}")
             if cpp_total > 0:
                 n_total += 1
                 if cpp_pass == cpp_total:
