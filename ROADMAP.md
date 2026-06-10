@@ -130,29 +130,29 @@ smoke test mínimo (`--smoke` flag), conforme AC-09 do `requirements.md#6`.
 que código documentado. Mitigação: este ROADMAP.md é linked do README.md
 e revisado em cada release.
 
-### 2.2. M3 (ACDC retangular, FFN) — bloqueador condicional
+### 2.2. M3 (ACDC retangular, FFN) — gateado por P6
 
-**Status:** 🚧 **Diferencial** (não bloqueador). Reclassificação pendente
-do gate D2 (T029 — `investigation-d2-result.md`).
+**Status:** 🚧 **Diferencial** (não bloqueador). Gate D2 (T029) resolvido
+em 2026-06-09 — resultado: **DIFERENCIAL**. Agora gateado exclusivamente
+por **P6** (retreino GPU, Q4 2029).
 
 **O que é:** Estender `acdc_project(d, W, n)` para matrizes m×n com
 m ≠ n. Para BitNet-2B, isso cobre FFN (gate/up 2560×6912, down
 6912×2560). Sem esta extensão, ACDC fica restrito a ~30 % das matrizes
 do modelo (apenas attention QKV/O, que são 1280×1280 ou 2560×1280).
 
-**Decisão D2 (esclarecimento, 2026-06-06):** "Decisão empírica >
-decisão arquitetural antecipada." Inicialmente classificado como
-"diferencial". Gatilho de reclassificação para "bloqueador imediato":
-executar inferência fim-a-fim com **Llama-2-7B** (modelo popular, não
-BitNet, fp16) através do pipeline BitNet. Se FFN falhar (perplexity >
-100 ou output repetitivo/incoerente em prompt simples), M3 vira
-curto-prazo e T018/T019 são ativados.
+**Resultado D2 (T029, 2026-06-09):** Llama-2-7B testado em fp16 nativo
+(13.5 GB GGUF) e Q4_K_M: `RECT=auto` = no-op correto (ratio 2.69 <
+threshold 3.0); `RECT=1` = garbage (P6 gap, opt-in explícito). A falha é
+**esperada e documentada** — o modo `=1` sem retreino é research-only.
+`=auto` é seguro em produção (Falcon3-3B **+51.7%**, Falcon3-10B **+179%**
+confirmados). Ver `investigation-d2-result.md`.
 
-**Ações T009, T018, T019:** Implementação + tests + sidecar `.npz`.
-Gateadas por D2 (T029). Pausadas em `requirements.md#11` (LR-01).
+**Ações T009, T018, T019:** Pausadas por P6 (não por D2). Ativar
+quando GPU + demanda de comunidade (mesmo gatilho de §2.1).
 
-**Gatilho de reativação:** Resultado de T029 (gate D2) for positivo
-(bloqueador), OU nova rodada de `/reversa-clarify` decide diferente.
+**Gatilho de reativação:** GPU disponível no ambiente de dev **E**
+demanda de comunidade documentada. Reavaliação: **Q4 2029**.
 
 ### 2.3. P6 (Estrutura, não compressão) — validação empírica
 
@@ -256,9 +256,10 @@ via `apply-dispatch-patches.sh`.
 
 | Data | Gatilho | Quem | O que |
 |------|---------|------|-------|
-| **Q4 2029** | Reavaliação periódica (LR-02, D3) | Mantenedor do fork | Reabrir `/reversa-clarify` sobre RF-06 (finetune_acdc.py). Decidir se sobe para prioridade média, baixa definitiva, ou é removido. |
-| **Q1 2027** | Próxima release minor (v0.2) | Mantenedor | Revisar §1 (Atual) e mover itens para §2 (Reserva) ou §3 (Fora) conforme apropriado. |
+| **Q4 2029** | Reavaliação periódica (LR-02, D3) | Mantenedor do fork | Reabrir `/reversa-clarify` sobre RF-06 (finetune_acdc.py) e M3 (T009/T018/T019). GPU + demanda de comunidade = gatilho de reativação. |
+| **Q1 2027** | Próxima release minor (v0.2) | Mantenedor | Revisar §1 (Atual) e mover itens para §2 (Reserva) ou §3 (Fora) conforme apropriado. Candidatos: bench em mais hardware, ARM64, Windows. |
 | **Sob demanda** | Mudança de persona ou regulamentação | Mantenedor | Se persona D4 mudar (LR-03) ou nova regulamentação (LGPD, EU AI Act, etc.), reabrir `/reversa-clarify`. |
+| **Imediato (v0.1.0)** | Release tag | Mantenedor | Criar tag `v0.1.0`, push 6 commits locais, abrir PR upstream `microsoft/BitNet`. Ver `NEXT_STEPS.md`. |
 
 **Mecanismo de reminder:** Este ROADMAP.md é linked do README.md
 principal. Revisões de release checam este arquivo. (Ver R-07 do
@@ -294,9 +295,7 @@ principal. Revisões de release checam este arquivo. (Ver R-07 do
 
 ---
 
+*v0.2.3 — atualizado em 2026-06-09: §2.2 M3 refletindo D2 resolvido (T029 DIFERENCIAL); reavaliação imediata v0.1.0 adicionada.*
+*v0.2.2 — atualizado em 2026-06-09: M1/M2/M5 ✅; M3 atualizado; RF-05b/c adicionados.*
 *v0.2 — atualizado por T035 em 2026-06-06T23:59:00Z*
-*Adicionada seção "Reavaliações agendadas (Q4 2029)" no topo com 4 itens monitorados (LR-01, LR-02, LR-03, D-01`).*
-*Estrutura: 3 seções (Atual/Reserva/Fora) + Reavaliações agendadas (Q4 2029) + Referências cruzadas.*
-
 *v0.1 — gerado por T014 em 2026-06-06T21:15:00Z*
-*Estrutura: 3 seções (Atual/Reserva/Fora) + Reavaliações agendadas (Q4 2029).*

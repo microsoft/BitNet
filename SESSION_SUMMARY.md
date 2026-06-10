@@ -1903,4 +1903,96 @@ gateado por D2/T029. README.md e ROADMAP.md corrigidos. Commit: `0f48930`.
 - M1: 🟡 Aguardando T029 (Llama-2-7B, pausado indefinidamente)
 - M3: 🚧 Gateado por D2 (T029)
 
+### S7.19 Auditoria integral + T029 fp16 formal + NEXT_STEPS.md
+
+**Escopo:** auditoria completa de fundamentos matemáticos, algébricos e físicos;
+T029 re-executado com fp16 nativo (13.5 GB); benchmarks nos 3 modelos; relatório
+final `verification-report.md` v2.0.
+
+**Infraestrutura:**
+- `models/` movido para `/media/peder/DATA/BitNet/models/` (DATA: 1.1 TB livre)
+- Symlink `/home/peder/Projetos/BitNet/models -> /media/peder/DATA/BitNet/models`
+- Modelos disponíveis: BitNet-2B, Falcon3-3B, Falcon3-10B, Llama-2-7B Q4_K_M,
+  Llama-2-7B fp16 GGUF (13.5 GB)
+
+**Auditoria matemática:**
+
+| Invariante | Kernel | Resultado | N |
+|-----------|--------|-----------|---|
+| `‖d*‖ ≤ ‖W‖/√n` (P1) | L3 ACDC | ✅ max ratio=0.020 | 1000 |
+| forma fechada `diag(HWH)/n² = d*` (P6) | L3 ACDC | ✅ err=0 | 1000 |
+| energia `n²‖d*‖² ≈ ‖W_proj‖²` | L3 ACDC | ✅ Δrel=0 | 1000 |
+| determinismo ACDC | L3 ACDC | ✅ diff=0 | 200 |
+| topK output razoável | L4 sparse | ✅ norm ∈ [0.3,1.5] | 200 |
+| energia monotone `sum_topK ≤ sum_full` | L4 sparse | ✅ | 200 |
+| Parseval `‖RFFT(x)‖² = d·‖x‖²` (P7) | L5 HRR | ✅ rel err=9.22e-07 | 200 |
+| phasor key retrieval cos_sim > 0.9 (P2) | L5 HRR | ✅ [0.959,1.000] | 100 |
+| cleanup_iter ∈ codebook (P5) | L5 HRR | ✅ | 100 |
+
+**Auditoria do sistema:**
+- ctest 15/15 PASS 1.39s ✅
+- cross-validation C↔Python L3/L4/L5: 3/3 ✅ (rtol=1e-5, atol=1e-7)
+- air-gapped boot (unshare -rn): PASS ✅
+- NO-06 (telemetria): 0 hits ✅
+- NO-07 (cloud URLs): 0 hits ✅
+
+**Benchmarks (i5-10210U, 4t, n=64, --keep-running):**
+
+| Modelo | L1 baseline | Melhor | Ganho |
+|--------|-------------|--------|-------|
+| BitNet-2B | 4.16 tok/s | Adaptive-K 0.90 → 4.78 | **+14.9%** |
+| Falcon3-3B | 3.19 tok/s | ACDC_RECT=auto → 4.84 | **+51.7%** |
+| Falcon3-10B | 0.67 tok/s | ACDC_RECT=auto → 1.87 | **+179%** |
+
+**T029 formal fp16:**
+- Llama-2-7B fp16 GGUF (13.5 GB, `TheBloke/Llama-2-7B-fp16`, convertido com
+  `convert_hf_to_gguf.py`): resultados idênticos ao Q4_K_M — D2=DIFERENCIAL
+  confirmado independentemente de quantização.
+- Addendum adicionado em `investigation-d2-result.md`.
+
+**verification-report.md v2.0:** 13/13 ✅ (0 🟡 0 ❌).
+- AC-05: promovido (bench v0.2.0 real)
+- AC-08: promovido (D2=DIFERENCIAL confirmado)
+- Commit: `b0228c2`
+
+**ROADMAP.md v0.2.3:** §2.2 M3 atualizado (D2→P6 gate); reavaliação imediata
+v0.1.0 adicionada; commit junto com SESSION_SUMMARY.
+
+**NEXT_STEPS.md criado:** 7 passos priorizados, do release imediato (v0.1.0)
+até M3 ACDC retangular (Q4 2029).
+
+---
+
+### S7 — Estado final COMPLETO (2026-06-09, sessão encerrada)
+
+| Marco | Status final |
+|-------|-------------|
+| M1 Hardening matemático | ✅ T013, T015, T029 (D2=DIFERENCIAL) |
+| M2 Decision matrix | ✅ T015, T020, RF-05b/c |
+| M3 ACDC retangular | 🚧 P6 gate (Q4 2029) |
+| M4 Fine-tuning scaffolding | 🚧 P6 gate (Q4 2029) |
+| M5 Produto D4 | ✅ T021-T023, T016, T028 |
+| verification-report | ✅ 13/13 ACs verdes (v2.0) |
+
+**Todos os commits da sessão S7 (11 total):**
+
+| Hash | Descrição |
+|------|-----------|
+| `ebe058d` | auto-detect ACDC rect via n_ff/n_embd |
+| `7761e86` | HRR phasor hookado em llama.cpp |
+| `a03c827` | bitnet_op_hrr_attn_phasor() + benchmarks |
+| `d365665` | BITNET_SPARSE_TOPK_ADAPTIVE hookado |
+| `224fca3` | bitnet_op_sparse_attn_adaptive() + benchmarks |
+| `bea2889` | decision-matrix.md v0.2 |
+| `6cf0328` | findings + hardware-compat v0.2 |
+| `ce1ce21` | README.md v0.2 |
+| `f42c98b` | examples/*.md v0.2 + fix encoding |
+| `2dfbc29` | ROADMAP v0.2.2 + S7.15-S7.17 |
+| `55e92ab` | fix ctest 15/15 + .gitignore Testing/ |
+| `727c93a` | SESSION_SUMMARY S7.18 + estado final S7 |
+| `47b9ded` | T029 gate D2 DIFERENCIAL |
+| `b0228c2` | T029 fp16 formal + verification-report v2.0 |
+
+**Próximo passo imediato:** `git push origin main && git tag v0.1.0 && git push origin v0.1.0`
+
 **Sessão encerrada em 2026-06-09.**
