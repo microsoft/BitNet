@@ -2,3 +2,4 @@
 	path = 3rdparty/llama.cpp
 	url = https://github.com/Eddie-Wang1120/llama.cpp.git
 	branch = merge-dev
+	ignore = dirty
