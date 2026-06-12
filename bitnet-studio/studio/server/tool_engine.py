@@ -41,11 +41,57 @@ responda ao usuário em português claro e objetivo, citando os dados obtidos.
 """
 
 _TOOL_CALL_RE = re.compile(
-    r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL
+    r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL
+)
+_TOOL_CALL_OPEN_RE = re.compile(
+    r"<tool_call>\s*(.*)", re.DOTALL
 )
 _CODE_FENCE_RE = re.compile(
-    r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL
+    r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", re.DOTALL
 )
+
+
+def _extract_json(text: str) -> str | None:
+    """Extrai o primeiro objeto JSON válido de um texto."""
+    # Método 1: procura bloco { ... } balanceado
+    depth = 0
+    start = None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                return text[start : i + 1]
+    # Método 2: regex simples como fallback
+    m = re.search(r"\{[\s\S]*?\}", text)
+    if m:
+        return m.group(0)
+    return None
+
+
+def _extract_truncated_json(text: str) -> str | None:
+    """Tenta extrair JSON mesmo truncado (sem fechamento de braces)."""
+    # Procura início de objeto JSON
+    start = text.find("{")
+    if start == -1:
+        return None
+    # Tenta balanced braces primeiro
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    # Se truncado, retorna o que tem até o final (se tiver conteúdo significativo)
+    truncated = text[start:].strip()
+    if len(truncated) > 10 and '"name"' in truncated:
+        return truncated
+    return None
 
 
 @dataclass
@@ -86,6 +132,21 @@ def _try_parse(raw: str, known_tools: set[str]) -> ToolCall | None:
     try:
         obj = json.loads(raw)
     except json.JSONDecodeError:
+        # Tentativa para JSON truncado: extrair nome via regex
+        name_match = re.search(r'"name"\s*:\s*"([^"]+)"', raw)
+        if name_match:
+            name = name_match.group(1)
+            if not name or (known_tools and name not in known_tools):
+                return None
+            # Tenta extrair arguments também
+            args_match = re.search(r'"arguments"\s*:\s*(\{[^}]*(?:\}[^}]*)*)', raw)
+            args = {}
+            if args_match:
+                try:
+                    args = json.loads(args_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+            return ToolCall(name=name, arguments=args or {}, raw=raw)
         return None
     if not isinstance(obj, dict):
         return None
@@ -106,26 +167,57 @@ def parse_tool_call(text: str, tools: list[McpTool]) -> ToolCall | None:
 
     Ordem de tentativa:
     1. <tool_call>...</tool_call>  (formato ensinado)
-    2. ```json ... ```             (modelos que cercam com código)
-    3. JSON puro na resposta toda  (modelos minimalistas)
+    2. <tool_call>... (truncado, sem fechamento)
+    3. ```json ... ```             (modelos que cercam com código)
+    4. JSON puro na resposta toda  (modelos minimalistas)
     """
     known = {t.qualified_name for t in tools}
 
+    # 1. Bloco completo <tool_call>...</tool_call>
     for m in _TOOL_CALL_RE.finditer(text):
-        tc = _try_parse(m.group(1), known)
-        if tc:
-            return tc
+        raw = m.group(1)
+        json_str = _extract_json(raw)
+        if json_str:
+            tc = _try_parse(json_str, known)
+            if tc:
+                return tc
 
+    # 2. <tool_call> aberto (truncado, sem </tool_call>)
+    m = _TOOL_CALL_OPEN_RE.search(text)
+    if m:
+        raw = m.group(1)
+        json_str = _extract_truncated_json(raw)
+        if json_str:
+            tc = _try_parse(json_str, known)
+            if tc:
+                return tc
+
+    # 3. Cercas de código
     for m in _CODE_FENCE_RE.finditer(text):
         tc = _try_parse(m.group(1), known)
         if tc:
             return tc
 
+    # 4. JSON puro
     stripped = text.strip()
     if stripped.startswith("{") and stripped.endswith("}"):
         tc = _try_parse(stripped, known)
         if tc:
             return tc
+
+    # 5. Fallback: qualquer JSON com "name" no texto
+    json_str = _extract_json(text)
+    if json_str:
+        tc = _try_parse(json_str, known)
+        if tc:
+            return tc
+
+    # 6. Fallback extremo: regex direto para nome no texto
+    name_match = re.search(r'"name"\s*:\s*"([^"]+)"', text)
+    if name_match:
+        name = name_match.group(1)
+        if name in known:
+            return ToolCall(name=name, arguments={}, raw=text)
 
     return None
 
