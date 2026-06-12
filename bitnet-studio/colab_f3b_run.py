@@ -31,6 +31,7 @@ subprocess.check_call([
     sys.executable, "-m", "pip", "install", "-q",
     "transformers==4.40.0", "peft==0.11.0", "datasets==2.19.0",
     "accelerate==0.30.0", "bitsandbytes==0.43.0", "safetensors",
+    "sentencepiece",  # Requerido pelo tokenizer Falcon3
 ])
 
 # 3. Baixar dataset diretamente (sem !git clone)
@@ -83,7 +84,6 @@ tok = AutoTokenizer.from_pretrained(
     MODEL,
     trust_remote_code=True,
     use_fast=False,
-    from_slow=True,
 )
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
