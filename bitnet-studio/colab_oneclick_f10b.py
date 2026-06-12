@@ -14,15 +14,31 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
     "accelerate==0.30.0", "bitsandbytes==0.43.0", "safetensors"])
 
 import torch, json, shutil
+
+# ========== VERIFICAÇÃO DE GPU ==========
+if not torch.cuda.is_available():
+    raise SystemExit(
+        "\n" + "="*60 + "\n"
+        "❌ ERRO: GPU não detectada!\n\n"
+        "O Google Colab está em modo CPU. Para corrigir:\n"
+        "  1. Menu → Runtime → Change runtime type\n"
+        "  2. Hardware accelerator: GPU\n"
+        "  3. Save\n"
+        "  4. Menu → Runtime → Restart runtime\n"
+        "  5. Execute esta célula novamente\n"
+        + "="*60
+    )
+
+print(f"✅ GPU: {torch.cuda.get_device_name(0)}")
+print(f"✅ VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+print()
+
 from datasets import Dataset
 from transformers import (
     AutoModelForCausalLM, AutoTokenizer,
     TrainingArguments, Trainer, DataCollatorForLanguageModeling
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-
-print(f"GPU: {torch.cuda.get_device_name(0)}")
-print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
 
 # 2. Dataset (usa large com 162 exemplos)
 !git clone --depth 1 https://github.com/peder1981/BitNet.git /content/BitNet
