@@ -52,9 +52,41 @@ python3 finetune_cpu.py
 python3 finetune_cpu_mini.py
 ```
 
-### Treino GPU (Google Colab T4)
+### Treino GPU — Falcon3-3B (Google Colab T4)
 
 Abrir `colab_finetune.ipynb` no Google Colab e executar todas as células.
+
+---
+
+## Escalando para Falcon3-10B-Instruct
+
+### Comparação de Hardware
+
+| Opção | VRAM/RAM | Tempo 300 steps | Custo |
+|-------|----------|----------------|-------|
+| **Seu CPU** (35GB RAM) | ~20GB RAM | ~5-8 dias | Apenas energia |
+| **Colab T4** (16GB) | ~12-14GB VRAM | ~30-40 min | Gratuito |
+| **Colab Pro A100** (40GB) | ~12-14GB VRAM | ~10-15 min | $10/mês |
+| **RunPod RTX 3090** (24GB) | ~12-14GB VRAM | ~15-20 min | ~$0.20/hora |
+
+### ⚠️ Limitações do T4 Gratuito
+
+O Falcon 10B em QLoRA 4-bit consome **~12-14GB VRAM**. No Colab T4 (16GB):
+- Use `seq_len=128` (não 256)
+- Use `batch_size=1` obrigatoriamente
+- Use apenas camadas de atenção no LoRA (target_modules=`q_proj,k_proj,v_proj,o_proj`)
+- Ative `gradient_checkpointing=True`
+- **Risco de OOM**: se ocorrer, reduza para Falcon3-3B
+
+### Scripts Falcon 10B
+
+- `finetune_falcon10b_cpu.py` — CPU local (~20GB RAM, ~50min/step)
+- `finetune_falcon10b_gpu.py` — GPU paga (RTX 3090/A100, ~15-20min total)
+- `colab_finetune_falcon10b.ipynb` — Colab T4 (otimizado com seq=128)
+
+### Recomendação
+
+Para Falcon 10B, use **RunPod/Vast.ai com RTX 3090** (~$0.20/hora) ou **Colab Pro A100**. O T4 gratuito funciona mas é instável com 10B.
 
 ## Validação
 
