@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from studio.server.tool_engine import parse_tool_call
 
 BASE = "tiiuae/Falcon3-3B-Instruct"
-ADAPTER = "adapters/f3b-ptbr-tools-v2"
+ADAPTER = "adapters/f3b-ptbr-tools-local"
 OUTPUT_FILE = "test_50x_results.json"
 LOG_FILE = "test_50x_progress.log"
 
@@ -25,7 +25,7 @@ def log(msg):
     print(msg, flush=True)
 
 log(f"{'='*60}")
-log("TESTE 50x — Adapter v1 (150 steps) + parse_tool_call robusto")
+log("TESTE 50x — Adapter v1 (150 steps, 162 exemplos) + parse_tool_call robusto")
 log(f"{'='*60}")
 
 log("[1/2] Carregando modelo...")

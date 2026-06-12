@@ -1,16 +1,16 @@
 {
   "total": 72,
-  "passed": 40,
-  "failed": 32,
-  "accuracy": 0.5555555555555556,
+  "passed": 23,
+  "failed": 49,
+  "accuracy": 0.3194444444444444,
   "results": [
     {
       "iteration": 1,
       "question": "Como funciona a função MaFisCalc?",
       "expected": "protheus-rag__consultar_base_direta",
-      "got": "protheus-rag__consultar_base_direta",
-      "pass": true,
-      "elapsed": 92.14
+      "got": null,
+      "pass": false,
+      "elapsed": 149.04
     },
     {
       "iteration": 1,
@@ -18,15 +18,15 @@
       "expected": "protheus-rag__consultar_dicionario_direto",
       "got": null,
       "pass": false,
-      "elapsed": 93.65
+      "elapsed": 143.26
     },
     {
       "iteration": 1,
       "question": "Como funciona o faturamento no Protheus?",
       "expected": "protheus-rag__consultar_base_interna",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": true,
-      "elapsed": 105.23
+      "got": null,
+      "pass": false,
+      "elapsed": 142.8
     },
     {
       "iteration": 1,
@@ -34,31 +34,31 @@
       "expected": "protheus-rag__buscar_reversa_direto",
       "got": null,
       "pass": false,
-      "elapsed": 106.85
+      "elapsed": 149.22
     },
     {
       "iteration": 1,
       "question": "Como criar um REST endpoint em TLPP?",
       "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
+      "got": null,
       "pass": false,
-      "elapsed": 119.42
+      "elapsed": 125.82
     },
     {
       "iteration": 1,
       "question": "O que sabemos sobre o cliente João Silva?",
       "expected": "protheus-rag__mem0_search",
-      "got": "protheus-rag__mem0_search",
-      "pass": true,
-      "elapsed": 108.21
+      "got": null,
+      "pass": false,
+      "elapsed": 133.22
     },
     {
       "iteration": 1,
       "question": "Anote que o cliente prefere contato por e-mail",
       "expected": "protheus-rag__mem0_add",
-      "got": null,
-      "pass": false,
-      "elapsed": 98.94
+      "got": "protheus-rag__mem0_add",
+      "pass": true,
+      "elapsed": 141.94
     },
     {
       "iteration": 1,
@@ -66,7 +66,7 @@
       "expected": "protheus-rag__mem0_list",
       "got": null,
       "pass": false,
-      "elapsed": 98.49
+      "elapsed": 144.33
     },
     {
       "iteration": 1,
@@ -74,15 +74,15 @@
       "expected": "protheus-rag__mem0_stats",
       "got": null,
       "pass": false,
-      "elapsed": 101.29
+      "elapsed": 150.35
     },
     {
       "iteration": 1,
       "question": "Apague a memória sobre o teste",
       "expected": "protheus-rag__mem0_delete",
-      "got": "protheus-rag__mem0_delete",
-      "pass": true,
-      "elapsed": 94.35
+      "got": null,
+      "pass": false,
+      "elapsed": 144.92
     },
     {
       "iteration": 1,
@@ -90,7 +90,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 94.71
+      "elapsed": 151.07
     },
     {
       "iteration": 1,
@@ -98,7 +98,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 96.07
+      "elapsed": 142.73
     },
     {
       "iteration": 2,
@@ -106,247 +106,247 @@
       "expected": "protheus-rag__consultar_base_direta",
       "got": null,
       "pass": false,
-      "elapsed": 95.22
+      "elapsed": 143.91
     },
     {
       "iteration": 2,
-      "question": "Quais campos tem a tabela SA1?",
-      "expected": "protheus-rag__consultar_dicionario_direto",
-      "got": null,
-      "pass": false,
-      "elapsed": 97.83
-    },
-    {
-      "iteration": 2,
-      "question": "Como funciona o faturamento no Protheus?",
-      "expected": "protheus-rag__consultar_base_interna",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": true,
-      "elapsed": 111.89
-    },
-    {
-      "iteration": 2,
-      "question": "Como usar o skill reversa-scout?",
-      "expected": "protheus-rag__buscar_reversa_direto",
-      "got": "protheus-rag__buscar_reversa_direto",
-      "pass": true,
-      "elapsed": 117.62
-    },
-    {
-      "iteration": 2,
-      "question": "Como criar um REST endpoint em TLPP?",
-      "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": false,
-      "elapsed": 106.06
-    },
-    {
-      "iteration": 2,
-      "question": "O que sabemos sobre o cliente João Silva?",
-      "expected": "protheus-rag__mem0_search",
-      "got": "protheus-rag__mem0_search",
-      "pass": true,
-      "elapsed": 100.01
-    },
-    {
-      "iteration": 2,
-      "question": "Anote que o cliente prefere contato por e-mail",
-      "expected": "protheus-rag__mem0_add",
-      "got": null,
-      "pass": false,
-      "elapsed": 145.3
-    },
-    {
-      "iteration": 2,
-      "question": "Liste todas as memórias salvas",
-      "expected": "protheus-rag__mem0_list",
-      "got": null,
-      "pass": false,
-      "elapsed": 96.34
-    },
-    {
-      "iteration": 2,
-      "question": "Quantas memórias temos na base?",
-      "expected": "protheus-rag__mem0_stats",
-      "got": null,
-      "pass": false,
-      "elapsed": 101.55
-    },
-    {
-      "iteration": 2,
-      "question": "Apague a memória sobre o teste",
-      "expected": "protheus-rag__mem0_delete",
-      "got": "protheus-rag__mem0_delete",
-      "pass": true,
-      "elapsed": 99.93
-    },
-    {
-      "iteration": 2,
-      "question": "Olá, como vai?",
-      "expected": null,
-      "got": null,
-      "pass": true,
-      "elapsed": 98.32
-    },
-    {
-      "iteration": 2,
-      "question": "Quanto é 2 + 2?",
-      "expected": null,
-      "got": null,
-      "pass": true,
-      "elapsed": 99.85
-    },
-    {
-      "iteration": 3,
-      "question": "Como funciona a função MaFisCalc?",
-      "expected": "protheus-rag__consultar_base_direta",
-      "got": "protheus-rag__consultar_base_direta",
-      "pass": true,
-      "elapsed": 103.9
-    },
-    {
-      "iteration": 3,
       "question": "Quais campos tem a tabela SA1?",
       "expected": "protheus-rag__consultar_dicionario_direto",
       "got": "protheus-rag__consultar_dicionario_direto",
       "pass": true,
-      "elapsed": 98.55
+      "elapsed": 125.67
     },
     {
-      "iteration": 3,
+      "iteration": 2,
       "question": "Como funciona o faturamento no Protheus?",
       "expected": "protheus-rag__consultar_base_interna",
       "got": "protheus-rag__consultar_base_interna",
       "pass": true,
-      "elapsed": 95.88
+      "elapsed": 125.34
     },
     {
-      "iteration": 3,
+      "iteration": 2,
       "question": "Como usar o skill reversa-scout?",
       "expected": "protheus-rag__buscar_reversa_direto",
-      "got": "protheus-rag__buscar_reversa_direto",
-      "pass": true,
-      "elapsed": 102.01
-    },
-    {
-      "iteration": 3,
-      "question": "Como criar um REST endpoint em TLPP?",
-      "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": false,
-      "elapsed": 94.72
-    },
-    {
-      "iteration": 3,
-      "question": "O que sabemos sobre o cliente João Silva?",
-      "expected": "protheus-rag__mem0_search",
-      "got": "protheus-rag__mem0_search",
-      "pass": true,
-      "elapsed": 98.35
-    },
-    {
-      "iteration": 3,
-      "question": "Anote que o cliente prefere contato por e-mail",
-      "expected": "protheus-rag__mem0_add",
       "got": null,
       "pass": false,
-      "elapsed": 105.22
+      "elapsed": 133.05
     },
     {
-      "iteration": 3,
+      "iteration": 2,
+      "question": "Como criar um REST endpoint em TLPP?",
+      "expected": "protheus-rag__consultar_reversa_rag",
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 145.8
+    },
+    {
+      "iteration": 2,
+      "question": "O que sabemos sobre o cliente João Silva?",
+      "expected": "protheus-rag__mem0_search",
+      "got": null,
+      "pass": false,
+      "elapsed": 138.19
+    },
+    {
+      "iteration": 2,
+      "question": "Anote que o cliente prefere contato por e-mail",
+      "expected": "protheus-rag__mem0_add",
+      "got": "protheus-rag__mem0_list",
+      "pass": false,
+      "elapsed": 137.04
+    },
+    {
+      "iteration": 2,
       "question": "Liste todas as memórias salvas",
       "expected": "protheus-rag__mem0_list",
       "got": null,
       "pass": false,
-      "elapsed": 105.11
+      "elapsed": 136.48
     },
     {
-      "iteration": 3,
+      "iteration": 2,
       "question": "Quantas memórias temos na base?",
       "expected": "protheus-rag__mem0_stats",
       "got": null,
       "pass": false,
-      "elapsed": 101.13
+      "elapsed": 133.54
     },
     {
-      "iteration": 3,
+      "iteration": 2,
       "question": "Apague a memória sobre o teste",
       "expected": "protheus-rag__mem0_delete",
-      "got": "protheus-rag__mem0_delete",
-      "pass": true,
-      "elapsed": 105.36
+      "got": "protheus-rag__mem0_search",
+      "pass": false,
+      "elapsed": 133.43
     },
     {
-      "iteration": 3,
+      "iteration": 2,
       "question": "Olá, como vai?",
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 104.26
+      "elapsed": 149.39
+    },
+    {
+      "iteration": 2,
+      "question": "Quanto é 2 + 2?",
+      "expected": null,
+      "got": null,
+      "pass": true,
+      "elapsed": 144.03
     },
     {
       "iteration": 3,
-      "question": "Quanto é 2 + 2?",
-      "expected": null,
-      "got": "protheus-rag__mem0_search",
-      "pass": false,
-      "elapsed": 107.87
-    },
-    {
-      "iteration": 4,
       "question": "Como funciona a função MaFisCalc?",
       "expected": "protheus-rag__consultar_base_direta",
       "got": "protheus-rag__consultar_base_direta",
       "pass": true,
-      "elapsed": 104.76
+      "elapsed": 184.3
+    },
+    {
+      "iteration": 3,
+      "question": "Quais campos tem a tabela SA1?",
+      "expected": "protheus-rag__consultar_dicionario_direto",
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 212.32
+    },
+    {
+      "iteration": 3,
+      "question": "Como funciona o faturamento no Protheus?",
+      "expected": "protheus-rag__consultar_base_interna",
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 226.58
+    },
+    {
+      "iteration": 3,
+      "question": "Como usar o skill reversa-scout?",
+      "expected": "protheus-rag__buscar_reversa_direto",
+      "got": null,
+      "pass": false,
+      "elapsed": 252.59
+    },
+    {
+      "iteration": 3,
+      "question": "Como criar um REST endpoint em TLPP?",
+      "expected": "protheus-rag__consultar_reversa_rag",
+      "got": null,
+      "pass": false,
+      "elapsed": 152.34
+    },
+    {
+      "iteration": 3,
+      "question": "O que sabemos sobre o cliente João Silva?",
+      "expected": "protheus-rag__mem0_search",
+      "got": null,
+      "pass": false,
+      "elapsed": 154.89
+    },
+    {
+      "iteration": 3,
+      "question": "Anote que o cliente prefere contato por e-mail",
+      "expected": "protheus-rag__mem0_add",
+      "got": "protheus-rag__mem0_add",
+      "pass": true,
+      "elapsed": 183.88
+    },
+    {
+      "iteration": 3,
+      "question": "Liste todas as memórias salvas",
+      "expected": "protheus-rag__mem0_list",
+      "got": "protheus-rag__mem0_list",
+      "pass": true,
+      "elapsed": 167.58
+    },
+    {
+      "iteration": 3,
+      "question": "Quantas memórias temos na base?",
+      "expected": "protheus-rag__mem0_stats",
+      "got": null,
+      "pass": false,
+      "elapsed": 160.67
+    },
+    {
+      "iteration": 3,
+      "question": "Apague a memória sobre o teste",
+      "expected": "protheus-rag__mem0_delete",
+      "got": "protheus-rag__mem0_search",
+      "pass": false,
+      "elapsed": 237.68
+    },
+    {
+      "iteration": 3,
+      "question": "Olá, como vai?",
+      "expected": null,
+      "got": null,
+      "pass": true,
+      "elapsed": 235.41
+    },
+    {
+      "iteration": 3,
+      "question": "Quanto é 2 + 2?",
+      "expected": null,
+      "got": null,
+      "pass": true,
+      "elapsed": 182.08
+    },
+    {
+      "iteration": 4,
+      "question": "Como funciona a função MaFisCalc?",
+      "expected": "protheus-rag__consultar_base_direta",
+      "got": null,
+      "pass": false,
+      "elapsed": 247.53
     },
     {
       "iteration": 4,
       "question": "Quais campos tem a tabela SA1?",
       "expected": "protheus-rag__consultar_dicionario_direto",
-      "got": "protheus-rag__consultar_dicionario_direto",
-      "pass": true,
-      "elapsed": 109.66
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 180.22
     },
     {
       "iteration": 4,
       "question": "Como funciona o faturamento no Protheus?",
       "expected": "protheus-rag__consultar_base_interna",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": true,
-      "elapsed": 110.46
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 174.97
     },
     {
       "iteration": 4,
       "question": "Como usar o skill reversa-scout?",
       "expected": "protheus-rag__buscar_reversa_direto",
-      "got": "protheus-rag__buscar_reversa_direto",
-      "pass": true,
-      "elapsed": 142.39
+      "got": null,
+      "pass": false,
+      "elapsed": 169.4
     },
     {
       "iteration": 4,
       "question": "Como criar um REST endpoint em TLPP?",
       "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
+      "got": "protheus-rag__buscar_reversa_direto",
       "pass": false,
-      "elapsed": 232.05
+      "elapsed": 152.23
     },
     {
       "iteration": 4,
       "question": "O que sabemos sobre o cliente João Silva?",
       "expected": "protheus-rag__mem0_search",
-      "got": "protheus-rag__mem0_search",
-      "pass": true,
-      "elapsed": 310.01
+      "got": null,
+      "pass": false,
+      "elapsed": 170.74
     },
     {
       "iteration": 4,
       "question": "Anote que o cliente prefere contato por e-mail",
       "expected": "protheus-rag__mem0_add",
-      "got": null,
-      "pass": false,
-      "elapsed": 130.14
+      "got": "protheus-rag__mem0_add",
+      "pass": true,
+      "elapsed": 287.47
     },
     {
       "iteration": 4,
@@ -354,7 +354,7 @@
       "expected": "protheus-rag__mem0_list",
       "got": null,
       "pass": false,
-      "elapsed": 125.62
+      "elapsed": 268.05
     },
     {
       "iteration": 4,
@@ -362,15 +362,15 @@
       "expected": "protheus-rag__mem0_stats",
       "got": null,
       "pass": false,
-      "elapsed": 116.68
+      "elapsed": 194.4
     },
     {
       "iteration": 4,
       "question": "Apague a memória sobre o teste",
       "expected": "protheus-rag__mem0_delete",
-      "got": "protheus-rag__mem0_delete",
-      "pass": true,
-      "elapsed": 138.43
+      "got": null,
+      "pass": false,
+      "elapsed": 156.99
     },
     {
       "iteration": 4,
@@ -378,7 +378,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 298.18
+      "elapsed": 146.72
     },
     {
       "iteration": 4,
@@ -386,15 +386,15 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 190.25
+      "elapsed": 274.9
     },
     {
       "iteration": 5,
       "question": "Como funciona a função MaFisCalc?",
       "expected": "protheus-rag__consultar_base_direta",
-      "got": null,
+      "got": "protheus-rag__buscar_reversa_direto",
       "pass": false,
-      "elapsed": 225.35
+      "elapsed": 161.63
     },
     {
       "iteration": 5,
@@ -402,31 +402,31 @@
       "expected": "protheus-rag__consultar_dicionario_direto",
       "got": null,
       "pass": false,
-      "elapsed": 290.07
+      "elapsed": 214.16
     },
     {
       "iteration": 5,
       "question": "Como funciona o faturamento no Protheus?",
       "expected": "protheus-rag__consultar_base_interna",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": true,
-      "elapsed": 120.63
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 230.93
     },
     {
       "iteration": 5,
       "question": "Como usar o skill reversa-scout?",
       "expected": "protheus-rag__buscar_reversa_direto",
-      "got": "protheus-rag__buscar_reversa_direto",
-      "pass": true,
-      "elapsed": 130.59
+      "got": null,
+      "pass": false,
+      "elapsed": 228.96
     },
     {
       "iteration": 5,
       "question": "Como criar um REST endpoint em TLPP?",
       "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
+      "got": null,
       "pass": false,
-      "elapsed": 184.64
+      "elapsed": 129.15
     },
     {
       "iteration": 5,
@@ -434,15 +434,15 @@
       "expected": "protheus-rag__mem0_search",
       "got": "protheus-rag__mem0_search",
       "pass": true,
-      "elapsed": 238.64
+      "elapsed": 122.42
     },
     {
       "iteration": 5,
       "question": "Anote que o cliente prefere contato por e-mail",
       "expected": "protheus-rag__mem0_add",
-      "got": null,
-      "pass": false,
-      "elapsed": 188.92
+      "got": "protheus-rag__mem0_add",
+      "pass": true,
+      "elapsed": 121.74
     },
     {
       "iteration": 5,
@@ -450,7 +450,7 @@
       "expected": "protheus-rag__mem0_list",
       "got": null,
       "pass": false,
-      "elapsed": 276.32
+      "elapsed": 121.66
     },
     {
       "iteration": 5,
@@ -458,7 +458,7 @@
       "expected": "protheus-rag__mem0_stats",
       "got": null,
       "pass": false,
-      "elapsed": 157.77
+      "elapsed": 121.74
     },
     {
       "iteration": 5,
@@ -466,7 +466,7 @@
       "expected": "protheus-rag__mem0_delete",
       "got": null,
       "pass": false,
-      "elapsed": 111.85
+      "elapsed": 121.35
     },
     {
       "iteration": 5,
@@ -474,7 +474,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 111.03
+      "elapsed": 121.1
     },
     {
       "iteration": 5,
@@ -482,7 +482,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 105.74
+      "elapsed": 121.05
     },
     {
       "iteration": 6,
@@ -490,55 +490,55 @@
       "expected": "protheus-rag__consultar_base_direta",
       "got": "protheus-rag__consultar_base_direta",
       "pass": true,
-      "elapsed": 99.69
+      "elapsed": 121.23
     },
     {
       "iteration": 6,
       "question": "Quais campos tem a tabela SA1?",
       "expected": "protheus-rag__consultar_dicionario_direto",
-      "got": "protheus-rag__consultar_dicionario_direto",
-      "pass": true,
-      "elapsed": 114.58
+      "got": "protheus-rag__buscar_reversa_direto",
+      "pass": false,
+      "elapsed": 121.2
     },
     {
       "iteration": 6,
       "question": "Como funciona o faturamento no Protheus?",
       "expected": "protheus-rag__consultar_base_interna",
-      "got": "protheus-rag__consultar_base_interna",
-      "pass": true,
-      "elapsed": 163.02
+      "got": null,
+      "pass": false,
+      "elapsed": 121.22
     },
     {
       "iteration": 6,
       "question": "Como usar o skill reversa-scout?",
       "expected": "protheus-rag__buscar_reversa_direto",
-      "got": "protheus-rag__buscar_reversa_direto",
-      "pass": true,
-      "elapsed": 173.26
+      "got": null,
+      "pass": false,
+      "elapsed": 121.14
     },
     {
       "iteration": 6,
       "question": "Como criar um REST endpoint em TLPP?",
       "expected": "protheus-rag__consultar_reversa_rag",
-      "got": "protheus-rag__consultar_base_interna",
+      "got": null,
       "pass": false,
-      "elapsed": 121.36
+      "elapsed": 121.05
     },
     {
       "iteration": 6,
       "question": "O que sabemos sobre o cliente João Silva?",
       "expected": "protheus-rag__mem0_search",
-      "got": "protheus-rag__mem0_search",
-      "pass": true,
-      "elapsed": 133.3
+      "got": null,
+      "pass": false,
+      "elapsed": 121.1
     },
     {
       "iteration": 6,
       "question": "Anote que o cliente prefere contato por e-mail",
       "expected": "protheus-rag__mem0_add",
-      "got": null,
-      "pass": false,
-      "elapsed": 126.15
+      "got": "protheus-rag__mem0_add",
+      "pass": true,
+      "elapsed": 121.15
     },
     {
       "iteration": 6,
@@ -546,7 +546,7 @@
       "expected": "protheus-rag__mem0_list",
       "got": null,
       "pass": false,
-      "elapsed": 212.07
+      "elapsed": 121.08
     },
     {
       "iteration": 6,
@@ -554,15 +554,15 @@
       "expected": "protheus-rag__mem0_stats",
       "got": null,
       "pass": false,
-      "elapsed": 201.67
+      "elapsed": 121.18
     },
     {
       "iteration": 6,
       "question": "Apague a memória sobre o teste",
       "expected": "protheus-rag__mem0_delete",
-      "got": "protheus-rag__mem0_delete",
-      "pass": true,
-      "elapsed": 134.19
+      "got": "protheus-rag__mem0_search",
+      "pass": false,
+      "elapsed": 121.26
     },
     {
       "iteration": 6,
@@ -570,7 +570,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 139.63
+      "elapsed": 121.16
     },
     {
       "iteration": 6,
@@ -578,7 +578,7 @@
       "expected": null,
       "got": null,
       "pass": true,
-      "elapsed": 134.59
+      "elapsed": 121.19
     }
   ]
 }
