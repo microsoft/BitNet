@@ -69,6 +69,18 @@ print(f"Dataset: {len(texts)} exemplos")
 # 3. Modelo QLoRA
 MODEL = 'tiiuae/Falcon3-3B-Instruct'
 
+# Workaround: limpar cache do tokenizer se estiver corrompido
+import os
+cache_dir = os.path.expanduser("~/.cache/huggingface/hub/models--tiiuae--Falcon3-3B-Instruct")
+if os.path.exists(cache_dir):
+    import shutil
+    shutil.rmtree(cache_dir, ignore_errors=True)
+    print("Cache do tokenizer limpo")
+
+# Forçar tokenizer lento (workaround bug tokenizers + Falcon3)
+import transformers
+transformers.utils.import_utils.is_tokenizers_available = lambda: False
+
 tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True, use_fast=False)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
