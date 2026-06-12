@@ -69,7 +69,7 @@ print(f"Dataset: {len(texts)} exemplos")
 # 3. Modelo QLoRA
 MODEL = 'tiiuae/Falcon3-3B-Instruct'
 
-tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
+tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True, use_fast=False)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
 
