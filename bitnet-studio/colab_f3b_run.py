@@ -63,23 +63,28 @@ def to_text(messages):
 texts = [to_text(r["messages"]) for r in rows]
 print(f"Dataset: {len(texts)} exemplos")
 
-# 4. Tokenizer (workaround bug)
+# 4. Tokenizer (workaround bug tokenizers + Falcon3)
 from transformers import AutoTokenizer
 import transformers
 
 MODEL = "tiiuae/Falcon3-3B-Instruct"
 
-# Limpar cache se existir
-cache_dir = os.path.expanduser("~/.cache/huggingface/hub/models--tiiuae--Falcon3-3B-Instruct")
-if os.path.exists(cache_dir):
-    import shutil
-    shutil.rmtree(cache_dir, ignore_errors=True)
-    print("Cache limpo")
+# Limpar TODO cache HuggingFace para evitar tokenizer corrompido
+import shutil
+hf_cache = os.path.expanduser("~/.cache/huggingface/hub")
+if os.path.exists(hf_cache):
+    shutil.rmtree(hf_cache, ignore_errors=True)
+    print("Cache HuggingFace limpo")
 
 # Forçar tokenizer lento
 transformers.utils.import_utils.is_tokenizers_available = lambda: False
 
-tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True, use_fast=False)
+tok = AutoTokenizer.from_pretrained(
+    MODEL,
+    trust_remote_code=True,
+    use_fast=False,
+    from_slow=True,
+)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
 
