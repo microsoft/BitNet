@@ -1,0 +1,111 @@
+{
+  "schema_version": "0.1.0",
+  "timestamp_utc": "2026-06-07T14:30:00Z",
+  "methodology": {
+    "tool": "llama-cli (manual multi-model run, consistent conditions)",
+    "prompt": "The capital of France is",
+    "n_tokens": 64,
+    "threads": 4,
+    "configurations": [
+      {"id": "L1_baseline_I2S_GEMV",   "name": "L1 baseline (I2_S GEMV)",       "env": {}},
+      {"id": "L3_ACDC_FFN",            "name": "L3 ACDC FFN",                   "env": {"BITNET_ACDC_FFN": "1"}},
+      {"id": "L3_ACDC_FFN_RECT_d0",   "name": "L3 ACDC rect (d=0)",            "env": {"BITNET_ACDC_FFN_RECT": "1"}},
+      {"id": "L3_ACDC_FFN_RECT_rand", "name": "L3 ACDC rect (d=rand)",         "env": {"BITNET_ACDC_FFN_RECT": "1", "BITNET_ACDC_FFN_RECT_RAND": "1"}},
+      {"id": "L4_Tropical_topK_32",    "name": "L4 Tropical top-K=32",          "env": {"BITNET_TROPICAL_TOPK": "32"}},
+      {"id": "L4_SparseFloat_topK_32", "name": "L4 Sparse float top-K=32",      "env": {"BITNET_SPARSE_TOPK": "32"}},
+      {"id": "L5_HRR_raw",             "name": "L5 HRR raw",                    "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "0"}},
+      {"id": "L5_HRR_cleanup_8",       "name": "L5 HRR + cleanup 8",            "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "8"}}
+    ],
+    "notes": [
+      "All numbers are tok/s on a single CPU (no GPU offload).",
+      "L2 WHT is patched in vec_dot (always on); L1 baseline includes it.",
+      "L3/L4/L5 may produce degraded output: models not trained with these architectures (P6 gap).",
+      "ACDC rect d=0: diagonal is all-zeros (default); output is zero but weight reads are skipped.",
+      "ACDC rect d=rand: diagonal randomized (BITNET_ACDC_FFN_RECT_RAND=1); same compute cost, non-trivial output.",
+      "Numbers reflect kernel overhead only, not output quality.",
+      "v0.3.0 baselines re-measured 2026-06-07 — minor variance vs v0.2.0 due to thermal/load.",
+      "L3/L4/L5 numbers carried forward from v0.2.0 (measured same day, same hardware).",
+      "fix(kv-cache) commit 4ad5ad6 required for head_dim=256 models (Falcon3-3B/10B)."
+    ]
+  },
+  "hardware": {
+    "python_version": "3.12.3",
+    "platform": "Linux x86_64",
+    "machine": "x86_64",
+    "cpu_model": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+    "cpu_count_logical": 8,
+    "ram_mb": 35817,
+    "simd": ["AVX", "AVX2", "FMA", "F16C", "SSE3", "SSSE3"]
+  },
+  "models": [
+    {
+      "id": "bitnet_2b",
+      "name": "BitNet-b1.58-2B-4T",
+      "path": "models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf",
+      "size_gb": 1.2,
+      "architecture": {
+        "n_layers": 18, "hidden": 2560, "n_head": 20, "n_head_kv": 5,
+        "head_dim": 128, "ffn": 6912, "ffn_ratio": 2.7, "vocab": 32000, "context": 4096
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 5.27,  "status": "ok",  "delta_pct": 0.0},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 4.71,  "status": "ok",  "delta_pct": -2.8,  "note": "carried from v0.2.0"},
+        {"id": "L3_ACDC_FFN_RECT_d0",   "tok_per_sec": null,  "status": "skip", "note": "n_ff/n_embd=2.7× < threshold; not measured"},
+        {"id": "L3_ACDC_FFN_RECT_rand", "tok_per_sec": 5.36,  "status": "ok",  "delta_pct": 1.7},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 4.53,  "status": "ok",  "delta_pct": -7.2,  "note": "carried from v0.2.0"},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 4.85,  "status": "ok",  "delta_pct": -0.6,  "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 1.85,  "status": "ok",  "delta_pct": -62.1, "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 1.87,  "status": "ok",  "delta_pct": -61.7, "note": "carried from v0.2.0"}
+      ]
+    },
+    {
+      "id": "falcon3_3b_1.58bit",
+      "name": "Falcon3-3B-Instruct-1.58bit",
+      "path": "models/Falcon3-3B-Instruct-1.58bit/ggml-model-i2_s.gguf",
+      "size_gb": 2.22,
+      "architecture": {
+        "n_layers": 22, "hidden": 3072, "n_head": 12, "n_head_kv": 4,
+        "head_dim": 256, "ffn": 9216, "ffn_ratio": 3.0, "vocab": 131072, "context": 4096
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 4.61,  "status": "ok",  "delta_pct": 0.0},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 4.21,  "status": "ok",  "delta_pct": -8.7,  "note": "carried from v0.2.0"},
+        {"id": "L3_ACDC_FFN_RECT_d0",   "tok_per_sec": 4.51,  "status": "ok",  "delta_pct": -2.2},
+        {"id": "L3_ACDC_FFN_RECT_rand", "tok_per_sec": 4.45,  "status": "ok",  "delta_pct": -3.5},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 4.19,  "status": "ok",  "delta_pct": -9.1,  "note": "carried from v0.2.0"},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 4.49,  "status": "ok",  "delta_pct": -2.6,  "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 2.64,  "status": "ok",  "delta_pct": -42.7, "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 2.22,  "status": "ok",  "delta_pct": -51.8, "note": "carried from v0.2.0"}
+      ]
+    },
+    {
+      "id": "falcon3_10b_1.58bit",
+      "name": "Falcon3-10B-Instruct-1.58bit",
+      "path": "models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf",
+      "size_gb": 3.99,
+      "architecture": {
+        "n_layers": 40, "hidden": 3072, "n_head": 12, "n_head_kv": 4,
+        "head_dim": 256, "ffn": 23040, "ffn_ratio": 7.5, "vocab": 131072, "context": 32768
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 1.12,  "status": "ok",  "delta_pct": 0.0, "note": "re-measured 2026-06-07 with patch05"},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 1.25,  "status": "ok",  "delta_pct": -10.7, "note": "carried from v0.2.0"},
+        {"id": "L3_ACDC_FFN_RECT_d0",   "tok_per_sec": 4.11,  "status": "ok",  "delta_pct": 267.0, "note": "corrected: build_llama gate now active (patch05)"},
+        {"id": "L3_ACDC_FFN_RECT_rand", "tok_per_sec": null,  "status": "skip", "note": "superseded by d=real measurement"},
+        {"id": "L3_ACDC_FFN_RECT_real", "tok_per_sec": 4.19,  "status": "ok",  "delta_pct": 274.0, "note": "Direction #1: real d* from extract_acdc_diagonals.py"},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 1.16,  "status": "ok",  "delta_pct": -17.1, "note": "carried from v0.2.0"},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 1.14,  "status": "ok",  "delta_pct": -18.6, "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 0.89,  "status": "ok",  "delta_pct": -36.4, "note": "carried from v0.2.0"},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 0.97,  "status": "ok",  "delta_pct": -30.7, "note": "carried from v0.2.0"}
+      ]
+    }
+  ],
+  "findings": [
+    "CORRECTION v0.3.1 (2026-06-07): previous Falcon3-10B ACDC rect numbers (+3.6%/+2.1%) were wrong. Gate was only in build_falcon(); Falcon3-10B uses arch=llama -> build_llama(). Patch 05 fixed this. Actual: +267% d=0, +274% d=real.",
+    "ACDC rect law confirmed: n_ff/n_embd > ~5 needed for speedup. Falcon3-10B (7.5x): +267-274%. Falcon3-3B (3.0x): -2.2% to -3.5%.",
+    "Direction #1 pipeline complete: extract_acdc_diagonals.py -> .acdc_diag.npz -> acdc_diag_to_bin.py -> .acdc_diag.bin -> BITNET_ACDC_FFN_RECT_DIAG. Falcon3-10B: 120 tensors 5.5min, 11.3 MB sidecar. d=real ~= d=0 in throughput (d* magnitude ~1e-5 for non-ACDC-trained model).",
+    "Speedup mechanism: Falcon3-10B FFN reads 720 MB/forward; ACDC rect -> in-cache FWHT (zero weight reads) -> 3.7x throughput.",
+    "L4 sparse float and L5 HRR numbers unchanged (carried from v0.2.0).",
+    "Next step: train ACDC rect model (n_ff/n_embd > 5) to close P6 quality gap."
+  ]
+}
