@@ -1,0 +1,99 @@
+{
+  "schema_version": "0.1.0",
+  "timestamp_utc": "2026-06-07T09:45:00Z",
+  "methodology": {
+    "tool": "utils/cpu_universal_benchmark.py (manual multi-model run)",
+    "prompt": "The capital of France is",
+    "n_tokens": 64,
+    "threads": 4,
+    "configurations": [
+      {"id": "L1_baseline_I2S_GEMV",   "name": "L1 baseline (I2_S GEMV)",   "env": {}},
+      {"id": "L3_ACDC_FFN",            "name": "L3 ACDC FFN",               "env": {"BITNET_ACDC_FFN": "1"}},
+      {"id": "L4_Tropical_topK_32",    "name": "L4 Tropical top-K=32",      "env": {"BITNET_TROPICAL_TOPK": "32"}},
+      {"id": "L4_SparseFloat_topK_32", "name": "L4 Sparse float top-K=32",  "env": {"BITNET_SPARSE_TOPK": "32"}},
+      {"id": "L5_HRR_raw",             "name": "L5 HRR raw",                "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "0"}},
+      {"id": "L5_HRR_cleanup_8",       "name": "L5 HRR + cleanup 8",        "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "8"}}
+    ],
+    "notes": [
+      "All numbers are tok/s on a single CPU (no GPU offload).",
+      "L2 WHT is patched in vec_dot (always on); L1 baseline includes it.",
+      "L3/L4/L5 may produce degraded output: models not trained with these architectures (P6 gap).",
+      "Numbers reflect kernel overhead only, not output quality.",
+      "BitNet-2B numbers from session 2026-06-05 (approximate; formal run pending).",
+      "Falcon3-3B and Falcon3-10B measured 2026-06-07 after fix(kv-cache) commit 4ad5ad6.",
+      "fix(kv-cache): bitnet_kv_i8_cache_get now accepts d param — required for head_dim=256 models."
+    ]
+  },
+  "hardware": {
+    "python_version": "3.12.3",
+    "platform": "Linux x86_64",
+    "machine": "x86_64",
+    "cpu_model": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+    "cpu_count_logical": 8,
+    "ram_mb": 35817,
+    "simd": ["AVX", "AVX2", "FMA", "F16C", "SSE3", "SSSE3"]
+  },
+  "models": [
+    {
+      "id": "bitnet_2b",
+      "name": "BitNet-b1.58-2B-4T",
+      "path": "models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf",
+      "size_gb": 1.2,
+      "architecture": {
+        "n_layers": 18, "hidden": 2560, "n_head": 20, "n_head_kv": 5,
+        "head_dim": 128, "ffn": 6912, "vocab": 32000, "context": 4096
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 4.88,  "status": "ok",  "note": "approximate — formal run pending"},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 4.71,  "status": "ok",  "delta_pct": -3.5},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 4.53,  "status": "ok",  "delta_pct": -7.2},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 4.85,  "status": "ok",  "delta_pct": -0.6},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 1.85,  "status": "ok",  "delta_pct": -62.1},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 1.87,  "status": "ok",  "delta_pct": -61.7}
+      ]
+    },
+    {
+      "id": "falcon3_3b_1.58bit",
+      "name": "Falcon3-3B-Instruct-1.58bit",
+      "path": "models/Falcon3-3B-Instruct-1.58bit/ggml-model-i2_s.gguf",
+      "size_gb": 2.22,
+      "architecture": {
+        "n_layers": 22, "hidden": 3072, "n_head": 12, "n_head_kv": 4,
+        "head_dim": 256, "ffn": 9216, "vocab": 131072, "context": 4096
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 4.40,  "status": "ok",  "delta_pct": 0.0},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 4.21,  "status": "ok",  "delta_pct": -4.3},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 4.19,  "status": "ok",  "delta_pct": -4.8},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 4.49,  "status": "ok",  "delta_pct": 2.0},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 2.64,  "status": "ok",  "delta_pct": -40.0},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 2.22,  "status": "ok",  "delta_pct": -49.5}
+      ]
+    },
+    {
+      "id": "falcon3_10b_1.58bit",
+      "name": "Falcon3-10B-Instruct-1.58bit",
+      "path": "models/Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf",
+      "size_gb": 3.99,
+      "architecture": {
+        "n_layers": 40, "hidden": 3072, "n_head": 12, "n_head_kv": 4,
+        "head_dim": 256, "ffn": 23040, "vocab": 131072, "context": 32768
+      },
+      "rows": [
+        {"id": "L1_baseline_I2S_GEMV",   "tok_per_sec": 1.39,  "status": "ok",  "delta_pct": 0.0},
+        {"id": "L3_ACDC_FFN",            "tok_per_sec": 1.25,  "status": "ok",  "delta_pct": -10.1},
+        {"id": "L4_Tropical_topK_32",    "tok_per_sec": 1.16,  "status": "ok",  "delta_pct": -16.5},
+        {"id": "L4_SparseFloat_topK_32", "tok_per_sec": 1.14,  "status": "ok",  "delta_pct": -18.0},
+        {"id": "L5_HRR_raw",             "tok_per_sec": 0.89,  "status": "ok",  "delta_pct": -36.0},
+        {"id": "L5_HRR_cleanup_8",       "tok_per_sec": 0.97,  "status": "ok",  "delta_pct": -30.2}
+      ]
+    }
+  ],
+  "findings": [
+    "L4 sparse float is +2.0% for Falcon3-3B (FFN=9216) but -18.0% for Falcon3-10B (FFN=23040): attention kernels are ineffective when FFN dominates compute.",
+    "L3 ACDC overhead scales with model depth: -3.5% (BitNet-2B, 18L) → -4.3% (Falcon3-3B, 22L) → -10.1% (Falcon3-10B, 40L). FWHT not SIMD-optimized vs AVX2 GEMV.",
+    "L5 HRR+cleanup beats L5 raw only on Falcon3-10B (head_dim=256, -30.2% vs -36.0%). head_dim=128 shows no cleanup benefit.",
+    "Critical gap: L3 ACDC applies only to square attention projections. FFN rectangular projections (3072×23040) are untouched. Fase II (ACDC rect) targets this.",
+    "fix(kv-cache) commit 4ad5ad6: SIGSEGV on head_dim=256 models fixed by passing d to _get()."
+  ]
+}
