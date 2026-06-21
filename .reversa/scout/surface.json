@@ -1,0 +1,189 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-06-05",
+  "agent": "reversa-scout",
+  "project_root": "/home/peder/Projetos/BitNet",
+  "output_folder": "_reversa_sdd",
+  "doc_level": "completo",
+  "phase_after": "scout",
+
+  "project": {
+    "name": "BitNet",
+    "repository": "https://github.com/peder1981/BitNet.git",
+    "upstream": "microsoft/BitNet",
+    "license": "MIT",
+    "description": "CPU-only inference for 1.58-bit (ternary) LLMs with experimental algebraic kernels (WHT, ACDC, tropical, HRR)",
+    "branch": "main",
+    "head_commit": "129557d",
+    "head_commit_message": "feat: register L2-L5 kernels in ggml dispatch",
+    "primary_language": "Python",
+    "languages": [
+      { "name": "Python",   "extensions": [".py"],   "file_count": 19, "approx_loc": 8504 },
+      { "name": "C++",      "extensions": [".cpp"],  "file_count": 6,  "approx_loc": 2270 },
+      { "name": "C/C++ hdr", "extensions": [".h"],   "file_count": 13, "approx_loc": 6622 },
+      { "name": "CMake",    "extensions": ["CMakeLists.txt"], "file_count": 2, "approx_loc": 140 },
+      { "name": "Shell",    "extensions": [".sh"],   "file_count": 2,  "approx_loc": 724 },
+      { "name": "Markdown", "extensions": [".md"],   "file_count": 12, "approx_loc": 1755 }
+    ]
+  },
+
+  "frameworks": [
+    { "name": "llama.cpp",    "version": "fork (merge-dev branch)",  "source": "3rdparty/llama.cpp/ (submodule)" },
+    { "name": "ggml",         "version": "propagated from llama.cpp", "source": "3rdparty/llama.cpp/ggml" },
+    { "name": "PyTorch",      "version": "REMOVED in this fork",      "source": "previously gpu/, no longer present" },
+    { "name": "xformers",     "version": "REMOVED in this fork",      "source": "previously gpu/, no longer present" },
+    { "name": "tiktoken",     "version": "inherited via 3rdparty reqs", "source": "3rdparty/llama.cpp/requirements" },
+    { "name": "huggingface-cli", "version": "external",               "source": "setup_env.py" }
+  ],
+
+  "build_system": {
+    "primary": "CMake",
+    "cmake_min_version": "3.14",
+    "compiler_required": "Clang >= 18",
+    "compiler_tolerated": "GCC (with -fpermissive)",
+    "compiler_forbidden": "MSVC"
+  },
+
+  "package_manager": "conda (recommended) + pip (for python deps)",
+
+  "entry_points": [
+    { "path": "run_inference.py",         "type": "app_entry",     "role": "CPU inference CLI",            "hardcoded_flags": ["-ngl 0", "-b 1"] },
+    { "path": "run_inference_server.py",  "type": "app_entry",     "role": "OpenAI-compatible HTTP server" },
+    { "path": "setup_env.py",             "type": "setup_entry",   "role": "End-to-end setup orchestrator" }
+  ],
+
+  "config_files": [
+    "CMakeLists.txt",
+    "src/CMakeLists.txt",
+    "include/gemm-config.h",
+    "include/bitnet-lut-kernels.h",
+    "requirements.txt",
+    ".gitmodules",
+    ".gitignore"
+  ],
+
+  "build_flags": {
+    "BITNET_ARM_TL1":    { "default": false, "scope": "kernel_format (L1)" },
+    "BITNET_X86_TL2":    { "default": false, "scope": "kernel_format (L1)" },
+    "BITNET_L2_WHT":     { "default": true,  "scope": "math_research (Level 2)" },
+    "BITNET_L3_ACDC":    { "default": true,  "scope": "math_research (Level 3)" },
+    "BITNET_L4_TROPICAL":{ "default": true,  "scope": "math_research (Level 4)" },
+    "BITNET_L5_HRR":     { "default": true,  "scope": "math_research (Level 5)" }
+  },
+
+  "ci_cd": [],
+
+  "docker": {
+    "dockerfile": null,
+    "compose": null
+  },
+
+  "database_hints": [],
+
+  "test_framework": "none (ad-hoc benchmarks + 1 perplexity test)",
+  "test_files": [
+    "utils/test_perplexity.py"
+  ],
+  "test_shell_scripts": [
+    "utils/test_gemm_kernel.sh",
+    "utils/test_power.sh"
+  ],
+  "benchmarks": [
+    "utils/wht_benchmark.py",
+    "utils/acdc_benchmark.py",
+    "utils/tropical_benchmark.py",
+    "utils/hrr_benchmark.py",
+    "utils/e2e_benchmark.py",
+    "utils/tune_gemm_config.py"
+  ],
+
+  "modules": [
+    { "id": "run_inference",         "file": "run_inference.py",             "language": "Python", "role": "entry_point" },
+    { "id": "run_inference_server",  "file": "run_inference_server.py",      "language": "Python", "role": "entry_point" },
+    { "id": "setup_env",             "file": "setup_env.py",                 "language": "Python", "role": "tooling" },
+    { "id": "src_ggml_bitnet_mad",   "file": "src/ggml-bitnet-mad.cpp",      "language": "C++",    "role": "cpu_kernel", "level": 1, "format": "I2_S" },
+    { "id": "src_ggml_bitnet_lut",   "file": "src/ggml-bitnet-lut.cpp",      "language": "C++",    "role": "cpu_kernel", "level": 1, "format": "TL1+TL2" },
+    { "id": "src_ggml_bitnet_wht",   "file": "src/ggml-bitnet-wht.cpp",      "language": "C++",    "role": "cpu_kernel", "level": 2, "format": "WHT" },
+    { "id": "src_ggml_bitnet_fwht",  "file": "src/ggml-bitnet-fwht.cpp",     "language": "C++",    "role": "cpu_kernel", "level": 3, "format": "FWHT+ACDC" },
+    { "id": "src_ggml_bitnet_tropical","file": "src/ggml-bitnet-tropical.cpp","language": "C++",    "role": "cpu_kernel", "level": 4, "format": "Tropical(max,+)" },
+    { "id": "src_ggml_bitnet_hrr",   "file": "src/ggml-bitnet-hrr.cpp",      "language": "C++",    "role": "cpu_kernel", "level": 5, "format": "HRR" },
+    { "id": "src_ggml_bitnet_dispatch", "file": "src/ggml-bitnet-dispatch.cpp", "language": "C++", "role": "dispatch_wrapper", "level": "2-5", "scope": "L2-L5 kernels → llama.cpp tensor dispatch", "wraps": ["bitnet_op_acdc", "bitnet_op_tropical_attn", "bitnet_op_hrr_attn"] },
+    { "id": "include_ggml_bitnet_dispatch", "file": "include/ggml-bitnet-dispatch.h", "language": "C/C++ header", "role": "dispatch_api", "lines": 106 },
+    { "id": "utils_codegen_tl1",     "file": "utils/codegen_tl1.py",         "language": "Python", "role": "code_generation" },
+    { "id": "utils_codegen_tl2",     "file": "utils/codegen_tl2.py",         "language": "Python", "role": "code_generation" },
+    { "id": "utils_convert",         "file": "utils/convert.py",             "language": "Python", "role": "data_conversion" },
+    { "id": "utils_convert_helper",  "file": "utils/convert-helper-bitnet.py","language": "Python","role": "data_conversion" },
+    { "id": "utils_convert_hf_gguf", "file": "utils/convert-hf-to-gguf-bitnet.py","language": "Python","role": "data_conversion" },
+    { "id": "utils_convert_ms_gguf", "file": "utils/convert-ms-to-gguf-bitnet.py","language": "Python","role": "data_conversion" },
+    { "id": "utils_quantize_embeddings","file": "utils/quantize_embeddings.py","language": "Python","role": "data_conversion" },
+    { "id": "utils_preprocess_hf",   "file": "utils/preprocess-huggingface-bitnet.py","language": "Python","role": "data_conversion" },
+    { "id": "utils_generate_dummy",  "file": "utils/generate-dummy-bitnet.py","language": "Python",  "role": "tooling" }
+  ],
+
+  "submodules": [
+    { "path": "3rdparty/llama.cpp", "url": "https://github.com/Eddie-Wang1120/llama.cpp.git", "branch": "merge-dev", "type": "fork", "size_mb": 65 }
+  ],
+
+  "organization_suggestion": {
+    "granularity": "module",
+    "rationale": "Organização top-level é por papel técnico (src/, include/, utils/, preset_kernels/, docs/), não por domínio de negócio. A separação natural é por 'módulo' = arquivo de kernel ou utilitário coeso.",
+    "signals": [
+      { "type": "tech_role_folders", "evidence": ["src/", "include/", "utils/", "preset_kernels/", "docs/"] },
+      { "type": "no_business_domain", "evidence": ["ausência de pastas nomeadas por produto/feature"] },
+      { "type": "no_routes",         "evidence": ["sem routes.py, urls.py, @RestController, Router()"] },
+      { "type": "no_bdd",            "evidence": ["sem features/*.feature, sem cypress/, sem playwright/"] }
+    ],
+    "module_candidates": [
+      "L1 I2_S MAD kernel",
+      "L1 LUT kernel (TL1/TL2)",
+      "L2 WHT kernel",
+      "L3 FWHT/ACDC kernel",
+      "L4 Tropical attention",
+      "L5 HRR (in_progress)",
+      "CLI entry (run_inference)",
+      "HTTP server entry (run_inference_server)",
+      "Setup orchestrator (setup_env)",
+      "Conversion pipeline (convert*)",
+      "Quantization helpers",
+      "Codegen (tl1/tl2)"
+    ]
+  },
+
+  "signals_summary": {
+    "routing_centralized": false,
+    "domain_top_folders":   false,
+    "gherkin_bdd":          false,
+    "coexisting_signals":   false
+  },
+
+  "lacunas": [
+    "CI/CD ausente — sem .github/, Jenkinsfile, etc.",
+    "Docker ausente",
+    "Banco de dados ausente (modelo via .gguf estático)",
+    "Testes formais ausentes — só 1 perplexity + 2 shell scripts + 6 benchmarks",
+    "3rdparty/llama.cpp não auditado (submódulo fork)",
+    "L3 ACDC: ✓ integrado em FFN dispatch (env BITNET_ACDC_FFN=1) — dispatch chain L2-L5 completo",
+    "P6 (Estrutura, não compressão) não validado empiricamente — modelo não foi treinado com camadas ACDC ou HRR",
+    "P6 (Estrutura, não compressão) não validado empiricamente — modelo não foi treinado com camadas ACDC ou HRR",
+    "L4 tropical K=32 fixo (não calibrado por head/camada), sem annealing de τ",
+    "L5 HRR mostra regressão -46% no e2e (FFT overhead domina head_dim=128) — precisa d ≥ 10·n_kv ou modelo com head_dim maior"
+  ],
+
+  "dispatch_integration_status": {
+    "L1_I2_S_MAD":   { "status": "integrated", "path": "default ggml_compute_forward path" },
+    "L2_WHT":        { "status": "patched",    "path": "ggml_vec_dot_i2_i8_s in 3rdparty/llama.cpp/ggml/src" },
+    "L3_ACDC":       { "status": "integrated", "path": "bitnet_op_acdc_gemv in src/ggml-bitnet-dispatch.cpp, called by llm_build_ffn_acdc_bitnet (3rdparty/llama.cpp/src/llama.cpp:9657-9713) for env BITNET_ACDC_FFN=1", "ffn_dims": {"up": "2560→6912 (n=4096 K=2)", "down": "6912→2560 (n=8192 K=1)"}, "proj_placeholder": "partial identity", "D_init": "zeros", "expected_output": "garbage (P6 not validated)", "verified_e2e_tok_per_sec": 5.04, "baseline": 4.92, "speedup_pct": 2.4 },
+    "L4_TROPICAL":   { "status": "integrated", "path": "3rdparty/llama.cpp/src/llama.cpp llm_build_kqv, env BITNET_TROPICAL_TOPK=N", "verified_e2e_tok_per_sec": 4.15, "baseline": 3.11, "speedup_pct": 33 },
+    "L5_HRR":        { "status": "integrated", "path": "3rdparty/llama.cpp/src/llama.cpp llm_build_kqv, env BITNET_HRR_ATTN=1", "verified_e2e_tok_per_sec": 1.69, "baseline": 3.11, "regression_pct": -46 }
+  },
+
+  "notes": {
+    "language_of_docs": "português-BR",
+    "build_test_dir_present": true,
+    "build_test_dir_versioned": false,
+    "gpu_pipeline_removed": true,
+    "forked_from": "microsoft/BitNet",
+    "fork_added": ["L2 WHT", "L3 ACDC", "L4 Tropical", "L5 HRR", "CMake OBJECT lib wiring", "src/ggml-bitnet-dispatch.cpp (L2-L5 dispatch wrappers, commit 129557d)"],
+    "fork_removed": ["gpu/ directory entirely (PyTorch + CUDA pipeline)"]
+  }
+}
