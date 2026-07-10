@@ -952,13 +952,19 @@ class LlamaModel(Model):
                 raise ValueError(f"Unprocessed experts: {experts}")
 
 
-@Model.register("BitnetForCausalLM")
+@Model.register("BitnetForCausalLM", "BitNetForCausalLM")
 class BitnetModel(Model):
     model_arch = gguf.MODEL_ARCH.BITNET
 
     def set_vocab(self):
-        self._set_vocab_sentencepiece()
-        
+        try:
+            self._set_vocab_sentencepiece()
+        except FileNotFoundError:
+            try:
+                self._set_vocab_llama_hf()
+            except (FileNotFoundError, TypeError):
+                # Llama 3
+                self._set_vocab_gpt2()
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
 
