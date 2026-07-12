@@ -218,7 +218,11 @@ def compile():
 def main():
     setup_gguf()
     gen_code()
-    compile()
+    # Allow skipping the compile step (useful when build artifacts already exist)
+    if os.environ.get("SKIP_COMPILE") != "1":
+        compile()
+    else:
+        logging.info("SKIP_COMPILE=1 set, skipping compile step")
     prepare_model()
     
 def parse_args():
