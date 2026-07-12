@@ -1,11 +1,20 @@
+
 [Unit]
 Description=BitNet inference service (llama-cli)
 After=network.target
 
 [Service]
 Type=simple
+User=bitnet
 WorkingDirectory=/workspaces/BitNet
-ExecStart=/usr/bin/env bash /workspaces/BitNet/scripts/run_bitnet.sh /workspaces/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf "You are a helpful assistant." 4 256
+# Load optional environment file (create /etc/bitnet/bitnet.env with VAR=VAL lines)
+EnvironmentFile=-/etc/bitnet/bitnet.env
+Environment=MODEL_PATH=/workspaces/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+Environment=THREADS=4
+Environment=PROMPT="You are a helpful assistant."
+
+# Redirect stdout/stderr to a persistent logfile for logrotate
+ExecStart=/usr/bin/env bash -lc '/workspaces/BitNet/scripts/run_bitnet.sh "$MODEL_PATH" "$PROMPT" "$THREADS" 256 >> /var/log/bitnet/bitnet.log 2>&1'
 Restart=on-failure
 RestartSec=5
 

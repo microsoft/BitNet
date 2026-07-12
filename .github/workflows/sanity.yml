@@ -1,0 +1,22 @@
+name: Sanity CI
+
+on:
+  push:
+    branches: [ main, 'add/*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install minimal deps
+        run: python -m pip install --upgrade pip
+      - name: Run sanity tests
+        run: |
+          python -m pytest -q tests/test_sanity.py
