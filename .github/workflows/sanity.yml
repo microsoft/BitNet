@@ -91,6 +91,35 @@ JSON
           else
             echo "No dummy model artifact found — skipping validation"
           fi
+
+  notify-inference-dummy:
+    runs-on: ubuntu-latest
+    needs: inference-dummy
+    if: always()
+    steps:
+      - name: Comment on PR if validator failed
+        uses: actions/github-script@v6
+        env:
+          INFERENCE_RESULT: ${{ needs.inference-dummy.result }}
+        with:
+          script: |
+            const result = process.env.INFERENCE_RESULT;
+            if (result === 'success') {
+              console.log('inference-dummy succeeded; no comment.');
+              return;
+            }
+            const pr = context.payload.pull_request ? context.payload.pull_request.number : null;
+            if (!pr) {
+              console.log('No pull_request in context; skipping comment.');
+              return;
+            }
+            const body = `:warning: GGUF validator in job \`inference-dummy\` returned **${result}**. See workflow run: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body
+            });
       - name: Run inference with dummy model if present
         run: |
           if [ -f tests/dummy/ggml-model-i2_s.gguf ]; then
