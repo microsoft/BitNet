@@ -20,3 +20,19 @@ jobs:
       - name: Run sanity tests
         run: |
           python -m pytest -q tests/test_sanity.py
+
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    needs: sanity
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake clang libpthread-stubs0-dev
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build llama-cli
+        run: cmake --build build --target llama-cli -j $(nproc)
+      - name: Run llama-cli --help smoke test
+        run: build/bin/llama-cli --help

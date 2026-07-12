@@ -3,9 +3,11 @@
 Description=BitNet inference service (llama-cli)
 After=network.target
 
+
 [Service]
 Type=simple
 User=bitnet
+Group=bitnet
 WorkingDirectory=/workspaces/BitNet
 # Load optional environment file (create /etc/bitnet/bitnet.env with VAR=VAL lines)
 EnvironmentFile=-/etc/bitnet/bitnet.env
@@ -13,8 +15,15 @@ Environment=MODEL_PATH=/workspaces/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i
 Environment=THREADS=4
 Environment=PROMPT="You are a helpful assistant."
 
-# Redirect stdout/stderr to a persistent logfile for logrotate
-ExecStart=/usr/bin/env bash -lc '/workspaces/BitNet/scripts/run_bitnet.sh "$MODEL_PATH" "$PROMPT" "$THREADS" 256 >> /var/log/bitnet/bitnet.log 2>&1'
+# Resource limits (adjust as needed)
+MemoryMax=4G
+CPUQuota=80%
+LimitNOFILE=65536
+
+# Prefer journald output; if LOG_TO_JOURNAL is set to 0 in env file, logs will be redirected to /var/log/bitnet/bitnet.log
+Environment=LOG_TO_JOURNAL=1
+
+ExecStart=/usr/bin/env bash -lc 'if [ "${LOG_TO_JOURNAL}" = "1" ]; then exec /workspaces/BitNet/scripts/run_bitnet.sh "$MODEL_PATH" "$PROMPT" "$THREADS" 256; else exec /workspaces/BitNet/scripts/run_bitnet.sh "$MODEL_PATH" "$PROMPT" "$THREADS" 256 >> /var/log/bitnet/bitnet.log 2>&1; fi'
 Restart=on-failure
 RestartSec=5
 
