@@ -96,6 +96,16 @@ def main() -> int:
     if tensors_count < 10:
         fail(f"Too few tensors in GGUF ({tensors_count}) — likely corrupted or incomplete")
 
+    # Per-layer sanity checks: ensure each layer has a reasonable number of tensors
+    info("Performing per-layer tensor checks")
+    expected_per_layer_min = 8
+    for i in range(block_count):
+        layer_id = f".layers.{i}."
+        layer_tensors = [t for t in r.tensors if layer_id in (getattr(t, 'name', '') or getattr(t, 'tensor_name', ''))]
+        info(f"Layer {i}: found {len(layer_tensors)} tensors")
+        if len(layer_tensors) < expected_per_layer_min:
+            fail(f"Layer {i} has too few tensors ({len(layer_tensors)}), expected at least {expected_per_layer_min}")
+
     print("Validation passed")
     return 0
 
