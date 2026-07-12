@@ -84,6 +84,13 @@ JSON
           name: dummy-model
           path: tests/dummy
           if-no-files-found: ignore
+      - name: Validate downloaded GGUF
+        run: |
+          if [ -f tests/dummy/ggml-model-i2_s.gguf ]; then
+            python3 utils/validate_gguf.py tests/dummy/ggml-model-i2_s.gguf
+          else
+            echo "No dummy model artifact found — skipping validation"
+          fi
       - name: Run inference with dummy model if present
         run: |
           if [ -f tests/dummy/ggml-model-i2_s.gguf ]; then

@@ -791,7 +791,70 @@ class BitnetModel(Model):
         
 
     def set_vocab(self):
-        self._set_vocab_sentencepiece()
+        # Prefer sentencepiece tokenizer when available, otherwise fall back
+        # to HuggingFace tokenizer (e.g., GPT-2) via get_vocab_base().
+        tokenizer_path = self.dir_model / 'tokenizer.model'
+        if tokenizer_path.is_file():
+            self._set_vocab_sentencepiece()
+            return
+
+        # Fallback: use HF tokenizer saved in the model dir
+        tokens, toktypes, tokpre = self.get_vocab_base()
+
+        # write tokenizer metadata into GGUF
+        # use tokpre (pre-tokenizer id) as tokenizer model when available (e.g. 'gpt-2')
+        try:
+            # indicate that HF JSON tokenizer is embedded
+            self.gguf_writer.add_tokenizer_model('hf-json')
+        except Exception:
+            self.gguf_writer.add_tokenizer_model("llama")
+        # tokpre is expected to be a string identifier for pre-tokenizer
+        try:
+            self.gguf_writer.add_tokenizer_pre(tokpre)
+        except Exception:
+            self.gguf_writer.add_tokenizer_pre("default")
+
+        # convert tokens (strings) into bytes
+        token_bytes = [t.encode("utf-8") if isinstance(t, str) else t for t in tokens]
+        self.gguf_writer.add_token_list(token_bytes)
+        # token types may be TokenType enum values already
+        self.gguf_writer.add_token_types(toktypes)
+
+        special_vocab = gguf.SpecialVocab(self.dir_model, n_vocab=len(token_bytes))
+        special_vocab.add_to_gguf(self.gguf_writer)
+
+        # Try to embed HF tokenizer JSON (tokenizer.json + tokenizer_config.json)
+        # under the GGUF key `tokenizer.ggml.hf_json` so that tools expecting
+        # HF JSON tokenizer can parse it.
+        try:
+            hf_json = {}
+            tokenizer_json_path = self.dir_model / 'tokenizer.json'
+            tokenizer_cfg_path = self.dir_model / 'tokenizer_config.json'
+            if tokenizer_json_path.is_file():
+                with open(tokenizer_json_path, 'r', encoding='utf-8') as f:
+                    hf_json['tokenizer'] = json.load(f)
+            if tokenizer_cfg_path.is_file():
+                with open(tokenizer_cfg_path, 'r', encoding='utf-8') as f:
+                    hf_json['tokenizer_config'] = json.load(f)
+            # optional files
+            for opt in ('added_tokens.json', 'vocab.json', 'merges.txt'):
+                p = self.dir_model / opt
+                if p.is_file():
+                    try:
+                        if p.suffix == '.json':
+                            with open(p, 'r', encoding='utf-8') as f:
+                                hf_json[opt] = json.load(f)
+                        else:
+                            with open(p, 'r', encoding='utf-8') as f:
+                                hf_json[opt] = f.read()
+                    except Exception:
+                        hf_json[opt] = None
+
+            if hf_json:
+                self.gguf_writer.add_string('tokenizer.ggml.hf_json', json.dumps(hf_json))
+        except Exception:
+            # non-fatal: continue without HF json
+            pass
         
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
@@ -828,8 +891,9 @@ class BitnetModel(Model):
         num_hidden_layers = hp_config["num_hidden_layers"]
         num_attention_heads = hp_config["num_attention_heads"]
 
-        # generate dummy tensors
-        tensor = torch.randn((32002, hidden_size), dtype=torch.float32)
+        # generate dummy tensors; embedding table should match vocab_size
+        vocab_size = self.hparams.get("vocab_size", 32002)
+        tensor = torch.randn((vocab_size, hidden_size), dtype=torch.float32)
         yield ("model.embed_tokens.weight", tensor)
         for i in range(num_hidden_layers):
             yield f"model.layers.{i}.input_layernorm.weight", torch.randn((hidden_size,), dtype=torch.float32)
