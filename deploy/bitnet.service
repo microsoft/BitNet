@@ -15,10 +15,10 @@ Environment=MODEL_PATH=/workspaces/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i
 Environment=THREADS=4
 Environment=PROMPT="You are a helpful assistant."
 
-# Resource limits (adjust as needed)
-MemoryMax=4G
-CPUQuota=80%
-LimitNOFILE=65536
+# Resource limits (adjust per profile: small/medium/large)
+MemoryMax=%MEMORY_MAX%
+CPUQuota=%CPU_QUOTA%
+LimitNOFILE=%LIMIT_NOFILE%
 
 # Prefer journald output; if LOG_TO_JOURNAL is set to 0 in env file, logs will be redirected to /var/log/bitnet/bitnet.log
 Environment=LOG_TO_JOURNAL=1

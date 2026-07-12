@@ -36,3 +36,23 @@ jobs:
         run: cmake --build build --target llama-cli -j $(nproc)
       - name: Run llama-cli --help smoke test
         run: build/bin/llama-cli --help
+
+  inference-dummy:
+    runs-on: ubuntu-latest
+    needs: build-and-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download dummy model artifact (optional)
+        uses: actions/download-artifact@v4
+        with:
+          name: dummy-model
+          path: tests/dummy
+          if-no-files-found: ignore
+      - name: Run inference with dummy model if present
+        run: |
+          if [ -f tests/dummy/ggml-model-i2_s.gguf ]; then
+            echo "Found dummy model, running inference"
+            build/bin/llama-cli -m tests/dummy/ggml-model-i2_s.gguf -p "CI test" -t 2 -n 8
+          else
+            echo "No dummy model artifact found — skipping inference test"
+          fi

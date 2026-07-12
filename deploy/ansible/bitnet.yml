@@ -1,0 +1,90 @@
+---
+ - name: Deploy BitNet service
+   hosts: bitnet_hosts
+   become: true
+   vars:
+     bitnet_user: bitnet
+     repo_path: /opt/bitnet
+     service_src: "{{ repo_path }}/deploy/bitnet.service"
+    resource_profile: medium
+    profiles:
+      small:
+        MemoryMax: 2G
+        CPUQuota: 50%
+        LimitNOFILE: 4096
+      medium:
+        MemoryMax: 4G
+        CPUQuota: 80%
+        LimitNOFILE: 65536
+      large:
+        MemoryMax: 12G
+        CPUQuota: 100%
+        LimitNOFILE: 1048576
+   tasks:
+     - name: Ensure group and user exist
+       user:
+         name: "{{ bitnet_user }}"
+         system: yes
+         shell: /usr/sbin/nologin
+         create_home: no
+
+     - name: Ensure log directory exists
+       file:
+         path: /var/log/bitnet
+         owner: "{{ bitnet_user }}"
+         group: "{{ bitnet_user }}"
+         mode: '0755'
+         state: directory
+
+     - name: Ensure /etc/bitnet exists
+       file:
+         path: /etc/bitnet
+         owner: root
+         group: root
+         mode: '0755'
+         state: directory
+
+     - name: Copy env file (if present in repo)
+       copy:
+         src: "{{ repo_path }}/deploy/bitnet.env"
+         dest: /etc/bitnet/bitnet.env
+         owner: root
+         group: root
+         mode: '0644'
+       ignore_errors: yes
+
+     - name: Copy systemd unit
+       copy:
+         src: "{{ repo_path }}/deploy/bitnet.service"
+         dest: /etc/systemd/system/bitnet.service
+         owner: root
+         group: root
+         mode: '0644'
+
+    - name: Template systemd unit with resource profile
+      template:
+        src: "{{ repo_path }}/deploy/bitnet.service"
+        dest: /etc/systemd/system/bitnet.service
+      vars:
+        MEMORY_MAX: "{{ profiles[resource_profile].MemoryMax }}"
+        CPU_QUOTA: "{{ profiles[resource_profile].CPUQuota }}"
+        LIMIT_NOFILE: "{{ profiles[resource_profile].LimitNOFILE }}"
+
+     - name: Copy logrotate config
+       copy:
+         src: "{{ repo_path }}/deploy/logrotate/bitnet"
+         dest: /etc/logrotate.d/bitnet
+         owner: root
+         group: root
+         mode: '0644'
+       ignore_errors: yes
+
+     - name: Reload systemd
+       systemd:
+         daemon_reload: yes
+
+     - name: Enable and start bitnet service
+       systemd:
+         name: bitnet.service
+         enabled: yes
+         state: started

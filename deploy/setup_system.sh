@@ -36,6 +36,19 @@ MODEL_PATH=/workspaces/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
 THREADS=4
 PROMPT="You are a helpful assistant."
 # LOG_TO_JOURNAL=1
+# Resource profile defaults (choose one: small, medium, large)
+# For small machines (e.g., 2 CPU, 4GB RAM):
+# MEMORY_MAX=2G
+# CPU_QUOTA=50%
+# LIMIT_NOFILE=4096
+# For medium machines (4 CPU, 8GB RAM):
+# MEMORY_MAX=4G
+# CPU_QUOTA=80%
+# LIMIT_NOFILE=65536
+# For large machines (8+ CPU, 16+GB RAM):
+# MEMORY_MAX=12G
+# CPU_QUOTA=100%
+# LIMIT_NOFILE=1048576
 EOF
   chown root:root "$ENV_FILE"
   chmod 0644 "$ENV_FILE"
