@@ -14,6 +14,8 @@ typedef float bitnet_float_type;
 extern "C" {
 #endif
 
+struct ggml_compute_params;
+
 struct bitnet_tensor_extra {
     int lut_scales_size;
     int BK;
@@ -33,6 +35,7 @@ GGML_API size_t ggml_bitnet_mul_mat_get_wsize(const struct ggml_tensor * src0, c
 GGML_API void ggml_bitnet_mul_mat_task_init(void * src1, void * qlut, void * lut_scales, void * lut_biases, int n, int k, int m, int bits);
 GGML_API void ggml_bitnet_mul_mat_task_compute(void * src0, void * scales, void * qlut, void * lut_scales, void * lut_biases, void * dst, int n, int k, int m, int bits);
 GGML_API void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor);
+GGML_API void ggml_bitnet_mul_mat(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 GGML_API int ggml_bitnet_get_type_bits(enum ggml_type type);
 GGML_API void ggml_bitnet_set_n_threads(int n_threads);
 #if defined(GGML_BITNET_ARM_TL1)
