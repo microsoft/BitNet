@@ -159,7 +159,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
 ## Installation
 
 ### Requirements
-- python>=3.9
+- python>=3.10
 - cmake>=3.22
 - clang>=18
     - For Windows users, install [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). In the installer, toggle on at least the following options(this also automatically installs the required additional tools like CMake):
@@ -186,7 +186,7 @@ cd BitNet
 2. Install the dependencies
 ```bash
 # (Recommended) Create a new conda environment
-conda create -n bitnet-cpp python=3.9
+conda create -n bitnet-cpp python=3.10
 conda activate bitnet-cpp
 
 pip install -r requirements.txt
