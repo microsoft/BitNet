@@ -278,7 +278,7 @@ class Model(ABC):
             elif reverse_vocab[i] in added_vocab:
                 # We need to manually encode and decode the added tokens in case special characters
                 # used for `\n` / `\t` have been manually added in the added tokens
-                encoded_decoded_token = tokenizer.decode(tokenizer.encode(reverse_vocab[i]))
+                encoded_decoded_token = tokenizer.decode(tokenizer.encode(reverse_vocab[i], add_special_tokens=False))
                 tokens.append(encoded_decoded_token)
                 if tokenizer.added_tokens_decoder[i].special:
                     toktypes.append(gguf.TokenType.CONTROL)
