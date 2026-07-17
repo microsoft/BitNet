@@ -56,6 +56,12 @@ SUPPORTED_HF_MODELS = {
     "tiiuae/Falcon-E-1B-Base": {
         "model_name": "Falcon-E-1B-Base",
     },
+    "microsoft/bitnet-embedding-0.6b": {
+        "model_name": "bitnet-embedding-0.6b",
+    },
+    "microsoft/bitnet-embedding-270m": {
+        "model_name": "bitnet-embedding-270m",
+    },
 }
 
 SUPPORTED_QUANT_TYPES = {
