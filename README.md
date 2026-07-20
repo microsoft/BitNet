@@ -4,18 +4,6 @@
 
 [<img src="./assets/header_embedding_release.png" alt="BitNet Embeddings on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-embedding-0.6B)
 
-Try it out via this [demo](https://demo-bitnet-h0h8hcfqeqhrf5gf.canadacentral-01.azurewebsites.net/), or build and run it on your own [CPU](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) or [GPU](https://github.com/microsoft/BitNet/blob/main/gpu/README.md).
-
-bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU and GPU (NPU support will coming next).
-
-The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger models experiencing greater performance gains. Additionally, it reduces energy consumption by **55.4%** to **70.0%**, further boosting overall efficiency. On x86 CPUs, speedups range from **2.37x** to **6.17x** with energy reductions between **71.9%** to **82.2%**. Furthermore, bitnet.cpp can run a 100B BitNet b1.58 model on a single CPU, achieving speeds comparable to human reading (5-7 tokens per second), significantly enhancing the potential for running LLMs on local devices. Please refer to the [technical report](https://arxiv.org/abs/2410.16144) for more details.
-
-**Latest optimization** introduces parallel kernel implementations with configurable tiling and embedding quantization support, achieving **1.15x to 2.1x** additional speedup over the original implementation across different hardware platforms and workloads. For detailed technical information, see the [optimization guide](src/README.md).
-
-<img src="./assets/performance.png" alt="performance_comparison" width="800"/>
-
-## NEW: BitNet Embedding 0.6B/270M ![NEW](https://img.shields.io/badge/NEW-red)
-
 We are excited to release **[BitNet-embedding-0.6B](https://huggingface.co/microsoft/BitNet-embedding-0.6B)** and **[BitNet-embedding-270M](https://huggingface.co/microsoft/BitNet-embedding-270M)**, the first 1-bit embedding models that deliver competitive embedding quality with significantly faster inference on CPUs. Key highlights:
 
 - **1.42x to 2.28x speedup** over F16 on bitnet-embedding-0.6B prefill (8 threads)
@@ -25,39 +13,19 @@ We are excited to release **[BitNet-embedding-0.6B](https://huggingface.co/micro
 
 <img src="./assets/embedding_prefill_performance.png" alt="BitNet Embedding Prefill Performance" width="800"/>
 
-Quick start (taking bitnet-embedding-0.6b as an example):
-```bash
-# Build
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-cmake -S . -B build \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DGGML_NATIVE=ON \
-  -DGGML_OPENMP=OFF \
-  -DLLAMA_BUILD_COMMON=ON \
-  -DLLAMA_BUILD_TOOLS=ON \
-  -DLLAMA_BUILD_EXAMPLES=ON
-cmake --build build --target llama-embedding llama-bench -j$(nproc)
-
-# Download BitNet-embedding-0.6B
-huggingface-cli download microsoft/bitnet-embedding-0.6b --local-dir models/bitnet-embedding-0.6b
-
-# Inference
-./build/bin/llama-embedding \
-  -m models/bitnet-embedding-0.6b/bitnet-embeddings-0.6b-bf16-i2_s.gguf \
-  -p "query: What is BitNet?" \
-  --embd-normalize 2 \
-  --embd-output-format array
-```
-
-Example output (L2-normalized embedding; 1,024 dimensions for 0.6B, 640 for 270M; truncated):
-```
-[[0.0239517, 0.6826404, -0.0000000, -0.0644535, 0.0613754, 0.0473094, 0.0114330, ...]]
-```
-
 For detailed usage and technical information, see the [BitNet Embeddings I2_S Guide](docs/bitnet-embeddings-i2s-guide.md).
+
+## About bitnet.cpp
+
+Try it out via this [demo](https://demo-bitnet-h0h8hcfqeqhrf5gf.canadacentral-01.azurewebsites.net/), or build and run it on your own [CPU](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) or [GPU](https://github.com/microsoft/BitNet/blob/main/gpu/README.md).
+
+bitnet.cpp is the official inference framework for 1-bit LLMs (e.g., BitNet b1.58). It offers a suite of optimized kernels, that support **fast** and **lossless** inference of 1.58-bit models on CPU and GPU (NPU support will coming next).
+
+The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger models experiencing greater performance gains. Additionally, it reduces energy consumption by **55.4%** to **70.0%**, further boosting overall efficiency. On x86 CPUs, speedups range from **2.37x** to **6.17x** with energy reductions between **71.9%** to **82.2%**. Furthermore, bitnet.cpp can run a 100B BitNet b1.58 model on a single CPU, achieving speeds comparable to human reading (5-7 tokens per second), significantly enhancing the potential for running LLMs on local devices. Please refer to the [technical report](https://arxiv.org/abs/2410.16144) for more details.
+
+**Latest optimization** introduces parallel kernel implementations with configurable tiling and embedding quantization support, achieving **1.15x to 2.1x** additional speedup over the original implementation across different hardware platforms and workloads. For detailed technical information, see the [optimization guide](src/README.md).
+
+<img src="./assets/performance.png" alt="performance_comparison" width="800"/>
 
 ## Demo
 
@@ -116,7 +84,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>x86</td>
         <td>&#9989;</td>
         <td>&#10060;</td>
-        <td>&#9989;</td>
+        <td>&#10060;</td>
     </tr>
     <tr>
         <td>ARM</td>
@@ -130,7 +98,7 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>x86</td>
         <td>&#9989;</td>
         <td>&#10060;</td>
-        <td>&#9989;</td>
+        <td>&#10060;</td>
     </tr>
     <tr>
         <td>ARM</td>
