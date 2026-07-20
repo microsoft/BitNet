@@ -2,7 +2,20 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![version](https://img.shields.io/badge/version-1.0-blue)
 
-[<img src="./assets/header_model_release.png" alt="BitNet Model on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
+[<img src="./assets/header_embedding_release.png" alt="BitNet Embeddings on Hugging Face" width="800"/>](https://huggingface.co/microsoft/BitNet-embedding-0.6B)
+
+We are excited to release **[BitNet-embedding-0.6B](https://huggingface.co/microsoft/BitNet-embedding-0.6B)** and **[BitNet-embedding-270M](https://huggingface.co/microsoft/BitNet-embedding-270M)**, the first 1-bit embedding models that deliver competitive embedding quality with significantly faster inference on CPUs. Key highlights:
+
+- **1.42x to 2.28x speedup** over F16 on bitnet-embedding-0.6B prefill (8 threads)
+- **1.32x to 1.74x speedup** over F16 on bitnet-embedding-270M prefill (8 threads)
+- Supports I2_S conversion with optimized kernels on x86 CPUs
+- Lossless inference with 2 bits per weight
+
+<img src="./assets/embedding_prefill_performance.png" alt="BitNet Embedding Prefill Performance" width="800"/>
+
+For detailed usage and technical information, see the [BitNet Embeddings I2_S Guide](docs/bitnet-embeddings-i2s-guide.md).
+
+## About bitnet.cpp
 
 Try it out via this [demo](https://demo-bitnet-h0h8hcfqeqhrf5gf.canadacentral-01.azurewebsites.net/), or build and run it on your own [CPU](https://github.com/microsoft/BitNet?tab=readme-ov-file#build-from-source) or [GPU](https://github.com/microsoft/BitNet/blob/main/gpu/README.md).
 
@@ -14,7 +27,6 @@ The first release of bitnet.cpp is to support inference on CPUs. bitnet.cpp achi
 
 <img src="./assets/performance.png" alt="performance_comparison" width="800"/>
 
-
 ## Demo
 
 A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
@@ -22,7 +34,8 @@ A demo of bitnet.cpp running a BitNet b1.58 3B model on Apple M2:
 https://github.com/user-attachments/assets/7f46b736-edec-4828-b809-4be780a3e5b1
 
 ## What's New:
-- 07/16/2026 [BitNet Embeddings 0.6B/270M: I2_S Conversion and Inference Optimization](docs/bitnet-embeddings-i2s-guide.md) ![NEW](https://img.shields.io/badge/NEW-red)
+- 07/20/2026 [BitNet-embedding-0.6B and BitNet-embedding-270M on Hugging Face](https://huggingface.co/microsoft/BitNet-embedding-0.6B) ![NEW](https://img.shields.io/badge/NEW-red)
+- 07/16/2026 [BitNet Embeddings 0.6B/270M: I2_S Conversion and Inference Optimization](docs/bitnet-embeddings-i2s-guide.md)
 - 01/15/2026 [BitNet CPU Inference Optimization](https://github.com/microsoft/BitNet/blob/main/src/README.md)
 - 05/20/2025 [BitNet Official GPU inference kernel](https://github.com/microsoft/BitNet/blob/main/gpu/README.md)
 - 04/14/2025 [BitNet Official 2B Parameter Model on Hugging Face](https://huggingface.co/microsoft/BitNet-b1.58-2B-4T)
@@ -63,6 +76,34 @@ This project is based on the [llama.cpp](https://github.com/ggerganov/llama.cpp)
         <td>ARM</td>
         <td>&#9989;</td>
         <td>&#9989;</td>
+        <td>&#10060;</td>
+    </tr>
+    <tr>
+        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-embedding-0.6B">BitNet-embedding-0.6B</a></td>
+        <td rowspan="2">0.6B</td>
+        <td>x86</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
+    </tr>
+    <tr>
+        <td>ARM</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
+    </tr>
+    <tr>
+        <td rowspan="2"><a href="https://huggingface.co/microsoft/BitNet-embedding-270M">BitNet-embedding-270M</a></td>
+        <td rowspan="2">270M</td>
+        <td>x86</td>
+        <td>&#9989;</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
+    </tr>
+    <tr>
+        <td>ARM</td>
+        <td>&#10060;</td>
+        <td>&#10060;</td>
         <td>&#10060;</td>
     </tr>
 </table>
