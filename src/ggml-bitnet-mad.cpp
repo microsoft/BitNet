@@ -1041,6 +1041,63 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
 
 void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+#if defined(__ARM_NEON)
+    // FIX (i2_s ARM layout bug): the i2_s weights in the gguf are packed in the
+    // 128-weight / 32-byte-group layout (identical to dequantize_row_i2_s, which
+    // is why the Metal/dequant path is correct). The legacy NEON sub-kernels
+    // above assume a 64-weight / 16-byte layout (QK_I2_S=64) and therefore read
+    // the weights in scrambled order, producing wrong-but-finite output on every
+    // i2_s matmul. Decode with the correct 128/32 layout here.
+    //
+    // Both callers (ggml_gemv_i2_i8_s / ggml_gemm_i2_i8_s) pass ONE packed weight
+    // row in vx and nrc activation columns in vy (column stride = by). Weight
+    // codes {0,1,2} encode {-1,0,+1}; the +1 offset is corrected downstream via
+    // act_sums in the mul_mat wrapper. n is a multiple of 128 for this model; a
+    // scalar tail handles any remainder defensively.
+    (void) bx;
+    const uint8_t * x = (const uint8_t *) vx;
+    const int nblk = n / 128;
+    for (int col = 0; col < nrc; col++) {
+        const int8_t * yc = (const int8_t *) vy + (size_t) col * by;
+        long sumi;
+#if defined(__ARM_FEATURE_DOTPROD)
+        const uint8x16_t mask = vdupq_n_u8(3);
+        int32x4_t acc = vdupq_n_s32(0);
+        for (int B = 0; B < nblk; B++) {
+            const uint8_t * xb = x  + (size_t) B * 32;
+            const int8_t  * yb = yc + (size_t) B * 128;
+            const uint8x16_t blo = vld1q_u8(xb + 0);
+            const uint8x16_t bhi = vld1q_u8(xb + 16);
+            // group c=0 (bits 7:6) -> weights B*128 + [0..31]
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(blo, 6), mask)), vld1q_s8(yb +   0));
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(bhi, 6), mask)), vld1q_s8(yb +  16));
+            // group c=1 (bits 5:4) -> weights B*128 + [32..63]
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(blo, 4), mask)), vld1q_s8(yb +  32));
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(bhi, 4), mask)), vld1q_s8(yb +  48));
+            // group c=2 (bits 3:2) -> weights B*128 + [64..95]
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(blo, 2), mask)), vld1q_s8(yb +  64));
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(bhi, 2), mask)), vld1q_s8(yb +  80));
+            // group c=3 (bits 1:0) -> weights B*128 + [96..127]
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(blo, mask)),                vld1q_s8(yb +  96));
+            acc = vdotq_s32(acc, vreinterpretq_s8_u8(vandq_u8(bhi, mask)),                vld1q_s8(yb + 112));
+        }
+        sumi = (long) vaddlvq_s32(acc);
+        for (int k = nblk * 128; k < n; k++) {
+            int B = k / 128, c = (k % 128) / 32, gp = (k % 128) % 32;
+            unsigned b = x[(size_t) B * 32 + gp];
+            sumi += (long)((b >> (6 - 2 * c)) & 3) * yc[k];
+        }
+#else
+        sumi = 0;
+        for (int k = 0; k < n; k++) {
+            int B = k / 128, c = (k % 128) / 32, gp = (k % 128) % 32;
+            unsigned b = x[(size_t) B * 32 + gp];
+            sumi += (long)((b >> (6 - 2 * c)) & 3) * yc[k];
+        }
+#endif
+        s[(size_t) col * bs] = (float) sumi;
+    }
+#else
     if (nrc % PARALLEL_SIZE == 0)
     {
 #if defined(ACT_PARALLEL)
@@ -1053,4 +1110,5 @@ void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t b
     {
         ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
     }
+#endif
 }
