@@ -258,6 +258,18 @@ bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger 
 git clone --recursive https://github.com/microsoft/BitNet.git
 cd BitNet
 ```
+
+1.a Before building the project, you must generate the `include/bitnet-lut-kernels.h` and `include/kernel_config.ini` files. These files are not included in the repository and are required for the CMake build to succeed. 
+
+Run the code generation script from the repository root:
+
+```bash
+python utils/codegen_tl1.py \
+  --model bitnet_b1_58-3B \
+  --BM 160,320,320 \
+  --BK 64,128,64 \
+  --bm 32,64,32
+
 2. Install the dependencies
 ```bash
 # (Recommended) Create a new conda environment
