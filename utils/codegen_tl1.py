@@ -439,4 +439,4 @@ if __name__ == "__main__":
         config.set('Kernels_{}'.format(i), 'bmm'.format(i), str(bm_list[i]))
 
     with open(''.join([output_dir, "/kernel_config.ini"]), 'w') as configfile:
-        config.write(configfile)
+        config.write(configfile) 
