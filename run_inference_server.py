@@ -29,6 +29,7 @@ def run_server():
         '-t', str(args.threads),
         '-n', str(args.n_predict),
         '-ngl', '0',
+        '-ub', '16',
         '--temp', str(args.temperature),
         '--host', args.host,
         '--port', str(args.port),
