@@ -30,7 +30,6 @@ def run_inference():
         '-ngl', '0',
         '-c', str(args.ctx_size),
         '--temp', str(args.temperature),
-        "-b", "1",
     ]
     if args.conversation:
         command.append("-cnv")

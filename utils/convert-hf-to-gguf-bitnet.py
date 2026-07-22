@@ -153,8 +153,12 @@ class Model(ABC):
             self.gguf_writer.add_expert_used_count(n_experts_used)
             logger.info(f"gguf: experts used count = {n_experts_used}")
 
-        self.gguf_writer.add_file_type(self.ftype)
-        logger.info(f"gguf: file type = {self.ftype}")
+        # Map ggml tensor type to llama ftype for general.file_type metadata
+        ftype_val = self.ftype
+        if self.ftype == gguf.GGMLQuantizationType.I2_S:
+            ftype_val = 40  # LLAMA_FTYPE_MOSTLY_I2_S (matches official model)
+        self.gguf_writer.add_file_type(ftype_val)
+        logger.info(f"gguf: file type = {ftype_val}")
 
     def write_tensors(self):
         block_count = self.hparams.get("n_layers", self.hparams.get("num_hidden_layers", self.hparams.get("n_layer")))
@@ -274,7 +278,7 @@ class Model(ABC):
             elif reverse_vocab[i] in added_vocab:
                 # We need to manually encode and decode the added tokens in case special characters
                 # used for `\n` / `\t` have been manually added in the added tokens
-                encoded_decoded_token = tokenizer.decode(tokenizer.encode(reverse_vocab[i]))
+                encoded_decoded_token = tokenizer.decode(tokenizer.encode(reverse_vocab[i], add_special_tokens=False))
                 tokens.append(encoded_decoded_token)
                 if tokenizer.added_tokens_decoder[i].special:
                     toktypes.append(gguf.TokenType.CONTROL)
@@ -659,6 +663,70 @@ def preprocess_weights_tl2(
                              weight.shape[0]), mode='constant', constant_values=0)
     return weight
 
+def quantize_to_i2_s(w: np.ndarray, override_scale: float = None) -> np.ndarray:
+    """Quantize a float weight matrix to I2_S ternary format.
+
+    I2_S format: packed ternary bytes (4 values per byte) + 32-byte tail with f32 scale.
+    Dequantization: y = scale * ternary, where ternary in {-1, 0, +1}.
+
+    Args:
+        w: float weight tensor of shape (M, K)
+        override_scale: if provided, use this as the I2_S scale instead of computing from data.
+                       For offline-quantized BitNet models, this should be the weight_scale value.
+    """
+    M, K = w.shape
+    n = M * K
+    w_flat = w.flatten().astype(np.float32)
+
+    # Compute scale for I2_S dequantization
+    if override_scale is not None:
+        # override_scale is weight_scale from offline-quantized models ≈ mean(|original_bf16_weights|)
+        # Use it directly as the I2_S scale
+        scale = np.float32(override_scale)
+        # Weights are already ternary {-1, 0, 1}, use directly
+        q_float = w_flat
+    else:
+        # w_flat comes from weight_quant: values are ±scale or 0
+        # Use the first nonzero absolute value as scale (matches C quantize_i2_s)
+        nonzero = np.abs(w_flat[np.abs(w_flat) > 1e-6])
+        if len(nonzero) > 0:
+            scale = np.float32(nonzero[0])
+        else:
+            scale = np.float32(1e-5)
+        # Quantize to ternary {-1, 0, 1}
+        inv_scale = 1.0 / scale
+        q_float = np.round(w_flat * inv_scale).clip(-1, 1)
+
+    # Map ternary {-1, 0, 1} -> I2_S encoding {0, 1, 2}
+    q = np.ones(n, dtype=np.uint8)  # default to 1 (zero)
+    q[q_float > 0.5] = 2    # +1 -> 2
+    q[q_float < -0.5] = 0   # -1 -> 0
+
+    # Pack into I2_S layout: 128-value blocks, interleaved into 32 bytes
+    pad_len = (128 - n % 128) % 128
+    if pad_len:
+        q = np.pad(q, (0, pad_len), constant_values=1)
+
+    n_padded = len(q)
+    n_blocks = n_padded // 128
+    q = q.reshape(n_blocks, 4, 32)
+
+    packed = (q[:, 0, :].astype(np.uint8) << 6) | \
+             (q[:, 1, :].astype(np.uint8) << 4) | \
+             (q[:, 2, :].astype(np.uint8) << 2) | \
+             (q[:, 3, :].astype(np.uint8))
+    packed = packed.reshape(-1).astype(np.uint8)
+
+    # I2_S format: packed_bytes + 32-byte aligned tail (scale in first 4 bytes)
+    packed_size = n // 4
+    total_size = packed_size + 32
+    result = np.zeros(total_size, dtype=np.uint8)
+    result[:len(packed)] = packed[:packed_size]
+    result[packed_size:packed_size+4] = np.frombuffer(scale.tobytes(), dtype=np.uint8)
+
+    return result
+
+
 def transform_to_tl1(x: np.ndarray):
     scale = np.max(np.abs(x))
     # res = np.round(x / scale + 2).astype(np.uint8)
@@ -813,10 +881,17 @@ class LlamaModel(Model):
                             data = data.astype(np.float16)
                         data_qtype = gguf.GGMLQuantizationType.F16
 
-                if data_qtype is None:  # by default, convert to float32
-                    if data_dtype != np.float32:
-                        data = data.astype(np.float32)
-                    data_qtype = gguf.GGMLQuantizationType.F32
+                if data_qtype is None:  # by default
+                    # For I2_S/TL models, keep non-quantized 2D weights (e.g. embed) as F16 instead of F32
+                    if self.ftype in (gguf.GGMLQuantizationType.I2_S, gguf.GGMLQuantizationType.TL1, gguf.GGMLQuantizationType.TL2) \
+                       and n_dims >= 2 and not new_name.endswith("_norm.weight"):
+                        if data_dtype != np.float16:
+                            data = data.astype(np.float16)
+                        data_qtype = gguf.GGMLQuantizationType.F16
+                    else:
+                        if data_dtype != np.float32:
+                            data = data.astype(np.float32)
+                        data_qtype = gguf.GGMLQuantizationType.F32
 
                 shape = data_shape
                 # shape = gguf.quant_shape_from_byte_shape(data.shape, data_qtype) if data.dtype == np.uint8 else data.shape
@@ -952,20 +1027,30 @@ class LlamaModel(Model):
                 raise ValueError(f"Unprocessed experts: {experts}")
 
 
-@Model.register("BitnetForCausalLM")
+@Model.register("BitnetForCausalLM", "BitNetForCausalLM")
 class BitnetModel(Model):
-    model_arch = gguf.MODEL_ARCH.BITNET
+    model_arch = gguf.MODEL_ARCH.BITNET_B158
 
     def set_vocab(self):
-        self._set_vocab_sentencepiece()
+        try:
+            self._set_vocab_sentencepiece()
+        except FileNotFoundError:
+            try:
+                self._set_vocab_llama_hf()
+            except (FileNotFoundError, TypeError):
+                self._set_vocab_gpt2()
         
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
 
         self.gguf_writer.add_vocab_size(self.hparams["vocab_size"])
 
-        self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.LINEAR)
-        self.gguf_writer.add_rope_scaling_factor(1.0)
+        # rope dimension count (required for correct positional encoding)
+        if "head_dim" in self.hparams:
+            rope_dim = self.hparams["head_dim"]
+        else:
+            rope_dim = self.hparams["hidden_size"] // self.hparams["num_attention_heads"]
+        self.gguf_writer.add_rope_dimension_count(rope_dim)
 
     def weight_quant(self, weight):
         dtype = weight.dtype
@@ -976,7 +1061,10 @@ class BitnetModel(Model):
 
     def modify_tensors(self, data_torch: Tensor, name: str, bid: int | None) -> Iterable[tuple[str, Tensor]]:
         # quant weight to i2 (in fp16)
-        if name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight", 
+        # Skip weight_quant for offline-quantized models — weights are already ternary {-1,0,1}
+        # weight_quant would scale them to small floats (e.g. ±0.39), breaking quantize_to_i2_s
+        if not getattr(self, '_has_offline_quant', False) and \
+           name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight",
                           "down_proj.weight", "up_proj.weight", "gate_proj.weight",
                           "o_proj.weight")):
             data_torch = self.weight_quant(data_torch)
@@ -986,15 +1074,40 @@ class BitnetModel(Model):
     def write_tensors(self):
         max_name_len = max(len(s) for _, s in self.tensor_map.mapping.values()) + len(".weight,")
 
+        # First pass: collect weight_scale tensors for offline-quantized models
+        scale_map = dict()
         for name, data_torch in self.get_tensors():
+            if name.endswith("weight_scale"):
+                data_torch = data_torch.to(torch.float32)
+                name = name.replace(".weight_scale", "")
+                scale_map[name] = data_torch
+
+        self._has_offline_quant = len(scale_map) > 0
+
+        for name, data_torch in self.get_tensors():
+            # skip weight_scale tensors
+            if name.endswith("weight_scale"):
+                continue
             # we don't need these
             if name.endswith((".attention.masked_bias", ".attention.bias", ".rotary_emb.inv_freq")):
                 continue
 
             old_dtype = data_torch.dtype
 
+            # Handle offline-quantized weights (uint8 packed with weight_scale)
+            if name.replace(".weight", "") in scale_map:
+                data_torch = data_torch.to(torch.uint8)
+                origin_shape = data_torch.shape
+                shift = torch.tensor([0, 2, 4, 6], dtype=torch.uint8).reshape((4, *(1 for _ in range(len(origin_shape)))))
+                data_torch = data_torch.unsqueeze(0).expand((4, *origin_shape)) >> shift
+                data_torch = data_torch & 3
+                data_torch = (data_torch.float() - 1).reshape((origin_shape[0] * 4, *origin_shape[1:]))
+                # For F16/F32 output: divide by weight_scale to get full float values
+                # For I2_S output: keep as ternary {-1,0,1}, scale is passed separately to quantize_to_i2_s
+                if self.ftype not in (gguf.GGMLQuantizationType.I2_S, gguf.GGMLQuantizationType.TL1, gguf.GGMLQuantizationType.TL2):
+                    data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
             # convert any unsupported data types to float32
-            if data_torch.dtype not in (torch.float16, torch.float32):
+            elif data_torch.dtype not in (torch.float16, torch.float32):
                 data_torch = data_torch.to(torch.float32)
 
             # use the first number-like part of the tensor name as the block id
@@ -1048,7 +1161,13 @@ class BitnetModel(Model):
 
                 i2_scale = None
                 if self.ftype != gguf.GGMLQuantizationType.F32 and extra_f16 and not extra_f32:
-                    if self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
+                    if self.ftype == gguf.GGMLQuantizationType.I2_S and suit_i2:
+                        data_qtype = gguf.GGMLQuantizationType.I2_S
+                        # Use original weight_scale if available (offline-quantized models)
+                        orig_scale = scale_map.get(name.replace(".weight", ""))
+                        override_scale = orig_scale.item() if orig_scale is not None else None
+                        data = quantize_to_i2_s(data, override_scale=override_scale)
+                    elif self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
                         data, i2_scale = transform_to_tl1(data)
                         assert data.dtype == np.uint8
                         assert i2_scale.dtype == np.float32
@@ -1063,10 +1182,17 @@ class BitnetModel(Model):
                             data = data.astype(np.float16)
                         data_qtype = gguf.GGMLQuantizationType.F16
 
-                if data_qtype is None:  # by default, convert to float32
-                    if data_dtype != np.float32:
-                        data = data.astype(np.float32)
-                    data_qtype = gguf.GGMLQuantizationType.F32
+                if data_qtype is None:  # by default
+                    # For I2_S/TL models, keep non-quantized 2D weights (e.g. embed) as F16 instead of F32
+                    if self.ftype in (gguf.GGMLQuantizationType.I2_S, gguf.GGMLQuantizationType.TL1, gguf.GGMLQuantizationType.TL2) \
+                       and n_dims >= 2 and not new_name.endswith("_norm.weight"):
+                        if data_dtype != np.float16:
+                            data = data.astype(np.float16)
+                        data_qtype = gguf.GGMLQuantizationType.F16
+                    else:
+                        if data_dtype != np.float32:
+                            data = data.astype(np.float32)
+                        data_qtype = gguf.GGMLQuantizationType.F32
 
                 shape = data_shape
                 # shape = gguf.quant_shape_from_byte_shape(data.shape, data_qtype) if data.dtype == np.uint8 else data.shape
@@ -1087,6 +1213,7 @@ class BitnetModel(Model):
 ftype_map = {
     "f32": gguf.GGMLQuantizationType.F32,
     "f16": gguf.GGMLQuantizationType.F16,
+    "i2_s": gguf.GGMLQuantizationType.I2_S,
     "tl1" : gguf.GGMLQuantizationType.TL1,
     "tl2" : gguf.GGMLQuantizationType.TL2,
 }
