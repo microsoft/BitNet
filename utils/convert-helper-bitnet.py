@@ -35,7 +35,8 @@ def main():
     preprocess_script = utils_dir / "preprocess-huggingface-bitnet.py"
     convert_script = utils_dir / "convert-ms-to-gguf-bitnet.py"
     
-    llama_quantize_binary = project_root_dir / "build" / "bin" / "llama-quantize"
+    extension = ".exe" if sys.platform.startswith("win") else ""
+    llama_quantize_binary = project_root_dir / "build" / "bin" / f"llama-quantize{extension}"
 
     input_file = model_dir / "model.safetensors"
     input_backup_file = model_dir / "model.safetensors.backup"
