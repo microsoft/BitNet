@@ -44,4 +44,7 @@ __pycache__/
 poetry.toml
 
 build/
-logs/
+build_tests/
+logs/Testing/
+Testing/
+models/Llama-2-7B-GGUF/
