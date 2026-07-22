@@ -81,7 +81,7 @@ class GemmTuner:
             capture_output=True,
             text=True,
             cwd=os.getcwd(),
-            timeout=300  # 5分钟超时
+            timeout=300  # 5 minute timeout
         )
         
         if result.returncode != 0:
@@ -92,7 +92,7 @@ class GemmTuner:
         
     def parse_throughput(self, output):
         """Parse pp128 throughput from output"""
-        # 匹配 pp128: |         pp128 |       501.06 ± 11.37 |
+        # Match pp128: |         pp128 |       501.06 ± 11.37 |
         pp_pattern = r'\|\s+pp128\s+\|\s+([\d.]+)\s+±\s+([\d.]+)\s+\|'
         pp_match = re.search(pp_pattern, output)
         

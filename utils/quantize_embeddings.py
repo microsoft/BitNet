@@ -168,7 +168,7 @@ class EmbeddingQuantizer:
                 print("\n📊 Benchmark output:")
                 print(result.stdout)
                 
-                # 解析输出
+                # Parse output
                 bench_results = self.parse_benchmark_output(result.stdout, output_suffix)
                 return bench_results
             else:
@@ -223,7 +223,7 @@ class EmbeddingQuantizer:
                 # Extract thread count
                 try:
                     threads = int(threads_str)
-                except:
+                except (ValueError, TypeError):
                     continue
                 
                 # Extract t/s data (format: "405.73 ± 3.69" or "405.73")
@@ -320,14 +320,14 @@ class EmbeddingQuantizer:
         total_end = datetime.now()
         total_duration = (total_end - total_start).total_seconds()
         
-        # 保存结果到CSV
+        # Save results to CSV
         self.save_results_to_csv()
-        
-        # 打印总结
+
+        # Print summary
         self.print_summary(total_duration)
     
     def save_results_to_csv(self):
-        """将benchmark结果保存到CSV文件"""
+        """Save benchmark results to a CSV file."""
         if not self.results:
             print("⚠️  No results to save")
             return
@@ -435,9 +435,9 @@ def main():
     # If specific types are specified, filter the list
     if args.types:
         types_lower = [t.lower() for t in args.types]
-        types_to_quantize = [(et, os) for et, os in all_types if os.lower() in types_lower]
+        types_to_quantize = [(et, qs) for et, qs in all_types if qs.lower() in types_lower]
         if not types_to_quantize:
-            print(f"❌ No valid types specified. Available types: {', '.join([os for _, os in all_types])}")
+            print(f"❌ No valid types specified. Available types: {', '.join([qs for _, qs in all_types])}")
             return
     else:
         types_to_quantize = all_types
@@ -445,7 +445,7 @@ def main():
     # If skip existing files is enabled, no need to filter
     # Because new logic will automatically detect and skip during quantization, but will still benchmark
     
-    # 创建量化器并运行
+    # Create quantizer and run
     try:
         quantizer = EmbeddingQuantizer(
             args.input, 
