@@ -6,12 +6,14 @@ from einops import rearrange
 from dataclasses import dataclass
 from typing import Optional
 
+# Model configurations for different transformer sizes
 transformer_configs = {
     "2B": dict(n_layer=30, n_head=20, dim=2560, vocab_size=128256, n_local_heads=5, intermediate_size=6912),
 }
 
 @dataclass
 class ModelArgs:
+    """Configuration arguments for transformer model architecture."""
     block_size: int = 4096
     vocab_size: int = 32000
     n_layer: int = 32
@@ -24,26 +26,32 @@ class ModelArgs:
     norm_eps: float = 1e-5
 
     def __post_init__(self):
+        """Initialize computed fields after dataclass creation."""
         if self.n_local_heads == -1:
             self.n_local_heads = self.n_head
         if self.intermediate_size is None:
             hidden_dim = 4 * self.dim
             n_hidden = int(2 * hidden_dim / 3)
+            # Round to nearest multiple of 256
             self.intermediate_size = n_hidden + (256 - n_hidden % 256) if n_hidden % 256 else n_hidden
         self.head_dim = self.dim // self.n_head
 
     @classmethod
     def from_name(cls, name: str):
+        """Create ModelArgs from a configuration name."""
         if name in transformer_configs:
             return cls(**transformer_configs[name])
+        # Try to find matching config by partial name match
         config = [k for k in transformer_configs if k in name.upper() or k in name]
         assert len(config) == 1, f"Unknown model name: {name}"
         return cls(**transformer_configs[config[0]])
 
 def invert_convert_q(w: torch.Tensor, config: ModelArgs) -> torch.Tensor:
+    """Invert the query weight tensor conversion for multi-head attention."""
     return rearrange(w, '(h l d) i -> (h d l) i', h=config.n_head, l=2)
 
 def invert_convert_k(w: torch.Tensor, config: ModelArgs) -> torch.Tensor:
+    """Invert the key weight tensor conversion for multi-head attention."""
     return rearrange(w, '(h l d) i -> (h d l) i', h=config.n_local_heads, l=2)
 
 def convert_back(
@@ -51,6 +59,14 @@ def convert_back(
     output_file: str,
     model_name: Optional[str] = None,
 ):
+    """
+    Convert a safetensors model checkpoint back to PyTorch .pth format.
+    
+    Args:
+        safetensors_path: Path to input .safetensors file
+        output_file: Path to output .pt file
+        model_name: Model configuration name (e.g., "2B")
+    """
     st_dict = load_file(safetensors_path)
 
     cfg = ModelArgs.from_name(model_name)
@@ -58,43 +74,52 @@ def convert_back(
 
     recovered: dict = {}
 
+    # Process each transformer layer
     for layer in range(cfg.n_layer):
         base = f"model.layers.{layer}."
 
+        # Extract attention weights
         wq = st_dict[f"{base}self_attn.q_proj.weight"]
         wk = st_dict[f"{base}self_attn.k_proj.weight"]
         wv = st_dict[f"{base}self_attn.v_proj.weight"]
 
+        # Invert the query and key conversions
         wq = invert_convert_q(wq, cfg)
         wk = invert_convert_k(wk, cfg)
 
+        # Combine query, key, value weights
         wqkv = torch.cat([wq, wk, wv], dim=0)
         recovered[f"layers.{layer}.attention.wqkv.weight"] = wqkv
 
+        # Copy other attention weights
         recovered[f"layers.{layer}.attention.wo.weight"] = st_dict[f"{base}self_attn.o_proj.weight"]
 
+        # Copy normalization weights
         recovered[f"layers.{layer}.attention_norm.weight"] = st_dict[f"{base}input_layernorm.weight"]
         recovered[f"layers.{layer}.ffn_norm.weight"] = st_dict[f"{base}post_attention_layernorm.weight"]
         recovered[f"layers.{layer}.attention.attn_sub_norm.weight"] = st_dict[f"{base}self_attn.attn_sub_norm.weight"]
         recovered[f"layers.{layer}.feed_forward.ffn_sub_norm.weight"] = st_dict[f"{base}mlp.ffn_sub_norm.weight"]
 
+        # Combine gate and up projection weights for feed-forward network
         gate = st_dict[f"{base}mlp.gate_proj.weight"]
-        up   = st_dict[f"{base}mlp.up_proj.weight"]
-        w13  = torch.cat([gate, up], dim=0)
+        up = st_dict[f"{base}mlp.up_proj.weight"]
+        w13 = torch.cat([gate, up], dim=0)
         recovered[f"layers.{layer}.feed_forward.w13.weight"] = w13
 
+        # Copy down projection weight
         recovered[f"layers.{layer}.feed_forward.w2.weight"] = st_dict[f"{base}mlp.down_proj.weight"]
 
+    # Copy embedding and output weights
     recovered["tok_embeddings.weight"] = st_dict["model.embed_tokens.weight"]
-    recovered["output.weight"]         = st_dict["model.embed_tokens.weight"]
-    recovered["norm.weight"]           = st_dict["model.norm.weight"]
+    recovered["output.weight"] = st_dict["model.embed_tokens.weight"]
+    recovered["norm.weight"] = st_dict["model.norm.weight"]
 
     print(f"Saving to {output_file}")
     torch.save(recovered, output_file)
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Convert Safetensors back to Torch .pth checkpoint")
+    parser = argparse.ArgumentParser(description="Convert Safetensors back to PyTorch .pth checkpoint")
     parser.add_argument(
         "--safetensors_file", type=str, required=True,
         help="Path to input .safetensors file"
