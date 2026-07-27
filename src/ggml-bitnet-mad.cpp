@@ -12,6 +12,10 @@
 #define QK_I2_S 128
 #elif defined(__ARM_NEON)
 #define QK_I2_S 64
+#else
+// Portable scalar fallback (e.g. x86 without AVX2): use the same 128-element
+// block layout as the AVX path so packed weights are interpreted identically.
+#define QK_I2_S 128
 #endif
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
@@ -47,6 +51,32 @@ static inline int hsum_i32_8(const __m256i a) {
     return  sum64_1 + sum64_2;
 }
 #endif
+
+// Portable scalar reference used as the fallback in the ggml_vec_dot_i2_i8_s_*
+// kernels when neither the AVX2 nor the ARM NEON SIMD paths are compiled in
+// (e.g. x86 CPUs without AVX2, built with -DGGML_AVX2=OFF). Without this the
+// affected kernels have an empty body on such targets, leaving the output `s`
+// uninitialized and producing garbage inference output (issue #547).
+//
+// It computes the dot product of one ternary-packed weight row (`px`, 32 packed
+// bytes per QK_I2_S=128-element block) against one int8 activation vector (`py`),
+// extracting the 2-bit codes at bit offsets 6/4/2/0 and pairing them with the
+// activation sub-blocks 0/1/2/3 (32 wide) — matching the SIMD kernels bit-for-bit.
+static inline int ggml_i2_s_block_dot(const uint8_t * px, const int8_t * py, int nb) {
+    int acc = 0;
+    for (int b = 0; b < nb; b++) {
+        const uint8_t * xb = px + (size_t)b * 32;
+        const int8_t  * yb = py + (size_t)b * 128;
+        for (int k = 0; k < 32; k++) {
+            const uint8_t w = xb[k];
+            acc += (int)((w >> 6) & 3) * (int)yb[0 * 32 + k];
+            acc += (int)((w >> 4) & 3) * (int)yb[1 * 32 + k];
+            acc += (int)((w >> 2) & 3) * (int)yb[2 * 32 + k];
+            acc += (int)((w >> 0) & 3) * (int)yb[3 * 32 + k];
+        }
+    }
+    return acc;
+}
 
 size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
@@ -408,6 +438,14 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         int sumi = vaddlvq_s32(accu);
         s[row] = (float)sumi;
     }
+#else
+    // Scalar fallback (see ggml_i2_s_block_dot): nrc weight rows vs one activation vector.
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t  *)vy;
+    const int nb = n / QK_I2_S;
+    for (int row = 0; row < nrc; row++) {
+        s[row] = (float)ggml_i2_s_block_dot(x + row * bx / 4, y, nb);
+    }
 #endif
 }
 
@@ -506,6 +544,28 @@ void ggml_vec_dot_i2_i8_s_1x4_32W(int n, float * s, size_t bs, const void * vx, 
     }
 #elif defined(__ARM_NEON)
 
+#else
+    // Scalar fallback: 4 output rows share one activation stream, one 2-bit code
+    // plane per output row (bit offsets 6/4/2/0 -> rows 0/1/2/3), 32 lanes per tile.
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t  *)vy;
+    const int nb = n / QK_I2_S;
+    for (int row = 0; row < nrc; row += 4) {
+        const uint8_t * x_row = x + row * bx / 4;
+        long acc[4] = {0, 0, 0, 0};
+        for (int t = 0; t < nb * 4; t++) {
+            const uint8_t * pxj = x_row + (size_t)t * 32;
+            const int8_t  * pyj = y     + (size_t)t * 32;
+            for (int k = 0; k < 32; k++) {
+                const uint8_t w = pxj[k];
+                acc[0] += (long)((w >> 6) & 3) * (int)pyj[k];
+                acc[1] += (long)((w >> 4) & 3) * (int)pyj[k];
+                acc[2] += (long)((w >> 2) & 3) * (int)pyj[k];
+                acc[3] += (long)((w >> 0) & 3) * (int)pyj[k];
+            }
+        }
+        for (int rb = 0; rb < 4; rb++) s[row + rb] = (float)acc[rb];
+    }
 #endif
 }
 
@@ -785,6 +845,16 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
             s[row + rb] = (float)sumi;
         }
     }
+#else
+    // Scalar fallback: PARALLEL_SIZE weight rows vs one shared activation vector.
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t  *)vy;
+    const int nb = n / QK_I2_S;
+    for (int row = 0; row < nrc; row += PARALLEL_SIZE) {
+        for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
+            s[row + rb] = (float)ggml_i2_s_block_dot(x + (row + rb) * bx / 4, y, nb);
+        }
+    }
 #endif
 }
 
@@ -1034,6 +1104,17 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
         for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
             int sumi = vaddlvq_s32(accu[iy]);
             s[(col + iy) * bs] = (float)sumi;
+        }
+    }
+#else
+    // Scalar fallback: one shared weight row vs PARALLEL_SIZE activation columns
+    // (each column at stride `by`).
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t  *)vy;
+    const int nb = n / QK_I2_S;
+    for (int col = 0; col < nrc; col += PARALLEL_SIZE) {
+        for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
+            s[(col + iy) * bs] = (float)ggml_i2_s_block_dot(x, y + (size_t)(col + iy) * by, nb);
         }
     }
 #endif
