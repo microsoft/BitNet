@@ -1,0 +1,4 @@
+-r ../3rdparty/llama.cpp/requirements/requirements-convert_legacy_llama.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch~=2.2.1; python_version < "3.13"
+torch>=2.5.0,<3.0.0; python_version >= "3.13"
