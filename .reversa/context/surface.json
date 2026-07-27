@@ -1,0 +1,51 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-03",
+  "agent": "archaeologist",
+  "project": {
+    "name": "BitNet",
+    "repository": "microsoft/BitNet",
+    "description": "Implementação oficial de inferência eficiente para LLMs com quantização 1.58-bit (ternária)",
+    "license": "MIT",
+    "languages": ["Python", "C++", "CUDA (binário)"],
+    "frameworks": ["llama.cpp", "PyTorch", "xformers", "tiktoken"],
+    "build_system": "CMake + Clang"
+  },
+  "structure": {
+    "run_inference.py": "Entry point CLI CPU",
+    "run_inference_server.py": "Entry point servidor HTTP",
+    "setup_env.py": "Setup completo do ambiente",
+    "gpu/": "Pipeline de inferência GPU (PyTorch)",
+    "src/": "Kernels C++ CPU (I2_S, TL1, TL2)",
+    "include/": "Headers públicos (ggml-bitnet.h, gemm-config.h)",
+    "utils/": "Ferramentas de conversão e geração de código",
+    "preset_kernels/": "Kernels pré-tunados por modelo",
+    "3rdparty/": "llama.cpp como submodule"
+  },
+  "inference_backends": {
+    "cpu": {
+      "engine": "llama.cpp",
+      "quantization_formats": ["i2_s", "tl1", "tl2"],
+      "platforms": {
+        "arm64": ["i2_s", "tl1"],
+        "x86_64": ["i2_s", "tl2"]
+      }
+    },
+    "gpu": {
+      "engine": "PyTorch + CUDA custom kernel",
+      "precision": "int2 weights + int8 activations (decode) / bf16 (prefill)",
+      "optimization": "CUDA Graphs"
+    }
+  },
+  "supported_models": [
+    "bitnet_b1_58-large",
+    "bitnet_b1_58-3B",
+    "Llama3-8B-1.58-100B-tokens",
+    "Falcon3-7B-Instruct/Base-1.58bit",
+    "Falcon3-10B-Instruct/Base-1.58bit",
+    "Falcon3-3B-Instruct/Base-1.58bit",
+    "Falcon3-1B-Instruct/Base-1.58bit",
+    "BitNet-b1.58-2B-4T",
+    "Falcon-E-3B/1B-Instruct/Base"
+  ]
+}

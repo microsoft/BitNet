@@ -1,0 +1,15 @@
+[specs]
+layout = "feature-folder"
+granularity = "feature"
+custom_folders = []
+scout_suggestion = ""
+decided_at = "2026-06-06T16:30:00Z"
+
+[project]
+name = "BitNet CPU-Universal"
+output_folder = "_reversa_sdd"
+forward_folder = "_reversa_forward"
+
+[user]
+name = ""
+chat_language = "pt-BR"

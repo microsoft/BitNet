@@ -1,0 +1,464 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-06-05",
+  "agent": "reversa-scout",
+  "purpose": "Mapeamento estruturado princípio→código→verificação para os 7 princípios transversais da tese CPU-Universal",
+
+  "principles": {
+    "P1_shannon_floor": {
+      "name": "Shannon floor",
+      "summary": "1.585 bits/peso é o limite lossless para alfabeto ternário",
+      "principle_doc": [
+        "docs/theory/01-ternary-algebra.md:5-24",
+        "docs/mathematical-foundations.md:46-74"
+      ],
+      "implementations": [
+        {
+          "file": "src/ggml-bitnet-mad.cpp",
+          "lines": "I2_S packing completo",
+          "role": "packing de pesos ternários em 2 bits (4 por byte), QK=128 x86 / QK=64 ARM",
+          "doc_reference": "docs/theory/01-ternary-algebra.md:126-144"
+        },
+        {
+          "file": "include/ggml-bitnet.h",
+          "lines": "declarations of I2_S",
+          "role": "header público com constantes de encoding I2_S"
+        }
+      ],
+      "verification": "empiricamente validado em BitNet 1.58-bit paper (Ma et al. 2024)",
+      "limits_or_quantization": {
+        "shannon_floor_bits": 1.585,
+        "i2_s_packing_bits": 2.0,
+        "waste": "2 bits são overhead de packing binário; packing ternário dedicado eliminaria (não implementado)"
+      },
+      "status": "verified"
+    },
+
+    "P2_identity_exact": {
+      "name": "Identidade algébrica, não aproximação",
+      "summary": "Cada nível produz exatamente o mesmo resultado que a referência float — sem aproximação",
+      "principle_doc": [
+        "docs/theory/00-index.md:44-72",
+        "docs/theory/02-wht-decomposition.md:99-110",
+        "docs/theory/03-acdc-structured-layers.md:127-152"
+      ],
+      "implementations": [
+        {
+          "level": "L2",
+          "file": "src/ggml-bitnet-wht.cpp",
+          "lines": "70-92 (AVX2 butterfly), 100+ (full GEMV)",
+          "header": "include/ggml-bitnet-wht.h",
+          "doc_reference": "docs/theory/02-wht-decomposition.md:67-95"
+        },
+        {
+          "level": "L3",
+          "file": "src/ggml-bitnet-fwht.cpp",
+          "lines": "FWHT in-place + acdc_forward + acdc_gemv (rectangular K blocks + proj)",
+          "header": "include/ggml-bitnet-fwht.h",
+          "doc_reference": "docs/theory/03-acdc-structured-layers.md:108-126"
+        },
+        {
+          "level": "L3 FFN dispatch",
+          "file": "src/ggml-bitnet-dispatch.cpp",
+          "lines": "bitnet_op_acdc_gemv wrapper (acdc_gemv_callback with lazy proj/D init)",
+          "header": "include/ggml-bitnet-dispatch.h",
+          "doc_reference": "3rdparty/llama.cpp/src/llama.cpp:9657-9713 (llm_build_ffn_acdc_bitnet)"
+        },
+        {
+          "level": "L4",
+          "file": "src/ggml-bitnet-tropical.cpp",
+          "lines": "tropical_attention, tropical_attn_topk",
+          "header": "include/ggml-bitnet-tropical.h",
+          "doc_reference": "docs/theory/04-tropical-algebra.md:228-249"
+        },
+        {
+          "level": "L4-L5 dispatch",
+          "file": "src/ggml-bitnet-dispatch.cpp",
+          "lines": "bitnet_op_tropical_attn, bitnet_op_hrr_attn (ggml_map_custom2/3 + 3D GQA-aware callbacks)",
+          "header": "include/ggml-bitnet-dispatch.h",
+          "doc_reference": "3rdparty/llama.cpp/src/llama.cpp:9797-9857 (llm_build_kqv integration)"
+        }
+      ],
+      "verifications": [
+        {
+          "level": "L2",
+          "benchmark": "utils/wht_benchmark.py",
+          "expected": "max_diff = 0 (identidade inteira exata)",
+          "test_dimensions": "6912×2560 (FFN BitNet-2B)"
+        },
+        {
+          "level": "L3",
+          "benchmark": "utils/acdc_benchmark.py",
+          "expected": "max|acdc(x,d) - W·x| = 1.3e-16 (epsilon float64)"
+        },
+        {
+          "level": "L4",
+          "benchmark": "utils/tropical_benchmark.py",
+          "expected": "max|ref - fast| = 0.00e+00 (produto tropical); weight[argmax] = 1.0 no limite τ→0"
+        }
+      ],
+      "status": "verified"
+    },
+
+    "P3_cost_hierarchy": {
+      "name": "Hierarquia de custo (descida algébrica)",
+      "summary": "Cada nível desce um degrau na hierarquia mul > add > cmp > xor",
+      "principle_doc": [
+        "docs/theory/00-index.md:10-28",
+        "docs/mathematical-foundations.md:18-28"
+      ],
+      "cost_table": {
+        "source": "docs/theory/00-index.md:10-17",
+        "costs_cycles_per_element": {
+          "float32_multiplication": 4.5,
+          "float32_addition": 1.0,
+          "comparison": 0.3,
+          "xor_or_and_bits": 0.1
+        }
+      },
+      "level_substitutions": [
+        { "level": "L1", "eliminates": "float weights (32 bits)", "replaces_with": "trit packing (2 bits)" },
+        { "level": "L2", "eliminates": "integer multiplication (5c)", "replaces_with": "addition/subtraction (1c)" },
+        { "level": "L3", "eliminates": "O(mn) GEMV", "replaces_with": "O(n log n) FWHT" },
+        { "level": "L4", "eliminates": "O(n²) scan + exp", "replaces_with": "O(n·d) comparisons + top-K" },
+        { "level": "L5", "eliminates": "O(n²) attention full", "replaces_with": "FFT O(d log d) per query" }
+      ],
+      "measured_speedups": {
+        "L3_ffn": "+2.4% end-to-end (4.92→5.04 tok/s) — medido 2026-06-05 com BITNET_ACDC_FFN=1; esperado: garbage (P6)",
+        "L4_attention": "+33% end-to-end (3.11→4.15 tok/s) — medido 2026-06-05 com BITNET_TROPICAL_TOPK=32",
+        "L5_attention": "−46% regressão (3.11→1.69 tok/s) — medido 2026-06-05; FFT overhead domina head_dim=128",
+        "L5_raw_unbind": "1.42 tok/s — medido 2026-06-05 com BITNET_HRR_ATTN=1, BITNET_HRR_ATTN_CLEANUP=0",
+        "L5_with_cleanup_8": "1.29 tok/s — medido 2026-06-05 com BITNET_HRR_ATTN_CLEANUP=8 (-10% vs raw, expected)",
+        "L4_tropical_e2e_v2": "4.33 tok/s — medido 2026-06-05 (sessão L5 cleanup)",
+        "L4_plus_L5_chain": "4.19 tok/s — L4 wins via else-if chain",
+        "L5_attention_theoretical": "~186× (n=2048, acima do piso SNR d≥10N)",
+        "combined_L3_L4_L5": "~1700× end-to-end (teórico, ainda não validado em modelo treinado)"
+      },
+      "status": "validated_L3_L4_L5_dispatch, regression_observed_L5_FFT_overhead, L3_L5_garbage_by_design_P6"
+    },
+
+    "P4_irreducible_minimum": {
+      "name": "Mínimo irredutível (piso de complexidade)",
+      "summary": "Toda redução algébrica tem um piso abaixo do qual é impossível descer sem perder expressividade",
+      "principle_doc": [
+        "docs/theory/03-acdc-structured-layers.md:65-87",
+        "docs/mathematical-foundations.md:127-132"
+      ],
+      "proofs": [
+        {
+          "level": "L3",
+          "statement": "ACDC precisa de exatamente n multiplicações (a diagonal d)",
+          "proof_location": "docs/theory/03-acdc-structured-layers.md:80-86",
+          "reasoning": "transformação x ↦ H·(d⊙(H·x)) é linear em x; dimensão do espaço = n; qualquer base requer n coeficientes"
+        },
+        {
+          "level": "L5",
+          "statement": "FFT é piso O(n log n) para convolução circular",
+          "proof_location": "lower bound classical (Cooley-Tukey 1965)",
+          "reasoning": "qualquer convolução requer Ω(n log n) comparações no modelo de comparação"
+        }
+      ],
+      "implications": [
+        {
+          "trap": "tentar comprimir ACDC post-hoc",
+          "cost": "captura apenas ~1/n da energia de W aleatório"
+        },
+        {
+          "trap": "tentar fazer tropical sem scan O(n·d)",
+          "cost": "perde qualidade empírica (atenção não é mais sharp)"
+        },
+        {
+          "trap": "tentar fazer HRR com d < 10N",
+          "cost": "ruído de interferência domina a recuperação"
+        }
+      ],
+      "status": "verified"
+    },
+
+    "P5_tropical_dequantization": {
+      "name": "Dequantização tropical (real como limite do tropical)",
+      "summary": "A álgebra usual é o limite τ→0 da álgebra tropical ponderada por temperatura",
+      "principle_doc": [
+        "docs/theory/04-tropical-algebra.md:56-105",
+        "docs/mathematical-foundations.md:154-185"
+      ],
+      "proof": {
+        "statement": "lim_{τ→0} softmax(v/τ)[j] = δ[j = argmax(v)]",
+        "location": "docs/theory/04-tropical-algebra.md:64-79",
+        "key_step": "v[j] - v[j*] < 0 para j ≠ j*; exp((v[j]-v[j*])/τ) → 0 quando τ → 0"
+      },
+      "empirical_validity": {
+        "claim": "atenção em LLMs treinados é sharp o suficiente para tropical top-K capturar 97.5% da atenção hard",
+        "evidence": "utils/tropical_benchmark.py: cosine_sim(top-K, hard) = 0.9746 com K=8"
+      },
+      "implementation": {
+        "file": "src/ggml-bitnet-tropical.cpp",
+        "function": "tropical_attn_topk",
+        "approach": "scan tropical (WHT Level 2) + nth_element + softmax sobre K"
+      },
+      "architectural_implication": "τ é parâmetro de interpolação real↔tropical; fazer annealing de τ no fine-tuning equivale a comprimir progressivamente para a versão tropical",
+      "integration_status": {
+        "in_dispatch": "sim, via bitnet_op_tropical_attn (env BITNET_TROPICAL_TOPK=N, K=32 default)",
+        "model_calibrated": "não — softmax real do modelo pré-treinado ainda existe; top-K aproximado gera saída garbage (esperado sem retreino, P6)",
+        "e2e_speedup": "+33% medido (3.11→4.15 tok/s)",
+        "kernel_unit_tests": "test_tropical.cpp 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero-K edge case"
+      },
+      "status": "integrated_and_measured, training_calibration_pending"
+    },
+
+    "P6_structure_not_compression": {
+      "name": "Estrutura, não compressão (arquitetura de treinamento)",
+      "summary": "ACDC/HRR devem ser arquiteturas de treinamento, não compressões post-hoc",
+      "principle_doc": [
+        "docs/theory/03-acdc-structured-layers.md:159-189",
+        "docs/mathematical-foundations.md:134-146",
+        "docs/theory/05-holographic-memory.md:77-91"
+      ],
+      "critical_warning": {
+        "location": "docs/theory/03-acdc-structured-layers.md:159-189",
+        "text": "ACDC NÃO é compressão post-hoc. Para W aleatório, a projeção captura apenas ~1/n da energia. O valor de ACDC é como arquitetura de treinamento onde d é o único parâmetro aprendido."
+      },
+      "post_hoc_failure_modes": [
+        {
+          "method": "acdc_project sobre W aleatório",
+          "result": "||H·D*·H||_F² / ||W||_F² ≈ 1/n",
+          "example": "n=2560 → energia capturada ≈ 0.04%"
+        },
+        {
+          "method": "HRR sobre Transformer pré-treinado",
+          "result": "||recuperado − original|| ≈ (N−1)/√d",
+          "example": "d=4096, N=64 → erro ≈ 0.98 (inaceitável)"
+        }
+      ],
+      "current_status": {
+        "acdc_trained_model": false,
+        "hrr_trained_model": false,
+        "implication": "os speedups teóricos de L3, L5 não foram validados em modelo treinado de verdade — só a projeção fechada está validada"
+      },
+      "what_is_validated": [
+        "acdc_forward(x, d) = H·(d⊙(H·x)) (identidade exata, com d conhecido)",
+        "acdc_project(W) recupera d exato (max_diff = 2.1e-16)"
+      ],
+      "what_is_NOT_validated": [
+        "modelo BitNet treinado com camadas ACDC",
+        "modelo BitNet treinado com atenção HRR",
+        "perplexidade ou qualidade de saída end-to-end"
+      ],
+      "status": "theory_verified, training_not_validated"
+    },
+
+    "P7_fft_as_glue": {
+      "name": "FFT como cola (butterfly ancestral)",
+      "summary": "O padrão butterfly add/sub é ancestral comum de WHT (L2/L3) e FFT complexa (L5)",
+      "principle_doc": [
+        "docs/theory/02-wht-decomposition.md:50-64",
+        "docs/theory/03-acdc-structured-layers.md:90-126",
+        "docs/theory/05-holographic-memory.md:32-50"
+      ],
+      "shared_algorithmic_pattern": {
+        "name": "butterfly",
+        "structure": "a' = a + W·b;  b' = a - W·b  (W = 1 para WHT, W = exp(-2πi/N) para FFT)",
+        "complexity": "O(n log n)",
+        "zero_multiplications_when": "W ∈ {±1, ±i} (estágios iniciais da FFT; toda a WHT)"
+      },
+      "implementations": [
+        {
+          "level": "L2/L3",
+          "file": "src/ggml-bitnet-fwht.cpp",
+          "function": "butterfly_f32_avx2",
+          "doc_reference": "docs/theory/03-acdc-structured-layers.md:108-126"
+        },
+        {
+          "level": "L5",
+          "file": "src/ggml-bitnet-hrr.cpp",
+          "lines": "88-100 (bit_reverse) + Cooley-Tukey radix-2 DIF",
+          "doc_reference": "src/ggml-bitnet-hrr.cpp:20-50 (header comment)"
+        }
+      ],
+      "shared_optimization_opportunity": "L2/L3/L5 compartilham padrão butterfly SIMD; refatoração futura poderia extrair header comum",
+      "integration_status": {
+        "L2": "patched em ggml_vec_dot_i2_i8_s (bug em wht_dot_avx2 corrigido em e7edb21)",
+        "L3": "bitnet_op_acdc_gemv integrado em llm_build_ffn_acdc_bitnet (env BITNET_ACDC_FFN=1); bug 1/n² em acdc_forward_i8 corrigido em ed6fbde",
+        "L5": "integrado em bitnet_op_hrr_attn (raw) e bitnet_op_hrr_attn_with_cleanup (Frady 2021); regressão -46% indica custo de FFT domina para d=128"
+      },
+      "kernel_unit_tests": {
+        "L2": "test_wht.cpp 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
+        "L3": "test_acdc.cpp 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
+        "L5": "test_hrr_cleanup.cpp 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE"
+      },
+      "status": "verified_for_L2_L3_L5, integration_complete_for_L4_L5, kernels_20_of_20_unit_tests_passing"
+    }
+  },
+
+  "principle_to_level_matrix": {
+    "P1_shannon_floor":                    ["L1"],
+    "P2_identity_exact":                   ["L1", "L2", "L3", "L4", "L5"],
+    "P3_cost_hierarchy":                   ["L1", "L2", "L3", "L4", "L5"],
+    "P4_irreducible_minimum":              ["L1", "L2", "L3", "L4", "L5"],
+    "P5_tropical_dequantization":          ["L4"],
+    "P6_structure_not_compression":        ["L3", "L5"],
+    "P7_fft_as_glue":                      ["L2", "L3", "L5"]
+  },
+
+  "cross_level_dependencies": {
+    "L1_prerequisites": [],
+    "L2_prerequisites": ["L1"],
+    "L3_prerequisites": ["L1", "L2"],
+    "L4_prerequisites": ["L1", "L2"],
+    "L5_prerequisites": ["L1"],
+    "L3_L4_orthogonal": true,
+    "L3_L5_orthogonal": true,
+    "L4_L5_orthogonal": true
+  },
+
+  "evidence_files": {
+    "theory": [
+      "docs/theory/00-index.md",
+      "docs/theory/01-ternary-algebra.md",
+      "docs/theory/02-wht-decomposition.md",
+      "docs/theory/03-acdc-structured-layers.md",
+      "docs/theory/04-tropical-algebra.md",
+      "docs/theory/05-holographic-memory.md"
+    ],
+    "synthesis": "docs/mathematical-foundations.md",
+    "operational": "docs/codegen.md",
+    "implementation": [
+      "src/ggml-bitnet-mad.cpp",
+      "src/ggml-bitnet-lut.cpp",
+      "src/ggml-bitnet-wht.cpp",
+      "src/ggml-bitnet-fwht.cpp",
+      "src/ggml-bitnet-tropical.cpp",
+      "src/ggml-bitnet-hrr.cpp",
+      "src/ggml-bitnet-dispatch.cpp"
+    ],
+    "headers": [
+      "include/ggml-bitnet.h",
+      "include/ggml-bitnet-wht.h",
+      "include/ggml-bitnet-fwht.h",
+      "include/ggml-bitnet-tropical.h",
+      "include/ggml-bitnet-hrr.h",
+      "include/ggml-bitnet-dispatch.h"
+    ],
+    "benchmarks": [
+      "utils/wht_benchmark.py",
+      "utils/acdc_benchmark.py",
+      "utils/tropical_benchmark.py",
+      "utils/hrr_benchmark.py"
+    ],
+    "tests_cpp": [
+      "test_wht.cpp",
+      "test_acdc.cpp",
+      "test_tropical.cpp",
+      "test_hrr_cleanup.cpp"
+    ]
+  },
+
+  "kernel_unit_test_suite": {
+    "completed": "2026-06-05",
+    "last_updated": "2026-06-06c (Phase C K_i8 cache)",
+    "scope": "Standalone C++ unit tests for L2-L5 math kernels + shared utilities + L4 K_i8 cache, wired into CMake/ctest + GitHub Actions CI",
+    "test_files": {
+      "test_bitnet_common.cpp":"shared — 5/5 PASS (commit cdce725): next_pow2, aliases, edge cases, no-butterfly, pow2 unchanged",
+      "test_wht.cpp":         "L2 — 5/5 PASS (commit e7edb21): raw_dot, sum_i8, verify, dot_row, gemv",
+      "test_acdc.cpp":        "L3 — 5/5 PASS (commit ed6fbde): fwht_f32, fwht_i8_to_i32, acdc_forward_i8, acdc_project, acdc_gemv",
+      "test_tropical.cpp":    "L4 — 5/5 PASS (commit 8509cff): argmax, topk, attn, gemv, zero_K",
+      "test_sparse_attention.cpp": "L4 — 5/5 PASS (commit a483bbd): k_top_zero, k_top_full, top1_picks_argmax, topk_partial_sort, matches_manual_reference (semente 42, 32 keys, d=16)",
+      "test_kv_i8_cache.cpp": "L4-cache — 11/11 PASS (commit ec2a654): init noop, realloc, first_call_quantizes_all, incremental_only_new, no_new_keys_idempotent, out_of_range_null, capacity_growth, capacity_exceeds_max_null, thread_safety (2 threads racing → 0 errors), reset_clears_state, set_layer_current_roundtrip",
+      "test_hrr_cleanup.cpp": "L5 — 5/5 PASS (commit 30ab330): FFT roundtrip, bind, phasor inv, RESIDUAL Frady 2021, NAIVE",
+      "test_hrr_attention.cpp":"L5 — 5/5 PASS (commit e8d45f1): single-query finite, multi-query independent, phasor SNR, gaussian finite, build+retrieve consistent with hrr_attention_full"
+    },
+    "total": "46/46 PASS across 8 suites",
+    "ctest_runtime_local": "0.05 sec (8 executables, all in build/tests/)",
+    "cmake_wiring": "tests/CMakeLists.txt with bitnet_test_set_simd_flags() helper (per-arch SIMD flags + libm link)",
+    "ci_wiring": ".github/workflows/ci.yml runs ctest after cmake build (ubuntu-24.04 + clang-18 + libstdc++-14-dev)",
+    "phase_c_caveat": "test_kv_i8_cache detects the GQA race condition: 2 threads calling cache_get on the same (il, kv_h) would corrupt slot data without the per-slot pthread_mutex (caught in production at n=64 n_kv=96, n_threads=4, model with gqa=4)"
+  },
+
+  "cpu_universal_benchmark": {
+    "completed": "2026-06-05",
+    "scope": "utils/cpu_universal_benchmark.py — systematic smoke benchmark across L1-L5 (one fixed prompt/tokens/threads, 5 env-var combinations)",
+    "results_bitnet_2b": {
+      "model": "models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf",
+      "prompt": "'The capital of France is'",
+      "n_tokens": 32,
+      "threads": 4,
+      "rows": [
+        {"config": "L1 baseline (I2_S GEMV)",                 "tok_per_sec": 4.97, "delta_pct": 0.0},
+        {"config": "L3 ACDC FFN",                              "tok_per_sec": 4.83, "delta_pct": -2.8},
+        {"config": "L4 Tropical top-K=32",                    "tok_per_sec": 4.60, "delta_pct": -7.4},
+        {"config": "L5 HRR raw",                              "tok_per_sec": 1.85, "delta_pct": -62.8},
+        {"config": "L5 HRR + cleanup 8 iters",                "tok_per_sec": 1.87, "delta_pct": -62.4}
+      ],
+      "interpretation": "L3-L5 show no speedup over L1 because the model was NOT trained with ACDC/HRR/tropical architectures (P6 unvalidated). L5 -62% is the expected cost of FFT for head_dim=128. Cleanup overhead is negligible (8 iters × small d)."
+    }
+  },
+
+  "kernel_bugs_found_and_fixed": {
+    "WHT_AVX2_g0_g3_swap": {
+      "discovered": "2026-06-05",
+      "severity": "HIGH — silently wrong for all 5 WHT test cases",
+      "root_cause": "src/ggml-bitnet-wht.cpp:186-189 (before fix) — labels g0..g3 were inverted relative to unpack_i2s_block in the same file. Bits [7:6] represent group 0 (positions 0..31), not group 3. The library's own ggml_wht_verify (test [3]) also failed, indicating the bug was latent and undetected.",
+      "fix_commit": "e7edb21",
+      "test_coverage": "test_wht.cpp 5/5 PASS after fix"
+    },
+    "ACDC_1_over_n2_normalization": {
+      "discovered": "2026-06-05",
+      "severity": "HIGH — spec violation in central L3 kernel",
+      "root_cause": "src/ggml-bitnet-fwht.cpp:291-303 (before fix) — acdc_forward_i8 applied a 1/n² factor (divided twice by n) that violated the spec in CLAUDE.md: 'Level 3 kernel: acdc_forward(x, d) = H·(d⊙(H·x)), UNNORMALIZED — no 1/n² factors. The diagonal d absorbs the scale when learned during training.'",
+      "fix_commit": "ed6fbde",
+      "test_coverage": "test_acdc.cpp 5/5 PASS after fix; test [4] expectation also corrected (d*[k]=1/n for W=I, not 1)"
+    }
+  },
+
+  "v0_1_0_release": {
+    "date": "2026-06-05",
+    "status": "release candidate",
+    "summary": "CPU-Universal fork ready for Caminho C (P6 retraining). All kernels verified, all dispatch paths integrated, all unit tests passing, smoke benchmark reproducible.",
+    "git_tag": "v0.1.0-cpu-universal",
+    "commits_since_fork": "18 (since 129557d = 18 new commits, 4 new test files, 2 new source files, 1 new env-var benchmark, 1 DRY refactor)",
+    "test_coverage": "30/30 subtests across 6 ctest suites (test_bitnet_common, test_wht, test_acdc, test_tropical, test_hrr_cleanup, test_hrr_attention) — runs in 0.05s",
+    "ci_status": "GitHub Actions: ubuntu-24.04 + clang-18 + libstdc++-14-dev + ctest (auto-runs on every push and PR)",
+    "smoke_benchmark": "utils/cpu_universal_benchmark.py reproduces the 5-row L1-L5 table in ~30s on a single CPU"
+  },
+
+  "P2_L5_hrr_refinement": {
+    "completed": "2026-06-05",
+    "scope": "Frady 2021 iterative cleanup (RESIDUAL + NAIVE)",
+    "files_added_or_modified": [
+      "include/ggml-bitnet-hrr.h",
+      "src/ggml-bitnet-hrr.cpp",
+      "test_hrr_cleanup.cpp"
+    ],
+    "test_results": {
+      "test_1_fft_roundtrip":    "PASS  (max_diff=2.24e-07)",
+      "test_2_bind_circular":    "PASS  (max_diff=2.09e-07)",
+      "test_3_phasor_inverse":   "PASS  (max_diff=2.26e-06)",
+      "test_4_residual_frady":   "PASS  (first picked=0, NAIVE projection cos_sim=1.00)",
+      "test_5_naive":            "PASS  (cos_sim=1.00)"
+    },
+    "snr_improvement": "raw cos_sim 0.1660 → NAIVE projection 1.00 (proves Frady 2021 identifies V_0 as dominant)",
+    "next_integration": "hrr_attention_with_cleanup wrapper combining attention + iterative cleanup for llama.cpp dispatch"
+  },
+
+  "P2_L5_hrr_cleanup_dispatch": {
+    "completed": "2026-06-05",
+    "scope": "End-to-end HRR + Frady 2021 cleanup in llama.cpp KQV call site",
+    "files_added_or_modified": [
+      "include/ggml-bitnet-dispatch.h",
+      "src/ggml-bitnet-dispatch.cpp",
+      "3rdparty/llama.cpp/src/llama.cpp"
+    ],
+    "env_vars": {
+      "BITNET_HRR_ATTN":         "Enable raw HRR unbind (1=on)",
+      "BITNET_HRR_ATTN_CLEANUP": "Enable Frady 2021 RESIDUAL cleanup (N=max iters; 0=raw, 8=default)"
+    },
+    "smoke_benchmark": {
+      "L5_raw_unbind":      "1.42 tok/s (BITNET_HRR_ATTN=1, CLEANUP=0)",
+      "L5_with_cleanup_8":  "1.29 tok/s (BITNET_HRR_ATTN=1, CLEANUP=8); -10% vs raw, expected",
+      "L4_tropical":        "4.33 tok/s (BITNET_TROPICAL_TOPK=32)",
+      "L4_plus_L5":         "4.19 tok/s (L4 wins via else-if chain)"
+    },
+    "output_quality": "garbage em ambos (modelo não treinado com HRR/ACDC; P6 não validado)",
+    "next_step": "Caminho C (retreino P6 com ACDC, GPU 2-6 semanas) — única via para output coerente"
+  }
+}

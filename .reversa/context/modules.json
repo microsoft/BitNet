@@ -1,0 +1,421 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-03",
+  "agent": "archaeologist",
+  "modules": [
+    {
+      "id": "run_inference",
+      "name": "run_inference",
+      "file": "run_inference.py",
+      "language": "Python",
+      "role": "entry_point",
+      "description": "Ponto de entrada CLI para inferência CPU via llama-cli",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "run_inference",
+          "params": [],
+          "return": "void",
+          "description": "Monta e executa llama-cli via subprocess com parâmetros CLI"
+        },
+        {
+          "name": "run_command",
+          "params": ["command: list|str", "shell: bool"],
+          "return": "void",
+          "description": "Wrapper subprocess com check=True; sys.exit(1) em falha"
+        }
+      ],
+      "dependencies": ["subprocess", "argparse", "platform"],
+      "external_calls": ["build/bin/llama-cli"],
+      "config_params": {
+        "model_default": "models/bitnet_b1_58-3B/ggml-model-i2_s.gguf",
+        "n_predict_default": 128,
+        "threads_default": 2,
+        "ctx_size_default": 2048,
+        "temperature_default": 0.8,
+        "ngl_hardcoded": 0,
+        "batch_size_hardcoded": 1
+      }
+    },
+    {
+      "id": "run_inference_server",
+      "name": "run_inference_server",
+      "file": "run_inference_server.py",
+      "language": "Python",
+      "role": "entry_point",
+      "description": "Ponto de entrada para servidor HTTP OpenAI-compatible via llama-server",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "run_server",
+          "params": [],
+          "return": "void",
+          "description": "Inicia llama-server com continuous batching habilitado"
+        }
+      ],
+      "external_calls": ["build/bin/llama-server"],
+      "config_params": {
+        "host_default": "127.0.0.1",
+        "port_default": 8080,
+        "continuous_batching": true,
+        "n_predict_default": 4096
+      }
+    },
+    {
+      "id": "setup_env",
+      "name": "setup_env",
+      "file": "setup_env.py",
+      "language": "Python",
+      "role": "tooling",
+      "description": "Orquestrador do pipeline de setup: download, conversão, geração de kernels, compilação",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "return": "void",
+          "description": "Executa pipeline: setup_gguf → gen_code → compile → prepare_model"
+        },
+        {
+          "name": "prepare_model",
+          "params": [],
+          "return": "void",
+          "description": "Download HF ou validação local; conversão para GGUF e quantização"
+        },
+        {
+          "name": "gen_code",
+          "params": [],
+          "return": "void",
+          "description": "Seleciona parâmetros GEMM por modelo e gera código C++ de kernel via codegen"
+        },
+        {
+          "name": "compile",
+          "params": [],
+          "return": "void",
+          "description": "Compila projeto via CMake com clang/clang++"
+        }
+      ],
+      "constants": {
+        "SUPPORTED_HF_MODELS": "16 modelos HuggingFace suportados",
+        "SUPPORTED_QUANT_TYPES": {"arm64": ["i2_s", "tl1"], "x86_64": ["i2_s", "tl2"]},
+        "GGML_BITNET_MAX_NODES": 8192
+      },
+      "dependencies": ["subprocess", "shutil", "pathlib", "huggingface-cli"]
+    },
+    {
+      "id": "gpu_model",
+      "name": "gpu/model",
+      "file": "gpu/model.py",
+      "language": "Python",
+      "role": "core_ml",
+      "description": "Arquitetura Transformer BitNet para GPU com quantização ternária",
+      "confidence": "CONFIRMADO",
+      "classes": [
+        {
+          "name": "ModelArgs",
+          "type": "dataclass",
+          "description": "Hiperparâmetros do modelo (default = BitNet 2B)"
+        },
+        {
+          "name": "BitLinear",
+          "extends": "nn.Linear",
+          "description": "Camada linear com quantização de input simulada (prefill)"
+        },
+        {
+          "name": "BitLinearKernel",
+          "extends": "nn.Module",
+          "description": "Camada linear via kernel CUDA int8×int2 (decode)"
+        },
+        {
+          "name": "Attention",
+          "extends": "nn.Module",
+          "description": "GQA com RoPE e Flash Attention; sub-norm exclusivo BitNet"
+        },
+        {
+          "name": "FeedForward",
+          "extends": "nn.Module",
+          "description": "FFN com squared ReLU (não SiLU); sub-norm interna"
+        },
+        {
+          "name": "TransformerBlock",
+          "extends": "nn.Module",
+          "description": "Bloco completo com attention + FFN + pre/post norms"
+        },
+        {
+          "name": "Transformer",
+          "extends": "nn.Module",
+          "description": "Modelo completo com embeddings, camadas e LM head"
+        }
+      ],
+      "algorithms": [
+        "Per-token quantization: s = 127 / max(|x|); round(x*s).clamp(-128,127)",
+        "GQA ratio 4:1 (20 heads / 5 kv_heads)",
+        "Squared ReLU FFN activation (não SiLU)",
+        "Sub-normalization pós-atenção e interna-FFN (BitNet exclusivo)",
+        "RoPE theta=500000 (longo contexto)"
+      ],
+      "dependencies": ["torch", "xformers"]
+    },
+    {
+      "id": "gpu_generate",
+      "name": "gpu/generate",
+      "file": "gpu/generate.py",
+      "language": "Python",
+      "role": "inference_engine",
+      "description": "Motor de inferência com CUDA Graphs; dual-model prefill/decode",
+      "confidence": "CONFIRMADO",
+      "classes": [
+        {
+          "name": "FastGen",
+          "description": "Gerenciador de geração com CUDA graph optimization"
+        },
+        {
+          "name": "GenArgs",
+          "type": "dataclass",
+          "description": "Parâmetros de geração (comprimento, batch, sampling)"
+        }
+      ],
+      "algorithms": [
+        "Dual-model: prefill usa fp16 BitLinear; decode usa int2 BitLinearKernel",
+        "CUDA Graphs: zero overhead de kernel launch no loop de decode",
+        "Top-p sampling com temperatura 0.7 e top_p 0.95",
+        "Padding fixo de prompts para prompt_length (permite reutilizar CUDA graph)",
+        "trim_answer: trunca na posição EOS"
+      ],
+      "dependencies": ["torch", "xformers", "gpu/model", "gpu/tokenizer", "gpu/sample_utils", "gpu/stats"]
+    },
+    {
+      "id": "gpu_tokenizer",
+      "name": "gpu/tokenizer",
+      "file": "gpu/tokenizer.py",
+      "language": "Python",
+      "role": "tokenization",
+      "description": "Tokenizador Tiktoken (BPE) com suporte ao formato de diálogo Llama 3",
+      "confidence": "CONFIRMADO",
+      "classes": [
+        {
+          "name": "Tokenizer",
+          "description": "Tokenizador base com encode/decode e divisão de texto longo"
+        },
+        {
+          "name": "ChatFormat",
+          "description": "Wrapper para formato de diálogo com encode_dialog_prompt"
+        }
+      ],
+      "special_tokens": {
+        "BOS": "<|begin_of_text|>",
+        "EOS": "<|end_of_text|>",
+        "EOT": "<|eot_id|>",
+        "start_header": "<|start_header_id|>",
+        "end_header": "<|end_header_id|>",
+        "reserved_total": 256
+      },
+      "limits": {
+        "TIKTOKEN_MAX_ENCODE_CHARS": 400000,
+        "MAX_NO_WHITESPACES_CHARS": 25000
+      }
+    },
+    {
+      "id": "gpu_pack_weight",
+      "name": "gpu/pack_weight",
+      "file": "gpu/pack_weight.py",
+      "language": "Python",
+      "role": "weight_packing",
+      "description": "Empacotamento e permutação de pesos int2 para layout WMMA da GPU",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "convert_weight_int8_to_int2",
+          "params": ["weight: torch.Tensor (int8, {-1,0,+1})"],
+          "return": "torch.Tensor (int8, N×K//4)",
+          "description": "Pipeline: +2 shift → permutação WMMA → compressão int2 → interleave"
+        },
+        {
+          "name": "permutate_weight_fastest",
+          "params": ["weight: numpy array"],
+          "return": "numpy array permutado",
+          "description": "Reordena blocos 16×32 para layout de shared memory WMMA"
+        },
+        {
+          "name": "compress_int2_to_int8",
+          "params": ["int2_weight: numpy array"],
+          "return": "numpy array int8",
+          "description": "Compacta 4 valores int2 por byte"
+        },
+        {
+          "name": "interleave_weight_int8",
+          "params": ["qweight: numpy array", "nbits: int"],
+          "return": "numpy array int8",
+          "description": "Reordena bits dentro de int32 para padrão de acesso WMMA"
+        }
+      ],
+      "wmma_params": {
+        "wmma_n": 16,
+        "wmma_k": 32
+      }
+    },
+    {
+      "id": "gpu_convert_checkpoint",
+      "name": "gpu/convert_checkpoint",
+      "file": "gpu/convert_checkpoint.py",
+      "language": "Python",
+      "role": "data_conversion",
+      "description": "Converte checkpoint PyTorch unificado para formatos int2 e fp16 separados",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "convert_ts_checkpoint",
+          "params": ["input_path: str"],
+          "return": "void",
+          "description": "Lê checkpoint, quantiza pesos, salva int2 e fp16 separados"
+        }
+      ],
+      "output_files": ["model_state_int2.pt", "model_state_fp16.pt"]
+    },
+    {
+      "id": "gpu_convert_safetensors",
+      "name": "gpu/convert_safetensors",
+      "file": "gpu/convert_safetensors.py",
+      "language": "Python",
+      "role": "data_conversion",
+      "description": "Converte safetensors HuggingFace para formato interno PyTorch",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "convert_back",
+          "params": ["safetensors_path: str", "output_file: str", "model_name: str"],
+          "return": "void",
+          "description": "Remapeia chaves de tensores e inverte permutação RoPE de Q e K"
+        }
+      ],
+      "models_supported": {"2B": "n_layer=30, n_head=20, dim=2560, vocab=128256, n_kv=5, ffn=6912"}
+    },
+    {
+      "id": "gpu_sample_utils",
+      "name": "gpu/sample_utils",
+      "file": "gpu/sample_utils.py",
+      "language": "Python",
+      "role": "sampling",
+      "description": "Nucleus sampling (top-p) compilado via torch.compile",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "top_p",
+          "params": ["probs: torch.Tensor", "p: float"],
+          "return": "torch.Tensor",
+          "description": "Sort descrescente → cumsum → máscara → multinomial"
+        }
+      ]
+    },
+    {
+      "id": "gpu_stats",
+      "name": "gpu/stats",
+      "file": "gpu/stats.py",
+      "language": "Python",
+      "role": "observability",
+      "description": "Medição de performance por fase (prefill/decode) em tokens/segundo",
+      "confidence": "CONFIRMADO",
+      "classes": [
+        {
+          "name": "PhaseStats",
+          "type": "dataclass",
+          "fields": ["name", "tokens", "time"],
+          "description": "Stats de uma fase; calcula TPS"
+        },
+        {
+          "name": "Stats",
+          "description": "Gerenciador de fases; accumula PhaseStats"
+        }
+      ]
+    },
+    {
+      "id": "src_ggml_bitnet_lut",
+      "name": "src/ggml-bitnet-lut",
+      "file": "src/ggml-bitnet-lut.cpp",
+      "language": "C++",
+      "role": "cpu_kernel",
+      "description": "Kernel LUT CPU para TL1 (ARM64) e TL2 (x86_64) compilado condicionalmente",
+      "confidence": "CONFIRMADO",
+      "platforms": {
+        "GGML_BITNET_ARM_TL1": "ARM64 NEON LUT kernel",
+        "GGML_BITNET_X86_TL2": "x86_64 AVX2 LUT kernel"
+      },
+      "key_differences": {
+        "TL1_wsize": "ne10*ne11*15 bytes + float scales",
+        "TL2_wsize": "ne10*ne11*11 bytes + 2×float scales",
+        "TL1_batch_limit": "ne11 <= 1 (apenas batch 1)",
+        "TL2_batch_limit": "sem restrição"
+      }
+    },
+    {
+      "id": "src_ggml_bitnet_mad",
+      "name": "src/ggml-bitnet-mad",
+      "file": "src/ggml-bitnet-mad.cpp",
+      "language": "C++",
+      "role": "cpu_kernel",
+      "description": "Kernel MAD (multiply-add) para formato I2_S via SIMD AVX2/AVX512/NEON",
+      "confidence": "CONFIRMADO",
+      "functions": [
+        {
+          "name": "quantize_i2_s",
+          "params": ["src: float*", "dst: void*", "nrow: int64", "n_per_row: int64", "quant_weights: float*"],
+          "description": "Quantiza float32 para 2-bit ternário packed; QK=128 (x86) ou 64 (ARM)"
+        },
+        {
+          "name": "ggml_vec_dot_i2_i8_s_1x1",
+          "params": ["n: int", "s: float*", "vx: void*", "vy: void*", "nrc: int"],
+          "description": "Produto escalar AVX2 entre peso I2_S e ativação int8"
+        }
+      ],
+      "quantization_encoding": {
+        "0": "-1 (negativo)",
+        "1": "0 (zero)",
+        "2": "+1 (positivo)"
+      }
+    },
+    {
+      "id": "utils_codegen_tl1",
+      "name": "utils/codegen_tl1",
+      "file": "utils/codegen_tl1.py",
+      "language": "Python",
+      "role": "code_generation",
+      "description": "Gerador de código C++ para kernels LUT ARM64 (TL1) com parâmetros GEMM por modelo",
+      "confidence": "CONFIRMADO",
+      "output": "include/bitnet-lut-kernels.h",
+      "params": ["--model", "--BM (output tiles)", "--BK (input tiles)", "--bm (micro-tile)"]
+    },
+    {
+      "id": "utils_codegen_tl2",
+      "name": "utils/codegen_tl2",
+      "file": "utils/codegen_tl2.py",
+      "language": "Python",
+      "role": "code_generation",
+      "description": "Gerador de código C++ para kernels LUT x86_64 AVX2 (TL2) com parâmetros GEMM por modelo",
+      "confidence": "CONFIRMADO",
+      "output": "include/bitnet-lut-kernels.h",
+      "extra_constant": "BK2 = 32"
+    }
+  ],
+  "summary": {
+    "total_modules": 15,
+    "languages": ["Python", "C++"],
+    "key_algorithms": [
+      "Quantização ternária BitNet 1.58-bit (absmax per-tensor)",
+      "Quantização de ativações absmax per-token (int8)",
+      "LUT GEMM (TL1/TL2): lookup-table em vez de multiplicação",
+      "MAD GEMM (I2_S): SIMD AVX2/NEON com 2 bits packed",
+      "CUDA Graphs para zero-overhead no loop de decode",
+      "Dual-model: prefill fp16 / decode int2",
+      "Top-p (nucleus) sampling",
+      "WMMA weight permutation para GPU kernel",
+      "Geração dinâmica de código C++ especializado por modelo"
+    ],
+    "total_entities": 12,
+    "lacunas": [
+      "gpu/bitnet_kernels/ - código-fonte do kernel CUDA int8×int2 não disponível",
+      "utils/convert.py - não analisado nesta sessão",
+      "CMakeLists.txt - flags de compilação não auditadas",
+      "preset_kernels/ - headers pré-gerados não analisados em detalhe"
+    ]
+  }
+}
