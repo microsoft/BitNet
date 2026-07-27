@@ -1,0 +1,16 @@
+FROM jupyter/base-notebook
+
+USER root
+
+RUN apt-get update -y 
+RUN apt-get upgrade -y
+RUN apt-get install -y gdb
+RUN apt-get install -y git
+RUN apt-get install -y build-essential
+
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+RUN pip install -U git+https://github.com/ridgerchu/matmulfreellm
+RUN pip install transformers
+RUN pip install triton==2.2
+
