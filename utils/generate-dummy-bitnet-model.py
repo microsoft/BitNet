@@ -2,8 +2,6 @@
 
 # dummy model generation script based on convert-hf-to-gguf-bitnet.py
 from __future__ import annotations
-import sys
-from pathlib import Path
 
 import numpy as np
 import configparser

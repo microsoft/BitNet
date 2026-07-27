@@ -109,7 +109,7 @@ class PerplexityTester:
         for temp_file in self.temp_files:
             try:
                 os.unlink(temp_file)
-            except:
+            except OSError:
                 pass
         self.temp_files = []
     
