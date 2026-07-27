@@ -1,20 +1,18 @@
 # BitNet CPU Inference Optimization
 
-This update provides significant performance improvements for BitNet inference on CPU through paralleled kernel implementations, native I2_S GEMM/GEMV support, configurable tiling block size and embedding quantization.
+This update delivers significant performance improvements for BitNet inference on CPU through parallelized kernel implementations, native I2_S GEMM/GEMV support, configurable tiling block sizes, and embedding quantization
 
 ## Update
 
-- **Parallel Weight & Activation Computation**  
-  Implemented parallel processing of weights and activations in the W2A8 vet_dot kernel, achieving improved throughput on both x86 and ARM architectures.
+- ** Parallel Weight & Activation Computation
+Implemented parallel processing of weights and activations in the W2A8 vec_dot kernel, achieving higher throughput on both x86 and ARM architectures.
+- ** Native I2_S GEMM & GEMV Support
+Integrated I2_S GEMM and GEMV operations into the ggml library, ensuring full compatibility with the llama.cpp architecture. This enables seamless integration with existing inference pipelines.
+- ** Configurable Tiling & Parallelism
+Introduced configurable GEMM and GEMV block sizes along with adjustable parallelism levels, allowing fine‑tuned performance optimization across different CPU architectures.
+- ** Embedding Quantization
+Added support for embedding layer quantization using the Q6_K format, reducing memory footprint and improving inference speed while maintaining high accuracy.
 
-- **Native I2_S GEMM & GEMV Support**  
-  Integrated I2_S GEMM and GEMV operations into ggml library, making them fully compatible with the llama.cpp architecture. This enables seamless integration with existing inference pipelines.
-
-- **Configurable Tiling & Parallelism**  
-  Introduced configurable GEMM & GEMV block sizes and parallelism levels, allowing performance fine-tuning for different CPU architectures.
-
-- **Embedding Quantization**  
-  Added support for embedding layer quantization with Q6_K format, reducing memory footprint and improving inference speed while maintaining high accuracy.
 
 ## Usage
 
