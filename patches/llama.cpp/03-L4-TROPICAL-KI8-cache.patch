@@ -1,0 +1,20 @@
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -31,6 +31,9 @@
+ #if defined(BITNET_L4_TROPICAL) || defined(BITNET_L3_ACDC) || defined(BITNET_L5_HRR)
+ #  include "ggml-bitnet-dispatch.h"
+ #endif
++#if defined(BITNET_L4_TROPICAL)
++#  include "ggml-bitnet-kv-cache.h"
++#endif
+
+ // TODO: replace with ggml API call
+ #define QK_K 256
+@@ -9888,6 +9891,7 @@
+             k : ggml_cast(ctx, k, GGML_TYPE_F32);
+         struct ggml_tensor * v_f32 = (v_t->type == GGML_TYPE_F32) ?
+             v_t : ggml_cast(ctx, v_t, GGML_TYPE_F32);
++        bitnet_kv_i8_cache_set_layer(il);
+         cur = bitnet_op_tropical_attn(ctx, q, k_f32, v_f32,
+                                       bitnet_tropical_topk, kq_scale);
+         cur = ggml_reshape_2d(ctx, cur, n_embd_head_v * n_head, n_tokens);

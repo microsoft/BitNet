@@ -1,0 +1,154 @@
+# ─── BitNet CPU kernel CI ──────────────────────────────────────────────────────
+#
+# Builds the bitnet.cpp project with all L2-L5 math kernels enabled and runs
+# the kernel unit test suite. No model download (full smoke/perplexity happens
+# locally or in a separate nightly workflow).
+#
+# Why this exists:
+#   - Clang ≥ 18 is required for SIMD kernels (per CLAUDE.md).
+#   - 3rdparty/llama.cpp is a fork (branch `merge-dev`); submodule init is
+#     critical for the build.
+#   - GCC 14 may not be installed in the runner image; we explicitly install
+#     libstdc++-14-dev so Clang 18 can find its system C++ headers.
+#
+# Trigger: every push to main, every PR.
+
+name: kernel-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: build + test (Ubuntu, clang-18)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Apply dispatch patch (combined 05)
+        run: |
+          echo "Applying combined patch 05 (L3 ACDC + L5 HRR + L4 K_i8 cache + FaseIII rect + LLaMA gate)..."
+          chmod +x ./scripts/apply-dispatch-patches.sh
+          ./scripts/apply-dispatch-patches.sh
+          echo "Verifying idempotence..."
+          ./scripts/apply-dispatch-patches.sh --check
+        shell: bash
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-18 \
+            cmake \
+            ninja-build \
+            libstdc++-14-dev \
+            python3 \
+            python3-pip \
+            python3-venv
+
+      - name: Create Python venv and install test dependencies
+        # Use an isolated venv to avoid PEP-668 conflicts between apt numpy/scipy
+        # and PyPI packages (safetensors has no numpy dep; still isolate for safety).
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --no-cache-dir numpy scipy safetensors
+
+      - name: Configure (Release, all kernels + ACDC_RECT)
+        # BITNET_ENABLE_ACDC_RECT defaults ON → 16 tests in CI.
+        # Python3_EXECUTABLE points to the venv so test_extract_acdc_diagonal
+        # finds the installed numpy/safetensors.
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBITNET_L2_WHT=ON \
+            -DBITNET_L3_ACDC=ON \
+            -DBITNET_L4_TROPICAL=ON \
+            -DBITNET_L5_HRR=ON \
+            -DBITNET_L6_RAG=ON \
+            -DBITNET_BUILD_TESTS=ON \
+            -DPython3_EXECUTABLE=$(pwd)/.venv/bin/python3
+
+      - name: Build (compiles L1 + L2-L6 + all test targets)
+        # Single build step — cmake discovers all targets from CMakeLists.txt.
+        # No hardcoded --target list: avoids breakage when targets are added/renamed.
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: ctest — 16/16 kernel unit tests
+        # BITNET_ENABLE_ACDC_RECT=ON (default) adds test_acdc_rect → 16 tests.
+        # -j$(nproc): parallel execution; --output-on-failure: full log on fail.
+        # PYTHON3_EXECUTABLE env var ensures the venv Python is used for
+        # test_extract_acdc_diagonal (the add_test() COMMAND is cmake-resolved).
+        run: |
+          ctest --test-dir build \
+            --output-on-failure \
+            -j$(nproc) \
+            --timeout 120
+
+      - name: NO-06 — telemetry audit (zero hits required)
+        # Persona D4: binário nunca envia dados a endpoints externos.
+        # Any match = CI failure.
+        run: |
+          HITS=$(grep -rn \
+            "telemetry\|upload_data\|send_metrics\|POST.*http" \
+            src/ utils/ run_inference*.py setup_env.py 2>/dev/null | \
+            grep -v "^Binary\|\.pyc" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::NO-06 FAIL — telemetry code found:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "NO-06 PASS — 0 telemetry hits"
+
+      - name: NO-07 — cloud URL audit (zero hits in production code)
+        # Ensures no hard-coded HTTP endpoints in C/C++ production sources.
+        # URLs in comments (// http) and docs are excluded.
+        run: |
+          HITS=$(grep -rn "http://\|https://" \
+            src/ include/ \
+            --include="*.cpp" --include="*.h" | \
+            grep -v "//.*http\|/\*.*http\| \* http" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::NO-07 FAIL — cloud URLs in production code:"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "NO-07 PASS — 0 cloud URL hits"
+
+      - name: Cross-validation C ↔ Python (L3/L4/L5)
+        # Verifies that the Python reference implementations match the C kernels
+        # to rtol=1e-5, atol=1e-7. No model required.
+        # --build-dir points to the cmake output dir (build/tests/), not the
+        # local development build (build_tests/).
+        run: |
+          .venv/bin/python3 tests/cross_validation.py \
+            --all \
+            --build-dir build/tests
+          echo "Cross-validation: PASS"
+
+      - name: Air-gapped boot test (AC-11)
+        # Verifies that the built llama-cli binary runs without making any
+        # network syscalls.  This enforces persona D4 (no telemetry, no cloud)
+        # at the CI level.  The script is in tests/test_air_gapped_boot.sh;
+        # it auto-skips if no model file is provided (which is the case in CI).
+        # Result: SKIPPED is acceptable in CI; PASS requires a real model.
+        run: |
+          chmod +x tests/test_air_gapped_boot.sh
+          bash tests/test_air_gapped_boot.sh 2>&1 | tee /tmp/air_gapped.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            echo "::error::AC-11 air-gapped boot FAILED (rc=$rc)"
+            cat /tmp/air_gapped.log
+            exit $rc
+          fi
