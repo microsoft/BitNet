@@ -221,7 +221,18 @@ def compile():
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
+def apply_local_patches():
+    llama_cpp = Path("3rdparty") / "llama.cpp"
+    server_cpp = llama_cpp / "examples" / "server" / "server.cpp"
+    utils_hpp = llama_cpp / "examples" / "server" / "utils.hpp"
+    if not llama_cpp.exists() or not server_cpp.exists() or not utils_hpp.exists():
+        logging.info("Skipping local llama.cpp patches: 3rdparty/llama.cpp server sources not found.")
+        return
+
+    run_command([sys.executable, "utils/apply_local_patches.py"], log_step="apply_local_patches")
+
 def main():
+    apply_local_patches()
     setup_gguf()
     gen_code()
     compile()
