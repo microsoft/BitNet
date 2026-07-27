@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "protheus-rag": {
+      "command": "/home/peder/rag-protheus/.venv/bin/python3",
+      "args": ["/home/peder/rag-protheus/mcp_server_direct.py"],
+      "env": { "PYTHONPATH": "/home/peder/rag-protheus" },
+      "enabled": true
+    }
+  }
+}

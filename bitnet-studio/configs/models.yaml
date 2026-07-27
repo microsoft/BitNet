@@ -1,0 +1,34 @@
+# Registry de modelos do BitNet Studio.
+# Caminhos relativos resolvem contra BITNET_MODELS_DIR
+# (default: /media/peder/DATA/BitNet/models).
+
+models:
+  falcon3-10b-1.58:
+    gguf: Falcon3-10B-Instruct-1.58bit-GGUF/ggml-model-i2_s.gguf
+    chat_template: falcon
+    n_ctx: 4096
+    description: "Falcon3 10B 1.58bit — alvo do fine-tune PT-BR + tools"
+
+  falcon3-3b-1.58:
+    gguf: Falcon3-3B-Instruct-1.58bit/ggml-model-i2_s.gguf
+    chat_template: falcon
+    n_ctx: 4096
+    description: "Falcon3 3B 1.58bit — piloto rápido para validar pipeline"
+
+  falcon3-3b-q4:
+    gguf: Falcon3-3B-Instruct-Q4/Falcon3-3B-Instruct-Q4_K_M.gguf
+    chat_template: falcon
+    n_ctx: 4096
+    description: "Falcon3 3B Q4_K_M — baseline de qualidade"
+
+  bitnet-2b:
+    gguf: BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+    chat_template: falcon
+    n_ctx: 4096
+    description: "BitNet-2B nativo 1.58bit"
+
+  llama2-7b-q4:
+    gguf: Llama-2-7B-GGUF/llama-2-7b.Q4_K_M.gguf
+    chat_template: llama2
+    n_ctx: 4096
+    description: "Llama-2 7B Q4_K_M — referência de benchmark"
