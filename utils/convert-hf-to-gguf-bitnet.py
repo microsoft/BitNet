@@ -1043,6 +1043,10 @@ class BitnetModel(Model):
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
 
+        # bitnet-b1.58-2B-4T uses relu^2 in the FFN; the runtime reads it from
+        # <arch>.hidden_activation (see llama_model_bitnet::load_arch_hparams).
+        self.gguf_writer.add_hidden_act("relu2")
+
         self.gguf_writer.add_vocab_size(self.hparams["vocab_size"])
 
         # rope dimension count (required for correct positional encoding)
