@@ -1045,6 +1045,8 @@ class BitnetModel(Model):
 
         self.gguf_writer.add_vocab_size(self.hparams["vocab_size"])
 
+        self.gguf_writer.add_hidden_act("relu2")
+
         # rope dimension count (required for correct positional encoding)
         if "head_dim" in self.hparams:
             rope_dim = self.hparams["head_dim"]
