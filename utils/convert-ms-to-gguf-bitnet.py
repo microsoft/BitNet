@@ -1178,6 +1178,8 @@ class OutputFile:
         else:
             raise ValueError('f_norm_eps is None')
 
+        self.gguf.add_hidden_act("relu2")
+
         if params.f_rope_freq_base is not None:
             self.gguf.add_rope_freq_base(params.f_rope_freq_base)
 
