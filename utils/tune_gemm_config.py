@@ -180,6 +180,7 @@ class GemmTuner:
         
         # Backup configuration
         self.backup_config()
+        keep_tuned_config = False
         
         try:
             # Test all configurations
@@ -231,32 +232,25 @@ class GemmTuner:
                         best['col_block_size'],
                         best['parallel_size']
                     )
-                    self.rebuild_project()
-                    print("✅ Best configuration applied and project rebuilt!")
+                    if self.rebuild_project():
+                        keep_tuned_config = True
+                        print("✅ Best configuration applied and project rebuilt!")
+                    else:
+                        print("⚠️  Failed to rebuild with the best configuration; restoring the original configuration")
                 else:
-                    self.restore_config()
-                    print("✅ Original configuration restored")
-                
-                # Clean up backup file
-                if self.backup_path.exists():
-                    self.backup_path.unlink()
-                    print(f"🗑️  Removed backup file: {self.backup_path}")
+                    print("✅ Original configuration will be restored")
             
         except KeyboardInterrupt:
             print("\n⚠️  Tuning interrupted by user")
-            self.restore_config()
-            # Clean up backup file
-            if self.backup_path.exists():
-                self.backup_path.unlink()
-                print(f"🗑️  Removed backup file: {self.backup_path}")
         except Exception as e:
             print(f"\n❌ Error during tuning: {e}")
-            self.restore_config()
-            # Clean up backup file
+            raise
+        finally:
+            if not keep_tuned_config:
+                self.restore_config()
             if self.backup_path.exists():
                 self.backup_path.unlink()
                 print(f"🗑️  Removed backup file: {self.backup_path}")
-            raise
 
 
 def generate_configurations():
