@@ -804,7 +804,7 @@ class LlamaModel(Model):
                 data_torch = data_torch.unsqueeze(0).expand((4, *origin_shape)) >> shift
                 data_torch = data_torch & 3
                 data_torch = (data_torch.float() - 1).reshape((origin_shape[0] * 4, *origin_shape[1:]))
-                data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
+                data_torch = data_torch * scale_map[name.replace(".weight", "")].float()
 
             # use the first number-like part of the tensor name as the block id
             bid = None
@@ -1102,10 +1102,10 @@ class BitnetModel(Model):
                 data_torch = data_torch.unsqueeze(0).expand((4, *origin_shape)) >> shift
                 data_torch = data_torch & 3
                 data_torch = (data_torch.float() - 1).reshape((origin_shape[0] * 4, *origin_shape[1:]))
-                # For F16/F32 output: divide by weight_scale to get full float values
+                # For F16/F32 output: multiply by weight_scale to get full float values
                 # For I2_S output: keep as ternary {-1,0,1}, scale is passed separately to quantize_to_i2_s
                 if self.ftype not in (gguf.GGMLQuantizationType.I2_S, gguf.GGMLQuantizationType.TL1, gguf.GGMLQuantizationType.TL2):
-                    data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
+                    data_torch = data_torch * scale_map[name.replace(".weight", "")].float()
             # convert any unsupported data types to float32
             elif data_torch.dtype not in (torch.float16, torch.float32):
                 data_torch = data_torch.to(torch.float32)
