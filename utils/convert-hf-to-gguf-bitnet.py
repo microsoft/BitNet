@@ -156,7 +156,7 @@ class Model(ABC):
         # Map ggml tensor type to llama ftype for general.file_type metadata
         ftype_val = self.ftype
         if self.ftype == gguf.GGMLQuantizationType.I2_S:
-            ftype_val = 40  # LLAMA_FTYPE_MOSTLY_I2_S (matches official model)
+            ftype_val = 41  # LLAMA_FTYPE_MOSTLY_I2_S
         self.gguf_writer.add_file_type(ftype_val)
         logger.info(f"gguf: file type = {ftype_val}")
 
