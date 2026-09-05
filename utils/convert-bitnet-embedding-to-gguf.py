@@ -535,7 +535,7 @@ def main():
     elif args.outtype == "f16":
         ftype = 1  # GGML F16
     else:  # i2_s
-        ftype = 40  # LLAMA_FTYPE_MOSTLY_I2_S
+        ftype = 41  # LLAMA_FTYPE_MOSTLY_I2_S
 
     logger.info(f"Converting {dir_model.name} (arch={arch}) to GGUF ({args.outtype})")
 
