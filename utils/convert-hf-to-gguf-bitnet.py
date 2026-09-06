@@ -804,7 +804,9 @@ class LlamaModel(Model):
                 data_torch = data_torch.unsqueeze(0).expand((4, *origin_shape)) >> shift
                 data_torch = data_torch & 3
                 data_torch = (data_torch.float() - 1).reshape((origin_shape[0] * 4, *origin_shape[1:]))
-                data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
+                # For I2_S output: keep as ternary {-1,0,1}, scale is passed separately to quantize_to_i2_s
+                if self.ftype != gguf.GGMLQuantizationType.I2_S:
+                    data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
 
             # use the first number-like part of the tensor name as the block id
             bid = None
@@ -866,7 +868,14 @@ class LlamaModel(Model):
 
                 i2_scale = None
                 if self.ftype != gguf.GGMLQuantizationType.F32 and extra_f16 and not extra_f32:
-                    if self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
+                    if self.ftype == gguf.GGMLQuantizationType.I2_S and suit_i2 and name.replace(".weight", "") in scale_map:
+                        # Only tensors from offline-quantized checkpoints (uint8 + weight_scale) are
+                        # already ternary; a plain LlamaForCausalLM checkpoint has no such scale and
+                        # must not be blindly ternarized here, so it falls through to the F16 branch below.
+                        data_qtype = gguf.GGMLQuantizationType.I2_S
+                        override_scale = scale_map[name.replace(".weight", "")].item()
+                        data = quantize_to_i2_s(data, override_scale=override_scale)
+                    elif self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
                         data, i2_scale = transform_to_tl1(data)
                         assert data.dtype == np.uint8
                         assert i2_scale.dtype == np.float32
