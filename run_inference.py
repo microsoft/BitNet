@@ -8,7 +8,11 @@ import subprocess
 def run_command(command, shell=False):
     """Run a system command and ensure it succeeds."""
     try:
-        subprocess.run(command, shell=shell, check=True)
+        env = os.environ.copy()
+        lib_dirs = [os.path.abspath("build/bin"), os.path.abspath("build/3rdparty/llama.cpp/src"), os.path.abspath("build/3rdparty/llama.cpp/ggml/src")]
+        existing_ld = env.get("LD_LIBRARY_PATH", "")
+        env["LD_LIBRARY_PATH"] = ":".join(lib_dirs) + (f":{existing_ld}" if existing_ld else "")
+        subprocess.run(command, shell=shell, check=True, env=env)
     except subprocess.CalledProcessError as e:
         print(f"Error occurred while running command: {e}")
         sys.exit(1)

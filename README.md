@@ -248,6 +248,8 @@ bitnet.cpp achieves speedups of **1.37x** to **5.07x** on ARM CPUs, with larger 
     - For Debian/Ubuntu users, you can download with [Automatic installation script](https://apt.llvm.org/)
 
         `bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"`
+    - For Android (Termux / ARM64) users (e.g. Samsung Galaxy S21 / A35 / S25):
+        `pkg install -y clang cmake python git openblas`
 - conda (highly recommend)
 
 ### Build from source
@@ -377,6 +379,14 @@ python utils/generate-dummy-bitnet-model.py models/bitnet_b1_58-large --outfile 
 # Run benchmark with the generated model, use -m to specify the model path, -p to specify the prompt processed, -n to specify the number of token to generate
 python utils/e2e_benchmark.py -m models/dummy-bitnet-125m.tl1.gguf -p 512 -n 128
 ```
+
+### On-Device Mobile ARM Benchmark (BitNet b1.58 2B-4T i2_s)
+Measured on Samsung Galaxy devices running natively in Android Termux (ARMv8.2-A+dotprod, 4 worker threads):
+
+| Device | SoC / Processor | Cores / Arch | Inference Speed | Prompt Eval (TTFT) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Samsung Galaxy S25** | Qualcomm Snapdragon 8 Elite | Oryon (ARMv8.2-A+dotprod) | **1.15 tokens/sec** | ~2814 ms |
+| **Samsung Galaxy A35 5G** | Samsung Exynos 1380 | 4x Cortex-A78 + 4x A55 | **0.58 tokens/sec** | ~8501 ms |
 
 ### Convert from `.safetensors` Checkpoints
 

@@ -217,7 +217,13 @@ def compile():
         logging.error(f"Arch {arch} is not supported yet")
         exit(0)
     logging.info("Compiling the code using CMake.")
-    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++", "-DLLAMA_BUILD_TOOLS=ON", "-DLLAMA_BUILD_EXAMPLES=ON", "-DLLAMA_BUILD_COMMON=ON", "-DLLAMA_BUILD_SERVER=ON"], log_step="generate_build_files")
+    extra_cmake_flags = []
+    is_termux = "com.termux" in os.environ.get("PREFIX", "") or os.path.exists("/data/data/com.termux")
+    if is_termux and arch == "arm64":
+        extra_cmake_flags.extend(["-DGGML_NEON=ON", "-DGGML_ARM_DOTPROD=ON"])
+        logging.info("Detected Android / Termux environment: enabled ARM NEON and DotProd acceleration")
+
+    run_command(["cmake", "-B", "build", *COMPILER_EXTRA_ARGS[arch], *OS_EXTRA_ARGS.get(platform.system(), []), *extra_cmake_flags, "-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++", "-DLLAMA_BUILD_TOOLS=ON", "-DLLAMA_BUILD_EXAMPLES=ON", "-DLLAMA_BUILD_COMMON=ON", "-DLLAMA_BUILD_SERVER=ON"], log_step="generate_build_files")
     # run_command(["cmake", "--build", "build", "--target", "llama-cli", "--config", "Release"])
     run_command(["cmake", "--build", "build", "--config", "Release"], log_step="compile")
 
