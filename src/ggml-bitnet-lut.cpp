@@ -8,10 +8,10 @@
 #ifdef __x86_64__
 #include <immintrin.h>
 #endif
+#include "../include/ggml-bitnet.h"
+#include "../3rdparty/llama.cpp/ggml/src/ggml-quants.h"
 
-#include "ggml-bitnet.h"
-#include "ggml-quants.h"
-#include "ggml-cpu-impl.h"
+#include "../3rdparty/llama.cpp/ggml/src/ggml-cpu/ggml-cpu-impl.h"
 
 #if defined(GGML_BITNET_ARM_TL1) || defined(GGML_BITNET_X86_TL2)
 #include "bitnet-lut-kernels.h"

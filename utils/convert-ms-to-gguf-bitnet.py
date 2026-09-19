@@ -1321,7 +1321,7 @@ class OutputFile:
         of = OutputFile(fname_out, endianess=endianess)
 
         if 'bitnet' in of.gguf.arch:
-            svocab.chat_template = "{% for message in messages %}{% if loop.first %}{{ bos_token }}{% endif %}{% if message['role'] == 'user' %}{{ 'Human: ' + message['content'] + '\\n\\nBITNETAssistant: ' + eos_token }}{% elif message['role'] == 'assistant' %}{{ message['content'] + eos_token }}{% endif %}{% endfor %}"
+            svocab.chat_template = "{% for message in messages %}{% if loop.first %}{{ bos_token }}{% endif %}{% if message['role'] == 'user' %}{{ 'User: ' + message['content'] + '<|eot_id|>Assistant: ' }}{% elif message['role'] == 'assistant' %}{{ message['content'] + '<|eot_id|>' }}{% endif %}{% endfor %}"
 
         # meta data
         of.add_meta_arch(params)

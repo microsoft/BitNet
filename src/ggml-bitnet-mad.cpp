@@ -1,10 +1,13 @@
+#include "../include/gemm-config.h"
 #include <vector>
 #include <type_traits>
 #include <assert.h>
-#include "ggml-bitnet.h"
-#include "ggml-quants.h"
 #include "gemm-config.h"
-#include "ggml-cpu-impl.h"
+#include "../include/ggml-bitnet.h"
+#include "../3rdparty/llama.cpp/ggml/src/ggml-quants.h"
+
+#include "../3rdparty/llama.cpp/ggml/src/ggml-cpu/ggml-cpu-impl.h"
+
 #include <cmath>
 #include <cstring>
 
@@ -193,6 +196,29 @@ size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_
     // 32B for alignment
     return nrow * row_size / 4 + 32;
 #endif
+}
+
+void dequantize_row_i2_s(const uint8_t * x, float * y, int64_t n, const float i2_scale) {
+    static const float map2bit[4] = { -1.0f, 0.0f, 1.0f, 0.0f };
+    int64_t done = 0;
+    while (done < n) {
+        int64_t cols0 = MIN(32, n - done - 0*32);
+        int64_t cols1 = MIN(32, n - done - 1*32);
+        int64_t cols2 = MIN(32, n - done - 2*32);
+        int64_t cols3 = MIN(32, n - done - 3*32);
+        for (int gp = 0; gp < 32; gp++) {
+            uint8_t byte = x[(done/4) + gp];
+            uint8_t c0 = (byte >> 6) & 0x03;
+            uint8_t c1 = (byte >> 4) & 0x03;
+            uint8_t c2 = (byte >> 2) & 0x03;
+            uint8_t c3 = (byte >> 0) & 0x03;
+            if (gp < cols0) y[done + 0*32 + gp] = i2_scale * map2bit[c0];
+            if (gp < cols1) y[done + 1*32 + gp] = i2_scale * map2bit[c1];
+            if (gp < cols2) y[done + 2*32 + gp] = i2_scale * map2bit[c2];
+            if (gp < cols3) y[done + 3*32 + gp] = i2_scale * map2bit[c3];
+        }
+        done += 128;
+    }
 }
 
 void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
