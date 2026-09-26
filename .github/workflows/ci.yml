@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Windows / Ninja (clang)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Show toolchain
+        run: |
+          cmake --version
+          ninja --version
+          clang --version
+          clang++ --version
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_BUILD_TYPE=Release
+          -DBITNET_GGML_ARCH=x86-64-v3
+          -DLLAMA_BUILD_COMMON=ON
+          -DLLAMA_BUILD_EXAMPLES=ON
+          -DLLAMA_BUILD_TOOLS=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Smoke test
+        run: |
+          test -f build/bin/llama-cli.exe
+          test -f build/bin/ggml-base.dll
+          ./build/bin/llama-cli.exe --version

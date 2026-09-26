@@ -5,7 +5,10 @@
 
 import json
 import os
-import readline  # type: ignore # noqa
+try:
+    import readline  # type: ignore # noqa
+except ImportError:  # Windows has no readline; only needed for interactive REPL
+    readline = None  # type: ignore
 import sys
 import time
 from dataclasses import dataclass
@@ -46,6 +49,7 @@ class FastGen:
         tokenizer_path: Optional[str] = None,
         num_layers: int = 13,
         use_full_vocab: bool = False,
+        prefill_int2: bool = False,
     ) -> "FastGen":
         """
         Load a Llama or Code Llama checkpoint and return a new
@@ -53,7 +57,10 @@ class FastGen:
         """
         start_time = time.time()
 
-        model_args_prefill = fast.ModelArgs(use_kernel=False)
+        # Local (bitnet-pruebas): prefill_int2 runs prefill on the int2
+        # checkpoint via torch fallback instead of the 5.2GB fp16 model.
+        model_args_prefill = fast.ModelArgs(
+            use_kernel=False, int2_torch=prefill_int2)
         model_args_decode = fast.ModelArgs(use_kernel=True)
         tokenizer = Tokenizer("./tokenizer.model")
 
@@ -63,11 +70,14 @@ class FastGen:
         prefill_model = fast.Transformer(model_args_prefill)
         decode_model = fast.Transformer(model_args_decode)
 
-        fp16_ckpt_path = str(Path(ckpt_dir) / "model_state_fp16.pt")
-        fp16_checkpoint = torch.load(fp16_ckpt_path, map_location="cpu", weights_only=True)
         int2_ckpt_path = str(Path(ckpt_dir) / "model_state_int2.pt")
         int2_checkpoint = torch.load(int2_ckpt_path, map_location="cpu", weights_only=True)
-        prefill_model.load_state_dict(fp16_checkpoint, strict=True)
+        if prefill_int2:
+            prefill_model.load_state_dict(int2_checkpoint, strict=True)
+        else:
+            fp16_ckpt_path = str(Path(ckpt_dir) / "model_state_fp16.pt")
+            fp16_checkpoint = torch.load(fp16_ckpt_path, map_location="cpu", weights_only=True)
+            prefill_model.load_state_dict(fp16_checkpoint, strict=True)
         decode_model.load_state_dict(int2_checkpoint, strict=True)
 
         torch.cuda.synchronize()
@@ -319,13 +329,13 @@ def get_prompts(interactive: bool) -> Iterable[list[str]]:
         ]
 
 
-def main(ckpt_dir: str, interactive: bool = False, chat_format: bool = False, sampling: bool = False):
+def main(ckpt_dir: str, interactive: bool = False, chat_format: bool = False, sampling: bool = False, prefill_int2: bool = False):
 
     local_rank = 0
     device = f"cuda:{local_rank}"
     torch.cuda.set_device(local_rank)
 
-    g = FastGen.build(ckpt_dir, GenArgs(), device)
+    g = FastGen.build(ckpt_dir, GenArgs(), device, prefill_int2=prefill_int2)
 
     if chat_format:
         g.tokenizer = ChatFormat(g.tokenizer)

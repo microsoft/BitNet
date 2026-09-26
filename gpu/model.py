@@ -16,7 +16,14 @@ from xformers.ops.fmha.attn_bias import (
 )
 
 import ctypes
-bitnet_lib = ctypes.CDLL('bitnet_kernels/libbitnet.so')
+import os
+# Local fix (bitnet-pruebas, Windows): upstream only ships a .so name.
+# Resolve relative to this file so any CWD works.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_LIB = os.path.join(
+    _HERE, 'bitnet_kernels',
+    'bitnet_kernels.dll' if os.name == 'nt' else 'libbitnet.so')
+bitnet_lib = ctypes.CDLL(_LIB)
 
 def bitnet_int8xint2_linear(input0, input1, s, ws):
     out_shape = list(input0.shape)
@@ -47,6 +54,9 @@ class ModelArgs:
     norm_eps: float = 1e-5
     rope_theta: float = 500000.0
     use_kernel: bool = False
+    # Local (bitnet-pruebas): prefill with int2 weights via torch fallback
+    # instead of the fp16 model (saves ~5GB VRAM). Requires the int2 ckpt.
+    int2_torch: bool = False
 
 
 LayerCache = Tuple[torch.Tensor, torch.Tensor]
@@ -72,7 +82,74 @@ class BitLinearKernel(nn.Module):
 
     def forward(self, input):
         input, s = self.quant_input(input)
+        # Local (bitnet-pruebas): native M>1 via GEMM single launch when supported
+        if input.shape[0] > 1:
+            # Try true GEMM first
+            try:
+                return bitnet_gemm_int8xint2(input, self.weight, s, self.weight_scale)
+            except Exception:
+                return bitnet_int8xint2_linear_batched(input, self.weight, s, self.weight_scale)
         return bitnet_int8xint2_linear(input, self.weight, s, self.weight_scale)
+
+
+def bitnet_int8xint2_linear_batched(input0, weight, s, ws):
+    """Batched prefill: single host call that loops M× GEMV in C++ (no Python overhead)."""
+    M = input0.shape[0]
+    N = weight.shape[0]
+    K = weight.shape[1] * 4
+    out = torch.empty((M, N), dtype=torch.bfloat16, device=input0.device)
+    stream = torch.cuda.current_stream().cuda_stream
+    # ws is (4,) bf16 shared; s is (M,1) bf16 per-row
+    # Ensure contiguous as kernel expects
+    s_c = s.contiguous()
+    # Call the new batched entry point (single launch overhead)
+    try:
+        bitnet_lib.bitlinear_int8xint2_batched(
+            ctypes.c_void_p(input0.data_ptr()),
+            ctypes.c_void_p(weight.data_ptr()),
+            ctypes.c_void_p(out.data_ptr()),
+            ctypes.c_void_p(s_c.data_ptr()),
+            ctypes.c_void_p(ws.data_ptr()),
+            ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K),
+            ctypes.c_void_p(stream))
+    except AttributeError:
+        # Fallback to Python loop if old DLL without batched symbol
+        for i in range(M):
+            row_in = input0[i:i+1].contiguous()
+            row_s = s_c[i:i+1].contiguous()
+            row_out = out[i:i+1]
+            bitnet_lib.bitlinear_int8xint2(
+                ctypes.c_void_p(row_in.data_ptr()),
+                ctypes.c_void_p(weight.data_ptr()),
+                ctypes.c_void_p(row_out.data_ptr()),
+                ctypes.c_void_p(row_s.data_ptr()),
+                ctypes.c_void_p(ws.data_ptr()),
+                ctypes.c_int(1), ctypes.c_int(N), ctypes.c_int(K),
+                ctypes.c_void_p(stream))
+    return out
+
+
+def bitnet_gemm_int8xint2(input0, weight, s, ws):
+    """True GEMM M>1 single launch (native, no loop). Falls back to batched if shape unsupported."""
+    M = input0.shape[0]
+    N = weight.shape[0]
+    K = weight.shape[1] * 4
+    out = torch.empty((M, N), dtype=torch.bfloat16, device=input0.device)
+    stream = torch.cuda.current_stream().cuda_stream
+    s_c = s.contiguous()
+    try:
+        # New native GEMM (single kernel, grid.y=M)
+        bitnet_lib.bitlinear_gemm_int8xint2(
+            ctypes.c_void_p(input0.data_ptr()),
+            ctypes.c_void_p(weight.data_ptr()),
+            ctypes.c_void_p(out.data_ptr()),
+            ctypes.c_void_p(s_c.data_ptr()),
+            ctypes.c_void_p(ws.data_ptr()),
+            ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K),
+            ctypes.c_void_p(stream))
+        return out
+    except AttributeError:
+        return bitnet_int8xint2_linear_batched(input0, weight, s, ws)
 
 class BitLinear(nn.Linear):
     @torch.compile
@@ -84,6 +161,61 @@ class BitLinear(nn.Linear):
         input = self.quant_input(input)
         return F.linear(input, self.weight)
 
+
+class BitLinearInt2Torch(nn.Module):
+    """Prefill with int2 weights, torch fallback (no fp16 model in VRAM).
+
+    Holds the SAME buffers as BitLinearKernel (packed int8 weight +
+    weight_scale), so the int2 checkpoint loads directly. Forward inverts
+    the packing (see int2_fallback.py), then runs the exact same
+    int8-rounded-activation GEMM as BitLinear. Slower than a native int2
+    GEMM, but removes the 5.2GB fp16 prefill model from VRAM.
+    """
+
+    # Native kernel supports these (N,K) on 2B (also large via other build)
+    _NATIVE_SHAPES = {(2560,2560),(3840,2560),(13824,2560),(2560,6912),(3200,3200),(4800,3200),(3200,10240),(20480,3200)}
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = False,
+                 row_splits=None):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.row_splits = row_splits
+
+        self.weight = torch.nn.Parameter(
+            torch.zeros(out_features, in_features // 4, dtype=torch.int8),
+            requires_grad=False)
+        self.weight_scale = torch.nn.Parameter(
+            torch.zeros(4, dtype=torch.bfloat16), requires_grad=False)
+
+    @torch.compile
+    def quant_input(self, input):
+        s = 127 / input.abs().max(dim=-1, keepdim=True).values.clamp_(min=1e-5)
+        return (input * s).round().clamp(-128, 127) / s
+
+    @torch.compile
+    def quant_input_int8(self, input):
+        s = 127 / input.abs().max(dim=-1, keepdim=True).values.clamp_(min=1e-5)
+        return (input * s).round().clamp(-128, 127).to(torch.int8), s
+
+    def forward(self, input):
+        # Local (bitnet-pruebas): for M>1 and supported shapes, use native
+        # GEMM single launch (no dequant). Otherwise fallback.
+        if input.shape[0] > 1 and (self.out_features, self.in_features) in self._NATIVE_SHAPES:
+            q, s = self.quant_input_int8(input)
+            # Try true GEMM first, fallback to batched GEMV loop if shape not in GEMM dispatch
+            try:
+                return bitnet_gemm_int8xint2(q, self.weight, s, self.weight_scale)
+            except Exception:
+                return bitnet_int8xint2_linear_batched(q, self.weight, s, self.weight_scale)
+        return F.linear(self.quant_input(input), self._dequant_weight(input))
+
+    def _dequant_weight(self, input):
+        from int2_fallback import dequantize_int2_weight
+        return dequantize_int2_weight(
+            self.weight, self.weight_scale, self.row_splits,
+            out_dtype=input.dtype)
+
 class Attention(nn.Module):
     def __init__(
         self,
@@ -94,6 +226,7 @@ class Attention(nn.Module):
         rope_theta: float,
         norm_eps: float,
         use_kernel: bool,
+        int2_torch: bool = False,
     ):
         super().__init__()
 
@@ -105,16 +238,27 @@ class Attention(nn.Module):
 
         Linear = BitLinearKernel if use_kernel else BitLinear
 
-        self.wqkv = Linear(
-            dim,
-            (self.n_local_heads + 2 * self.n_local_kv_heads) * head_dim,
-            bias=False,
-        )
-        self.wo = Linear(
-            self.n_local_heads * head_dim,
-            dim,
-            bias=False,
-        )
+        if int2_torch:
+            nq = self.n_local_heads * head_dim
+            nkv = self.n_local_kv_heads * head_dim
+            self.wqkv = BitLinearInt2Torch(
+                dim, nq + 2 * nkv, bias=False,
+                row_splits=[nq, nkv, nkv],
+            )
+            self.wo = BitLinearInt2Torch(
+                self.n_local_heads * head_dim, dim, bias=False,
+            )
+        else:
+            self.wqkv = Linear(
+                dim,
+                (self.n_local_heads + 2 * self.n_local_kv_heads) * head_dim,
+                bias=False,
+            )
+            self.wo = Linear(
+                self.n_local_heads * head_dim,
+                dim,
+                bias=False,
+            )
 
         self.attn_sub_norm = RMSNorm(dim, norm_eps)
 
@@ -151,8 +295,11 @@ class Attention(nn.Module):
             theta=self.rope_theta,
         )
 
+        # Local fix (bitnet-pruebas): upstream forces flash.FwOp, which has no
+        # built backend on Windows/sm_86 wheels. Auto-dispatch picks
+        # cutlassF-pt / triton_splitKF instead.
         output = fmha.memory_efficient_attention_forward(
-            xq, cache_k, cache_v, attn_bias, op = fmha.flash.FwOp
+            xq, cache_k, cache_v, attn_bias, op=None
         )
 
         output = output.reshape(output_shape)
@@ -172,21 +319,31 @@ class FeedForward(nn.Module):
         hidden_dim: int,
         norm_eps: float,
         use_kernel: bool,
+        int2_torch: bool = False,
     ):
         super().__init__()
 
         Linear = BitLinearKernel if use_kernel else BitLinear
 
-        self.w13 = Linear(
-            dim,
-            2 * hidden_dim,
-            bias=False,
-        )
-        self.w2 = Linear(
-            hidden_dim,
-            dim,
-            bias=False,
-        )
+        if int2_torch:
+            self.w13 = BitLinearInt2Torch(
+                dim, 2 * hidden_dim, bias=False,
+                row_splits=[hidden_dim, hidden_dim],
+            )
+            self.w2 = BitLinearInt2Torch(
+                hidden_dim, dim, bias=False,
+            )
+        else:
+            self.w13 = Linear(
+                dim,
+                2 * hidden_dim,
+                bias=False,
+            )
+            self.w2 = Linear(
+                hidden_dim,
+                dim,
+                bias=False,
+            )
         self.ffn_sub_norm = RMSNorm(hidden_dim, norm_eps)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -218,12 +375,14 @@ class TransformerBlock(nn.Module):
             rope_theta=args.rope_theta,
             norm_eps=args.norm_eps,
             use_kernel=args.use_kernel,
+            int2_torch=getattr(args, "int2_torch", False),
         )
         self.feed_forward = FeedForward(
             dim=args.dim,
             hidden_dim=args.ffn_dim,
             norm_eps=args.norm_eps,
             use_kernel=args.use_kernel,
+            int2_torch=getattr(args, "int2_torch", False),
         )
         self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)
         self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)

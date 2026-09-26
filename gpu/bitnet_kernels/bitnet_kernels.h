@@ -7,6 +7,12 @@
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
 
+// Local build fix (bitnet-pruebas, Windows/MSVC): `uint` is provided by
+// glibc headers on Linux but does not exist on MSVC.
+#if defined(_MSC_VER) && !defined(uint)
+typedef unsigned int uint;
+#endif
+
 
 #if (((__CUDACC_VER_MAJOR__ == 11) && (__CUDACC_VER_MINOR__ >= 4)) || (__CUDACC_VER_MAJOR__ > 11))
 #define TVM_ENABLE_L2_PREFETCH 1

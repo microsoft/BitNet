@@ -35,3 +35,11 @@ extern "C" void bitlinear_int8xint2(int8_t* input0, int8_t* input1, __nv_bfloat1
         std::cout << "required ladder gemm kernel: M " << M << ", N " << N << ", K " << K << std::endl;
     }
 }
+
+// Local (bitnet-pruebas): batched prefill GEMM via M× GEMV loop in C++
+// (no Python overhead, single host call, still reuses M==1 kernels).
+extern "C" void bitlinear_int8xint2_batched(int8_t* input0, int8_t* input1, __nv_bfloat16* output0, __nv_bfloat16* s, __nv_bfloat16* ws, int M, int N, int K, cudaStream_t stream){
+    for (int m = 0; m < M; ++m) {
+        bitlinear_int8xint2(input0 + m * K, input1, output0 + m * N, s + m, ws, 1, N, K, stream);
+    }
+}

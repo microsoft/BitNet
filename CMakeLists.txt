@@ -42,6 +42,37 @@ add_subdirectory(src)
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
 add_subdirectory(3rdparty/llama.cpp)
 
+# Local build fix (bitnet-pruebas): src/CMakeLists.txt only sets
+# GGML_SOURCES_BITNET (overwritten twice, never consumed), so the ternary
+# kernels are never compiled and ggml-base.dll fails to link
+# (undefined quantize_i2_s / dequantize_row_i2_s; the latter is shimmed in
+# src/ggml-bitnet-shim.c). Compile the I2_S kernels directly into ggml-base
+# with -march=native (required by gemm-config.h).
+if (TARGET ggml-base)
+    target_sources(ggml-base PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml-bitnet-mad.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml-bitnet-shim.c
+    )
+    if (GGML_BITNET_X86_TL2 OR GGML_BITNET_ARM_TL1)
+        target_sources(ggml-base PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml-bitnet-lut.cpp
+        )
+    endif()
+    target_include_directories(ggml-base PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/llama.cpp/ggml/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/llama.cpp/ggml/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/llama.cpp/ggml/src/ggml-cpu
+    )
+    # gemm-config.h gates ROW/COL/PARALLEL_SIZE on __AVX__/__AVX2__.
+    # -march=native is fastest on the build machine but not portable (CI
+    # runners differ and can hit undeclared AVX-512 intrinsics), so make it
+    # overridable from CI: -DBITNET_GGML_ARCH=avx2
+    set(BITNET_GGML_ARCH "native" CACHE STRING "ISA for ggml-base (native, avx2, ...)")
+    target_compile_options(ggml-base PRIVATE "-march=${BITNET_GGML_ARCH}")
+    target_compile_definitions(ggml-base PRIVATE GGML_BUILD)
+endif()
+
 # install
 
 include(GNUInstallDirs)
