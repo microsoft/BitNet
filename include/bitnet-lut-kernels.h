@@ -1124,7 +1124,7 @@ void ggml_qgemm_lut(int bs, int m, int k, int BK, void* A, void* sign, void* LUT
 }
 
 void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
-    if (!(is_type_supported(tensor->type) && tensor->extra == nullptr)) {
+    if (!(is_type_supported(tensor->type) && tensor->backend == GGML_BACKEND_TYPE_CPU && tensor->extra == nullptr)) {
         return;
     }
 
