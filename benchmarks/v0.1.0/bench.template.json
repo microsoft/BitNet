@@ -1,0 +1,44 @@
+{
+  "_comment": "TEMPLATE — substitua pelos valores reais gerados por `utils/bench_publish.py`. Este arquivo existe apenas para documentar o schema esperado.",
+  "schema_version": "0.1.0",
+  "timestamp_utc": "PENDING-GENERATION",
+  "methodology": {
+    "tool": "utils/cpu_universal_benchmark.py (and bench_publish.py wrapper)",
+    "model": "PENDING (BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf)",
+    "prompt": "The capital of France is",
+    "n_tokens": 64,
+    "threads": 4,
+    "configurations": [
+      {"id": "L1_baseline_I2S_GEMV",      "name": "L1 baseline (I2_S GEMV)",        "env": {}},
+      {"id": "L3_ACDC_FFN",               "name": "L3 ACDC FFN",                    "env": {"BITNET_ACDC_FFN": "1"}},
+      {"id": "L4_Tropical_topK_32",       "name": "L4 Tropical top-K=32",           "env": {"BITNET_TROPICAL_TOPK": "32"}},
+      {"id": "L4_SparseFloat_topK_32",    "name": "L4 Sparse float top-K=32",       "env": {"BITNET_SPARSE_TOPK": "32"}},
+      {"id": "L5_HRR_raw",                "name": "L5 HRR raw",                     "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "0"}},
+      {"id": "L5_HRR_cleanup_8",          "name": "L5 HRR + cleanup 8",             "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "8"}}
+    ],
+    "notes": [
+      "All numbers are tok/s on a single CPU (no GPU offload).",
+      "L2 WHT is patched in vec_dot (always on); L1 baseline includes it.",
+      "L3/L5 may produce garbage output because BitNet-2B was not trained with those architectures (P6 — estrutura, não compressão).",
+      "Numbers reflect kernel overhead only, not output quality."
+    ]
+  },
+  "hardware": {
+    "_comment": "Auto-detected by bench_publish.py:detect_hardware()",
+    "python_version": "PENDING",
+    "platform": "PENDING",
+    "machine": "PENDING",
+    "processor": "PENDING",
+    "cpu_model": "PENDING",
+    "cpu_count_logical": 0,
+    "ram_mb": 0
+  },
+  "rows": [
+    {"id": "L1_baseline_I2S_GEMV",      "name": "L1 baseline (I2_S GEMV)",     "tok_per_sec": null, "status": "PENDING", "env": {}},
+    {"id": "L3_ACDC_FFN",               "name": "L3 ACDC FFN",                 "tok_per_sec": null, "status": "PENDING", "env": {"BITNET_ACDC_FFN": "1"}},
+    {"id": "L4_Tropical_topK_32",       "name": "L4 Tropical top-K=32",        "tok_per_sec": null, "status": "PENDING", "env": {"BITNET_TROPICAL_TOPK": "32"}},
+    {"id": "L4_SparseFloat_topK_32",    "name": "L4 Sparse float top-K=32",    "tok_per_sec": null, "status": "PENDING", "env": {"BITNET_SPARSE_TOPK": "32"}},
+    {"id": "L5_HRR_raw",                "name": "L5 HRR raw",                  "tok_per_sec": null, "status": "PENDING", "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "0"}},
+    {"id": "L5_HRR_cleanup_8",          "name": "L5 HRR + cleanup 8",          "tok_per_sec": null, "status": "PENDING", "env": {"BITNET_HRR_ATTN": "1", "BITNET_HRR_ATTN_CLEANUP": "8"}}
+  ]
+}

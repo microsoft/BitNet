@@ -425,3 +425,46 @@ Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common
 ```
 
 These steps will initialize your environment and allow you to use the correct Visual Studio tools.
+
+---
+
+## CPU-Universal Extensions (Community)
+
+The following documentation and utilities extend BitNet for CPU-only inference with advanced algebraic kernels (L2-L5):
+
+### Theory & Mathematics
+- [Mathematical Foundations](docs/mathematical-foundations.md) — Algebraic basis for 1-bit inference
+- [Invariants](docs/invariants.md) — Key mathematical invariants preserved in quantization
+- [Decision Matrix](docs/decision-matrix.md) — Kernel selection guide
+- [Hardware Compatibility](docs/hardware-compatibility.md) — CPU feature support matrix
+
+### Theory Deep Dives
+- [Theory Index](docs/theory/00-index.md) — Overview of all theory docs
+- [Ternary Algebra](docs/theory/01-ternary-algebra.md) — L1: I2_S quantization
+- [WHT Decomposition](docs/theory/02-wht-decomposition.md) — L2: Walsh-Hadamard Transform
+- [ACDC Structured Layers](docs/theory/03-acdc-structured-layers.md) — L3: Fast Walsh-Hadamard
+- [Tropical Algebra](docs/theory/04-tropical-algebra.md) — L4: Sparse attention
+- [Holographic Memory](docs/theory/05-holographic-memory.md) — L5: HRR binding
+- [5 Levels Summary](docs/theory/06-5-levels.md) — Complete level overview
+
+### Benchmarks
+- [Benchmark v0.1.0](benchmarks/v0.1.0/README.md) — Initial WHT benchmarks
+- [Benchmark v0.2.0](benchmarks/v0.2.0/bench.md) — ACDC results
+- [Benchmark v0.3.0](benchmarks/v0.3.0/bench.md) — Tropical + HRR results
+- [FWHT AVX2 Benchmark](benchmarks/bench_fwht_avx2.cpp) — Vectorized implementation
+
+### Utilities
+- [ACDC Benchmark](utils/acdc_benchmark.py) — ACDC kernel benchmarking
+- [Tropical Benchmark](utils/tropical_benchmark.py) — Tropical algebra benchmarks
+- [HRR Benchmark](utils/hrr_benchmark.py) — Holographic memory benchmarks
+- [WHT Benchmark](utils/wht_benchmark.py) — Walsh-Hadamard benchmarks
+- [CPU Universal Benchmark](utils/cpu_universal_benchmark.py) — Full stack benchmarks
+
+### Additional Documentation
+- [Findings](docs/findings-cpu-universal.md) — Research findings and observations
+- [Investigation Report](investigation-d2-result.md) — D2 investigation results
+- [Verification Report](verification-report.md) — Test verification summary
+- [Contributing](CONTRIBUTING.md) — How to contribute
+- [Roadmap](ROADMAP.md) — Future plans
+- [Next Steps](NEXT_STEPS.md) — Getting started guide
+
