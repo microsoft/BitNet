@@ -263,7 +263,7 @@ class FastGen:
         torch.cuda.synchronize()
         stats.phase("decode" if use_cuda_graphs else "total")
 
-        eos_id = self.tokenizer.eot_id
+        eos_id = getattr(self.tokenizer, "eot_id", None) or self.tokenizer.eos_id
         for niter in range(1, gen_length):
             kv_seqlen.add_(kv_seqlen < max_seq_length)
             output = self._generate_compile_model(next_token, kv_seqlen)
@@ -291,7 +291,7 @@ class FastGen:
             # print(prompt, tokens)
             """Trim the answer to end it on an eos token."""
             tokens = tokens[: max_seq_length - prompt_len]
-            eos_id = self.tokenizer.eot_id
+            eos_id = getattr(self.tokenizer, "eot_id", None) or self.tokenizer.eos_id
             if eos_id in tokens:
                 return tokens[: tokens.index(eos_id) + 1]
             else:

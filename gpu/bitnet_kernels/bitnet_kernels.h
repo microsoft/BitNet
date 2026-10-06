@@ -81,3 +81,58 @@ __global__ void __launch_bounds__(128) ladder_int8xint2_kernel(int8_t* __restric
   if (threadIdx.x == 0)
     dtype_transform[out_idx] = (__nv_bfloat16)(((float)red_buf0[0])/(float)s[0]*(float)ws[ws_idx]);
 }
+
+// ---------------------------------------------------------------------------
+// RBBN-Research: small-batch W2A8 GEMM (Q2c / BUG-0004 proper fix).
+// Same dp4a ladder structure as the GEMV above, but each thread accumulates M
+// rows against one decoded weight chunk — weight bandwidth is amortized M×,
+// which is exactly the bandwidth-bound decode-serving regime (M = 2..32).
+// A is row-major [M, K]; s is per-row [M]; output row-major [M, N].
+// ---------------------------------------------------------------------------
+template <int M, int N, int K, int ws_num, int K_block_size, int N_block_size>
+__global__ void __launch_bounds__(128) ladder_int8xint2_gemm_kernel(int8_t* __restrict__ A, int8_t* __restrict__ B, __nv_bfloat16* __restrict__ dtype_transform, __nv_bfloat16* __restrict__ s, __nv_bfloat16* __restrict__ ws) {
+  constexpr int K_per_loop = 16;
+  constexpr int wmma_K = 32;
+  constexpr int wmma_N = 16;
+  int acc[M];
+  signed char A_local[M][K_per_loop];
+  int B_reshape_local[1];
+  signed char B_decode_local[K_per_loop];
+  #pragma unroll
+  for (int m = 0; m < M; ++m) acc[m] = 0;
+  #pragma unroll
+  for (int k_0 = 0; k_0 < K/(K_per_loop * K_block_size); ++k_0) {
+    #pragma unroll
+    for (int m = 0; m < M; ++m) {
+      *(int4*)(A_local[m]) = *(int4*)(A + (m * K) + ((k_0 * K_per_loop * K_block_size) + (((int)threadIdx.x) * K_per_loop)));
+    }
+    B_reshape_local[0] = *(int*)(B +
+      (((int)blockIdx.x) * N_block_size * K / 4) +
+      (k_0 * K_block_size * K_per_loop * wmma_N / 4) +
+      ((((int)threadIdx.x) >> 1) * wmma_K * wmma_N / 4) +
+      ((((int)threadIdx.y) >> 3) * (wmma_K * wmma_N / 2) / 4) +
+      ((((int)threadIdx.x) & 1) * (wmma_K * wmma_N / 4) / 4) +
+      ((((int)threadIdx.y) & 7) * (wmma_K / 2) / 4)
+      );
+    decode_i2s_to_i8s(B_reshape_local, B_decode_local, 16);
+    #pragma unroll
+    for (int m = 0; m < M; ++m) {
+      #pragma unroll
+      for (int k_2_0 = 0; k_2_0 < 4; ++k_2_0) {
+        acc[m] = __dp4a(*(int *)&A_local[m][(k_2_0 * 4)], *(int *)&B_decode_local[(k_2_0 * 4)], acc[m]);
+      }
+    }
+  }
+  int out_idx = ((((int)blockIdx.x) * N_block_size) + ((int)threadIdx.y));
+  int ws_idx = out_idx / (N / ws_num);
+  #pragma unroll
+  for (int m = 0; m < M; ++m) {
+    int red = acc[m];
+    #pragma unroll
+    for (int offset = K_block_size/2; offset > 0; offset /= 2) {
+      red += __shfl_down_sync(0xffffffff, red, offset, K_block_size);
+    }
+    if (threadIdx.x == 0)
+      dtype_transform[m * N + out_idx] = __float2bfloat16(((float)red)/__bfloat162float(s[m])*__bfloat162float(ws[ws_idx]));
+  }
+}
