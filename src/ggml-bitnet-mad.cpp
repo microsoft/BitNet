@@ -325,10 +325,12 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
                 uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                 uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
+                // MSB -> LSB 2-bit Unpacking (BitNet I2_S: 00->-1, 01->0, 10->+1)
+                const int8x16_t one_s8 = vdupq_n_s8(1);
+                int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
+                int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
 
                 const int8x16_t yq8_0 = vld1q_s8(y + i * 32 * 64 + j * 64 + 0);
                 const int8x16_t yq8_1 = vld1q_s8(y + i * 32 * 64 + j * 64 + 16);
@@ -372,10 +374,11 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
                 uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                 uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
+                const int8x16_t one_s8 = vdupq_n_s8(1);
+                int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
+                int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
 
                 const int8x16_t yq8_0 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 0);
                 const int8x16_t yq8_1 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 16);
@@ -406,7 +409,35 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
 #endif
         }
         int sumi = vaddlvq_s32(accu);
-        s[row] = (float)sumi;
+#else
+    // Pure C++ Scalar Fallback for non-AVX2 and non-NEON architectures
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t  *)vy;
+    const int nb = n / QK_I2_S;
+
+    for (int row = 0; row < nrc; row++) {
+        int64_t total_sum = 0;
+        const uint8_t * x_row = x + row * bx / 4;
+
+        for (int b = 0; b < nb; b++) {
+            const uint8_t * px = x_row + b * 32;
+            const int8_t  * py = y + b * QK_I2_S;
+
+            for (int k = 0; k < 32; k++) {
+                uint8_t byte_val = px[k];
+
+                int8_t v0 = (int8_t)((byte_val >> 6) & 0x03) - 1;
+                int8_t v1 = (int8_t)((byte_val >> 4) & 0x03) - 1;
+                int8_t v2 = (int8_t)((byte_val >> 2) & 0x03) - 1;
+                int8_t v3 = (int8_t)( byte_val       & 0x03) - 1;
+
+                total_sum += (int32_t)v0 * (int32_t)py[k + 0 * 32];
+                total_sum += (int32_t)v1 * (int32_t)py[k + 1 * 32];
+                total_sum += (int32_t)v2 * (int32_t)py[k + 2 * 32];
+                total_sum += (int32_t)v3 * (int32_t)py[k + 3 * 32];
+            }
+        }
+        s[row] = (float)total_sum;
     }
 #endif
 }
@@ -641,6 +672,7 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
     const int groupla_num = nb % 32 != 0 ? 1 : 0;
     
     const uint8x16_t mask = vdupq_n_u8(3);
+    const int8x16_t one_s8 = vdupq_n_s8(1);
 
     // 处理多行，nrc表示要处理的行数
     for (int row = 0; row < nrc; row += PARALLEL_SIZE) {
@@ -681,10 +713,10 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
                     uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                     uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                    int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-                    int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                    int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                    int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
+                    int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
+                    int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                    int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                    int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
 
 #if defined(__ARM_FEATURE_DOTPROD)
                     accu[rb] = vdotq_s32(accu[rb], q8_0, yq8_0);
@@ -744,10 +776,10 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
                     uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                     uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                    int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-                    int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                    int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                    int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
+                    int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
+                    int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                    int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                    int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
                     
 #if defined(__ARM_FEATURE_DOTPROD)
                     accu[rb] = vdotq_s32(accu[rb], q8_0, yq8_0);
@@ -895,6 +927,7 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
     const int groupla_num = nb % 32 != 0 ? 1 : 0;
 
     const uint8x16_t mask = vdupq_n_u8(3);
+    const int8x16_t one_s8 = vdupq_n_s8(1);
 
     for (int col = 0; col < nrc; col += PARALLEL_SIZE) {
         int32x4_t accu[PARALLEL_SIZE];
@@ -925,10 +958,10 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
                 uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                 uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
+                int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
+                int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
 
                 // 处理每一列
                 for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
@@ -988,10 +1021,10 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
                 uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
                 uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
 
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
+                int8x16_t q8_0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_0, mask)), one_s8);
+                int8x16_t q8_1 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_1, mask)), one_s8);
+                int8x16_t q8_2 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_2, mask)), one_s8);
+                int8x16_t q8_3 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(xq8_3, mask)), one_s8);
 
                 // 处理每一列
                 for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
