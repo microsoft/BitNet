@@ -39,6 +39,8 @@ endif()
 find_package(Threads REQUIRED)
 
 add_subdirectory(src)
+set(LLAMA_BUILD_COMMON ON CACHE BOOL "Build llama.cpp common library" FORCE)
+set(LLAMA_BUILD_TOOLS  ON CACHE BOOL "Build llama.cpp tools" FORCE)
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
 add_subdirectory(3rdparty/llama.cpp)
 
