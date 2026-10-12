@@ -1,3 +1,27 @@
+diff --git a/ggml/src/ggml-blas/ggml-blas.cpp b/ggml/src/ggml-blas/ggml-blas.cpp
+index b4c7352..cfa4b31 100644
+--- a/ggml/src/ggml-blas/ggml-blas.cpp
++++ b/ggml/src/ggml-blas/ggml-blas.cpp
+@@ -415,7 +415,8 @@ static bool ggml_backend_blas_device_supports_op(ggml_backend_dev_t dev, const s
+             // TODO: find the optimal value
+             const int64_t min_batch = 32;
+ 
+-            return ggml_is_contiguous(src0) &&
++            return src0->type != GGML_TYPE_I2_S &&
++                   ggml_is_contiguous(src0) &&
+                    ggml_is_contiguous(src1) &&
+                    src1->type == GGML_TYPE_F32 &&
+                    (ne0 >= min_batch && ne1 >= min_batch && ne10 >= min_batch) &&
+@@ -423,7 +424,8 @@ static bool ggml_backend_blas_device_supports_op(ggml_backend_dev_t dev, const s
+         }
+ 
+         case GGML_OP_OUT_PROD:
+-            return op->src[0]->type == GGML_TYPE_F32 &&
++            return src0->type != GGML_TYPE_I2_S &&
++                   op->src[0]->type == GGML_TYPE_F32 &&
+                    op->src[1]->type == GGML_TYPE_F32 &&
+                    ggml_is_matrix(src0) &&
+                    ggml_is_matrix(src1) &&
 diff --git a/ggml/src/ggml-cpu/CMakeLists.txt b/ggml/src/ggml-cpu/CMakeLists.txt
 index fd5ba99..dc6398e 100644
 --- a/ggml/src/ggml-cpu/CMakeLists.txt
@@ -231,6 +255,20 @@ index 603f51c..b65096b 100644
 -void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
 -    ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
 -}
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index fcf1f13..dc35379 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -1350,6 +1350,9 @@ size_t ggml_row_size(enum ggml_type type, int64_t ne) {
+     assert(type >= 0);
+     assert(type < GGML_TYPE_COUNT);
+     assert(ne % ggml_blck_size(type) == 0);
++    if (type == GGML_TYPE_I2_S || type == GGML_TYPE_TL1) {
++        return (size_t)ne / 4;
++    }
+     return ggml_type_size(type)*ne/ggml_blck_size(type);
+ }
+ 
 diff --git a/src/llama-vocab.cpp b/src/llama-vocab.cpp
 index 2b546c4..2bf6fd7 100644
 --- a/src/llama-vocab.cpp
