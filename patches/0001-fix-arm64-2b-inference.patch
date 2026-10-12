@@ -1,0 +1,274 @@
+diff --git a/ggml/src/ggml-cpu/CMakeLists.txt b/ggml/src/ggml-cpu/CMakeLists.txt
+index fd5ba99..dc6398e 100644
+--- a/ggml/src/ggml-cpu/CMakeLists.txt
++++ b/ggml/src/ggml-cpu/CMakeLists.txt
+@@ -54,6 +54,7 @@ function(ggml_add_cpu_backend_variant_impl tag_name)
+         ggml-cpu/ops.h
+         ggml-cpu/ops.cpp
+         ../../../../src/ggml-bitnet-lut.cpp
++        ../../../../src/ggml-bitnet-mad.cpp
+         )
+ 
+     target_compile_features(${GGML_CPU_NAME} PRIVATE c_std_11 cxx_std_17)
+diff --git a/ggml/src/ggml-cpu/ggml-cpu-i2s.c b/ggml/src/ggml-cpu/ggml-cpu-i2s.c
+index d2ea0d7..93d7ec1 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu-i2s.c
++++ b/ggml/src/ggml-cpu/ggml-cpu-i2s.c
+@@ -15,7 +15,7 @@
+ #define QK_I2_S 128
+ #elif defined(__ARM_NEON)
+ #include <arm_neon.h>
+-#define QK_I2_S 64
++#define QK_I2_S 128
+ #else
+ #define QK_I2_S 128
+ #endif
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index ec88ef2..29be615 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1490,6 +1490,7 @@ UseGgmlGemm2:;
+ 
+     // I2_S GEMV/GEMM fast path: use optimized SIMD kernels for 2D weight matrices
+     if (src0->type == GGML_TYPE_I2_S && ggml_n_dims(src0) == 2) {
++        const bool src1_cont = ggml_is_contiguous(src1);
+         const void * src1_wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t i2s_row_size = ggml_row_size(vec_dot_type, ne10);
+         const size_t src1_col_stride = src1_cont || src1->type != vec_dot_type ? i2s_row_size : nb11;
+@@ -1508,33 +1509,10 @@ UseGgmlGemm2:;
+         const int64_t n_rows = src0_end - src0_start;
+         const float ws = *scale;
+ 
+-        // GEMM path: process 4 columns at a time, write directly to destination
+-        if (ne11 >= 4) {
+-            const int64_t n_gemm_cols = ne11 - ne11 % 4;
+-            // Use a small per-column temp buffer (only n_rows floats, not n_rows*n_cols)
+-            float * tmp = (float *)alloca(n_rows * 4 * sizeof(float));
+-
+-            for (int64_t col_start = 0; col_start < n_gemm_cols; col_start += 4) {
+-                ggml_gemm_i2_i8_s(ne00, tmp, n_rows,
+-                    (const char *)src0->data + src0_start * nb01 / 4,
+-                    (const char *)src1_wdata + src1_col_stride * col_start,
+-                    4, n_rows);
+-
+-                for (int64_t col = 0; col < 4; col++) {
+-                    float * dst_row = (float *)((char *)dst->data + (col_start + col) * nb1) + src0_start;
+-                    const float post_scale = ws / act_scales[col_start + col];
+-                    const int32_t asum = act_sums[col_start + col];
+-                    for (int64_t row = 0; row < n_rows; row++) {
+-                        dst_row[row] = (tmp[col * n_rows + row] - asum) * post_scale;
+-                    }
+-                }
+-            }
+-        }
+-
+-        // GEMV path: process remaining columns one by one
++        // GEMV path: process all columns one by one using verified SIMD kernels
+         {
+             float * tmp = (float *)alloca(n_rows * sizeof(float));
+-            for (int64_t iter = (ne11 >= 4 ? ne11 - ne11 % 4 : 0); iter < ne11; iter++) {
++            for (int64_t iter = 0; iter < ne11; iter++) {
+                 ggml_gemv_i2_i8_s(ne00, tmp, ne01,
+                     (const char *)src0->data + src0_start * nb01 / 4,
+                     (const char *)src1_wdata + src1_col_stride * iter,
+diff --git a/ggml/src/ggml-cpu/quants.c b/ggml/src/ggml-cpu/quants.c
+index 603f51c..b65096b 100644
+--- a/ggml/src/ggml-cpu/quants.c
++++ b/ggml/src/ggml-cpu/quants.c
+@@ -1355,155 +1355,3 @@ void dequantize_row_i2_s(const uint8_t * x, float * y, int64_t n, const float i2
+     }
+ }
+ 
+-size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
+-    (void)quant_weights;
+-    int64_t n = nrow * n_per_row;
+-
+-    double max = 0.0;
+-    for (int64_t i = 0; i < n; i++) {
+-        double v = fabs((double)src[i]);
+-        if (v > max) { max = v; break; }  // first nonzero abs as scale (BitNet convention)
+-    }
+-
+-    uint8_t * q = (uint8_t *)dst;
+-    memset(q, 0, n / 4);
+-
+-    for (int64_t i = 0; i < n; i++) {
+-        uint8_t val;
+-        if (fabs((double)src[i]) < 1e-6) {
+-            val = 1; // maps to 0
+-        } else {
+-            val = ((double)src[i] * max > 0) ? 2 : 0; // maps to +1 or -1
+-        }
+-        int byte_idx = i / 4;
+-        int bit_pos = 6 - 2 * (i % 4);
+-        q[byte_idx] |= (val << bit_pos);
+-    }
+-
+-    float * scale_ptr = (float *)(q + n / 4);
+-    scale_ptr[0] = (float)max;
+-
+-    return nrow * n_per_row / 4 + 32;
+-}
+-
+-
+-static void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+-#if defined(__AVX2__)
+-    const uint8_t *    x = (uint8_t *)vx;
+-    const int8_t  *    y = (int8_t *)vy;
+-
+-    const int nb = n / QK_I2_S;
+-    const int group32_num = nb / 32;
+-    const int la_num = nb % 32;
+-    const int groupla_num = nb % 32 != 0 ? 1 : 0;
+-    
+-    __m256i mask = _mm256_set1_epi8(0x03);
+-    __m256i one16 = _mm256_set1_epi16(1);
+-
+-    // 处理多行，nrc表示要处理的行数
+-    for (int row = 0; row < nrc; row++) {
+-        __m256i accu = _mm256_setzero_si256();
+-        
+-        // 计算当前行的x指针偏移
+-        const uint8_t * x_row = x + row * bx / 4;
+-        
+-        for (int i = 0; i < group32_num; i++) {
+-            const uint8_t *px = x_row + i * 1024;     // 32 * 32
+-            const int8_t  *py = y + i * 4096;         // 32 * 128
+-            __m256i accu32 = _mm256_setzero_si256();
+-            
+-            for (int j = 0; j < 32; j++) {
+-                // 128 index
+-                __m256i xq8_3 = _mm256_loadu_si256((const __m256i*)(px));
+-                __m256i xq8_2 = _mm256_srli_epi16(xq8_3, 2);
+-                __m256i xq8_1 = _mm256_srli_epi16(xq8_3, 4);
+-                __m256i xq8_0 = _mm256_srli_epi16(xq8_3, 6);
+-
+-                // each 32 index
+-                xq8_3 = _mm256_and_si256(xq8_3, mask);
+-                xq8_2 = _mm256_and_si256(xq8_2, mask);
+-                xq8_1 = _mm256_and_si256(xq8_1, mask);
+-                xq8_0 = _mm256_and_si256(xq8_0, mask);
+-
+-                // each 32 index
+-                __m256i yq8_0 = _mm256_loadu_si256((const __m256i*)(py));
+-                __m256i yq8_1 = _mm256_loadu_si256((const __m256i*)(py + 32));
+-                __m256i yq8_2 = _mm256_loadu_si256((const __m256i*)(py + 64));
+-                __m256i yq8_3 = _mm256_loadu_si256((const __m256i*)(py + 96));
+-
+-                xq8_0 = _mm256_maddubs_epi16(xq8_0, yq8_0);
+-                xq8_1 = _mm256_maddubs_epi16(xq8_1, yq8_1);
+-                xq8_2 = _mm256_maddubs_epi16(xq8_2, yq8_2);
+-                xq8_3 = _mm256_maddubs_epi16(xq8_3, yq8_3);
+-
+-                accu32 = _mm256_add_epi16(accu32, _mm256_add_epi16(xq8_0, xq8_1));
+-                accu32 = _mm256_add_epi16(accu32, _mm256_add_epi16(xq8_2, xq8_3));
+-
+-                px += 32;
+-                py += 128;
+-            }
+-            accu = _mm256_add_epi32(_mm256_madd_epi16(accu32, one16), accu);
+-        }
+-
+-        for (int i = 0; i < groupla_num; i++) {
+-            __m256i accula = _mm256_setzero_si256();
+-            const uint8_t *px = x_row + group32_num * 1024; // 32 * 32
+-            const int8_t  *py = y + group32_num * 4096;     // 32 * 128
+-            
+-            for (int j = 0; j < la_num; j++) {
+-                // 128 index
+-                __m256i xq8_3 = _mm256_loadu_si256((const __m256i*)(px));
+-                __m256i xq8_2 = _mm256_srli_epi16(xq8_3, 2);
+-                __m256i xq8_1 = _mm256_srli_epi16(xq8_3, 4);
+-                __m256i xq8_0 = _mm256_srli_epi16(xq8_3, 6);
+-
+-                // each 32 index
+-                xq8_3 = _mm256_and_si256(xq8_3, mask);
+-                xq8_2 = _mm256_and_si256(xq8_2, mask);
+-                xq8_1 = _mm256_and_si256(xq8_1, mask);
+-                xq8_0 = _mm256_and_si256(xq8_0, mask);
+-
+-                // each 32 index
+-                __m256i yq8_0 = _mm256_loadu_si256((const __m256i*)(py));
+-                __m256i yq8_1 = _mm256_loadu_si256((const __m256i*)(py + 32));
+-                __m256i yq8_2 = _mm256_loadu_si256((const __m256i*)(py + 64));
+-                __m256i yq8_3 = _mm256_loadu_si256((const __m256i*)(py + 96));
+-
+-                xq8_0 = _mm256_maddubs_epi16(xq8_0, yq8_0);
+-                xq8_1 = _mm256_maddubs_epi16(xq8_1, yq8_1);
+-                xq8_2 = _mm256_maddubs_epi16(xq8_2, yq8_2);
+-                xq8_3 = _mm256_maddubs_epi16(xq8_3, yq8_3);
+-
+-                accula = _mm256_add_epi16(accula, _mm256_add_epi16(xq8_0, xq8_1));
+-                accula = _mm256_add_epi16(accula, _mm256_add_epi16(xq8_2, xq8_3));
+-
+-                px += 32;
+-                py += 128;
+-            }
+-            accu = _mm256_add_epi32(accu, _mm256_madd_epi16(accula, one16));
+-        }
+-        
+-        int sumi = hsum_i32_8(accu);
+-        s[row] = (float)sumi;
+-    }
+-#else
+-    // Scalar fallback
+-    const uint8_t * x = (const uint8_t *)vx;
+-    const int8_t * y  = (const int8_t *)vy;
+-    static const int map2bit[4] = { -1, 0, 1, 0 };
+-    for (int row = 0; row < nrc; row++) {
+-        int32_t sum = 0;
+-        for (int i = 0; i < n; i++) {
+-            int byte_idx = i / 4;
+-            int bit_pos = 6 - 2 * (i % 4);
+-            int w = map2bit[(x[row * (n/4) + byte_idx] >> bit_pos) & 0x03];
+-            sum += w * y[i];
+-        }
+-        s[row] = (float)sum;
+-    }
+-#endif
+-}
+-
+-void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+-    ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
+-}
+diff --git a/src/llama-vocab.cpp b/src/llama-vocab.cpp
+index 2b546c4..2bf6fd7 100644
+--- a/src/llama-vocab.cpp
++++ b/src/llama-vocab.cpp
+@@ -2109,14 +2109,15 @@ void llama_vocab::impl::load(llama_model_loader & ml, const LLM_KV & kv) {
+             escape_whitespaces = false;
+             clean_spaces = true;
+             if (tokenizer_pre.empty()) {
+-                LLAMA_LOG_WARN("%s: missing pre-tokenizer type, using: 'default'\n", __func__);
+-                LLAMA_LOG_WARN("%s:                                             \n", __func__);
+-                LLAMA_LOG_WARN("%s: ************************************        \n", __func__);
+-                LLAMA_LOG_WARN("%s: GENERATION QUALITY WILL BE DEGRADED!        \n", __func__);
+-                LLAMA_LOG_WARN("%s: CONSIDER REGENERATING THE MODEL             \n", __func__);
+-                LLAMA_LOG_WARN("%s: ************************************        \n", __func__);
+-                LLAMA_LOG_WARN("%s:                                             \n", __func__);
+-                pre_type = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
++                if (bpe_ranks.size() >= 100000) {
++                    LLAMA_LOG_INFO("%s: inferred pre-tokenizer type 'llama3' from %zu BPE merges\n", __func__, bpe_ranks.size());
++                    pre_type = LLAMA_VOCAB_PRE_TYPE_LLAMA3;
++                    ignore_merges = true;
++                    add_bos = true;
++                } else {
++                    LLAMA_LOG_WARN("%s: missing pre-tokenizer type, using: 'default'\n", __func__);
++                    pre_type = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
++                }
+             } else if (tokenizer_pre == "default") {
+                 pre_type = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
+             } else if (tokenizer_pre == "minicpm5") {
+diff --git a/src/models/bitnet.cpp b/src/models/bitnet.cpp
+index 985c8d6..ec5dc3a 100644
+--- a/src/models/bitnet.cpp
++++ b/src/models/bitnet.cpp
+@@ -130,7 +130,7 @@ llama_model_bitnet::graph::graph(const llama_model & model, const llm_graph_para
+                 model.layers[il].ffn_gate, NULL, model.layers[il].ffn_gate_s,
+                 NULL,                      NULL, NULL,
+                 NULL,
+-                LLM_FFN_SILU, LLM_FFN_PAR, il);
++                LLM_FFN_RELU_SQR, LLM_FFN_PAR, il);
+         cb(cur, "ffn_sub_out", il);
+ 
+         cur = build_norm(cur,
