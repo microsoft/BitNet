@@ -14,6 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # option list
 option(BITNET_ARM_TL1    "bitnet.cpp: use tl1 on arm platform"    OFF)
 option(BITNET_X86_TL2    "bitnet.cpp: use tl2 on x86 platform"    OFF)
+option(BITNET_BUILD_TESTS "bitnet.cpp: build I2_S numerical regression tests" OFF)
 
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -41,6 +42,11 @@ find_package(Threads REQUIRED)
 add_subdirectory(src)
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
 add_subdirectory(3rdparty/llama.cpp)
+
+if (BITNET_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # install
 
