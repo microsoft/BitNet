@@ -467,12 +467,19 @@ class Model(ABC):
             with open(added_tokens_file, "r", encoding="utf-8") as f:
                 added_tokens_json = json.load(f)
 
-                for key in added_tokens_json:
+                # GGUF stores token IDs as list positions; JSON insertion order
+                # is not a token ID ordering.
+                for key, token_id in sorted(added_tokens_json.items(), key=lambda item: item[1]):
                     key = key.encode("utf-8")
-                    if key not in tokens:
-                        tokens.append(key)
-                        scores.append(-1000.0)
-                        toktypes.append(SentencePieceTokenTypes.USER_DEFINED)
+                    if token_id < len(tokens):
+                        if token_id < 0 or tokens[token_id] != key:
+                            raise ValueError(f"Added token {key!r} conflicts with token ID {token_id}")
+                        continue
+                    if token_id != len(tokens):
+                        raise ValueError(f"Added token ID {token_id} is not contiguous; expected {len(tokens)}")
+                    tokens.append(key)
+                    scores.append(-1000.0)
+                    toktypes.append(SentencePieceTokenTypes.USER_DEFINED)
 
         if vocab_size > len(tokens):
             pad_count = vocab_size - len(tokens)
