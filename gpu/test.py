@@ -58,7 +58,10 @@ if __name__ == '__main__':
             ret = torch.empty((1,N), dtype=torch.bfloat16, device=input0.device)
             out = bitnet_int8xint2_linear(input0, weight_compressed, s, ws, ret)
 
-            print(f'custom == np {torch.all(out==out_np)}')
+            torch.testing.assert_close(
+                out, out_np, rtol=0, atol=0,
+                msg=lambda detail: f"W2A8 correctness failed for N={N}, K={K}\n{detail}",
+            )
 
         input0 = torch.randint(-128,127,(1, K),dtype=torch.int8, device='cuda')
         input0_fp16 = input0.to(torch.float16)
