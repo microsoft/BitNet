@@ -260,11 +260,17 @@ class PerplexityTester:
             print(f"ℹ️  Model already exists: {output_path.name}")
             return output_path
         
+        # Write beside the destination so only a complete successful model
+        # becomes visible to the existing-file reuse path on subsequent runs.
+        fd, temporary_name = tempfile.mkstemp(prefix=output_path.name + ".", suffix=".tmp.gguf", dir=output_path.parent)
+        os.close(fd)
+        temporary_output = Path(temporary_name)
+
         cmd = [
             str(self.quantize_bin),
             "--token-embedding-type", embedding_type,
             str(self.model_path),
-            str(output_path),
+            str(temporary_output),
             "I2_S",
             "1",
             "1"
@@ -291,6 +297,9 @@ class PerplexityTester:
             duration = time.time() - start_time
             
             if result.returncode == 0:
+                if temporary_output.stat().st_size == 0:
+                    raise RuntimeError("Quantizer produced an empty model")
+                temporary_output.replace(output_path)
                 file_size_mb = output_path.stat().st_size / (1024 * 1024)
                 print(f"✅ Quantization successful!")
                 print(f"   Duration: {duration:.2f}s")
@@ -311,6 +320,9 @@ class PerplexityTester:
             print(f"❌ Quantization error: {e}")
             return None
     
+        finally:
+            temporary_output.unlink(missing_ok=True)
+
     def cleanup_model(self, model_path):
         """Delete model file if it was created during this session."""
         if model_path in self.created_models:
