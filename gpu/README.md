@@ -43,6 +43,10 @@ rm ./checkpoints/model_state.pt
 python3 ./generate.py ./checkpoints/ --interactive --chat_format
 ```
 
+To run the CUDA models without CUDA graph capture or replay, set
+`NO_CUDA_GRAPHS=1` when launching `generate.py`. This mode still requires
+CUDA and the compiled BitNet kernels.
+
 ## Optimizations
 
 ### Weight Permutation
