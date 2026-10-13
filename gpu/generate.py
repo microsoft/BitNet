@@ -250,8 +250,8 @@ class FastGen:
         logits = logits.view(bs, self.model_args.vocab_size)
 
         if use_sampling:
-            temp = 0.7
-            top_p = 0.95
+            temp = self.gen_args.temperature
+            top_p = self.gen_args.top_p
             probs = torch.softmax(logits / temp, dim=-1)
             next_token = sample_utils.top_p(probs, top_p)
         else:
@@ -271,8 +271,8 @@ class FastGen:
             logits = output.view(bs, self.model_args.vocab_size)
 
             if use_sampling:
-                temp = 0.7
-                top_p = 0.95
+                temp = self.gen_args.temperature
+                top_p = self.gen_args.top_p
                 probs = torch.softmax(logits / temp, dim=-1)
                 next_token = sample_utils.top_p(probs, top_p)
             else:
