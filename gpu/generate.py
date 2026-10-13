@@ -264,7 +264,10 @@ class FastGen:
         stats.phase("decode" if use_cuda_graphs else "total")
 
         eos_id = self.tokenizer.eot_id
+        finished = next_token.eq(eos_id)
         for niter in range(1, gen_length):
+            if finished.all():
+                break
             kv_seqlen.add_(kv_seqlen < max_seq_length)
             output = self._generate_compile_model(next_token, kv_seqlen)
 
@@ -279,9 +282,11 @@ class FastGen:
                 next_token = torch.argmax(logits, dim=-1)
 
             next_token = next_token.reshape(bs)
+            next_token = torch.where(finished, eos_id, next_token)
             out_tokens[niter, :] = next_token
+            finished |= next_token.eq(eos_id)
 
-            if next_token.eq(eos_id).any():
+            if finished.all():
                 break
 
         torch.cuda.synchronize()
