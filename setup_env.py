@@ -95,6 +95,11 @@ def get_model_name():
         return SUPPORTED_HF_MODELS[args.hf_repo]["model_name"]
     return os.path.basename(os.path.normpath(args.model_dir))
 
+def is_embedding_model():
+    return get_model_name() in {
+        "bitnet-embedding-0.6b", "bitnet-embedding-270m",
+    }
+
 def run_command(command, shell=False, log_step=None):
     """Run a system command and ensure it succeeds."""
     if log_step:
@@ -132,7 +137,10 @@ def prepare_model():
     gguf_path = os.path.join(model_dir, "ggml-model-" + quant_type + ".gguf")
     if not os.path.exists(gguf_path) or os.path.getsize(gguf_path) == 0:
         logging.info(f"Converting HF model to GGUF format...")
-        if quant_type.startswith("tl"):
+        if is_embedding_model():
+            run_command([sys.executable, "utils/convert-bitnet-embedding-to-gguf.py", model_dir,
+                         "--outtype", "i2_s", "--outfile", gguf_path], log_step="convert_embedding")
+        elif quant_type.startswith("tl"):
             run_command([sys.executable, "utils/convert-hf-to-gguf-bitnet.py", model_dir, "--outtype", quant_type, "--quant-embd"], log_step="convert_to_tl")
         else: # i2s
             # convert to f32
@@ -161,6 +169,10 @@ def setup_gguf():
 
 def gen_code():
     _, arch = system_info()
+    if is_embedding_model():
+        if arch != "x86_64" or args.quant_type != "i2_s" or args.quant_embd:
+            raise ValueError("Embedding models require x86_64 I2_S without --quant-embd")
+        return
     
     llama3_f3_models = set([model['model_name'] for model in SUPPORTED_HF_MODELS.values() if model['model_name'].startswith("Falcon") or model['model_name'].startswith("Llama")])
 
