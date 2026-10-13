@@ -74,6 +74,10 @@ def interleave_weight_int8(qweight, nbits=2):\
 
 
 def convert_weight_int8_to_int2(weight):
+    if weight.ndim != 2 or weight.shape[0] % 16 or weight.shape[1] % 32:
+        raise ValueError("Weights must have shape (N, K) with N divisible by 16 and K divisible by 32")
+    if weight.dtype != torch.int8 or not torch.all((weight >= -1) & (weight <= 1)):
+        raise ValueError("Weights must be int8 ternary values (-1, 0, 1)")
     N = weight.shape[0]
     K = weight.shape[1]
 
