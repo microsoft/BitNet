@@ -82,7 +82,7 @@ def convert_ts_checkpoint(
             int2_result[key] = value.clone()
             fp16_result[key] = value.clone()
 
-    output_dir = os.path.dirname(input_path)
+    output_dir = Path(input_path).parent
     print(f"Saving checkpoint to {output_dir}/model_state_int2.pt")
     torch.save(int2_result, f"{output_dir}/model_state_int2.pt")
 
