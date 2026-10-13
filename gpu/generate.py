@@ -259,6 +259,7 @@ class FastGen:
 
         next_token = next_token.reshape(bs)
         out_tokens[0, :] = next_token
+        generated_tokens = 1
 
         torch.cuda.synchronize()
         stats.phase("decode" if use_cuda_graphs else "total")
@@ -280,12 +281,13 @@ class FastGen:
 
             next_token = next_token.reshape(bs)
             out_tokens[niter, :] = next_token
+            generated_tokens += 1
 
             if next_token.eq(eos_id).any():
                 break
 
         torch.cuda.synchronize()
-        stats.end_phase(tokens=niter * bs)
+        stats.end_phase(tokens=generated_tokens * bs)
 
         def trim_answer(prompt_len, tokens):
             # print(prompt, tokens)
@@ -299,7 +301,7 @@ class FastGen:
 
         answers = [
             trim_answer(prompt_len, answer)
-            for prompt_len, answer in zip(prompt_lens, out_tokens.t().tolist())
+            for prompt_len, answer in zip(prompt_lens, out_tokens[:generated_tokens].t().tolist())
         ]
         return stats, answers
 
