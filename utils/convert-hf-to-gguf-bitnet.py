@@ -1063,7 +1063,7 @@ class BitnetModel(Model):
         # quant weight to i2 (in fp16)
         # Skip weight_quant for offline-quantized models — weights are already ternary {-1,0,1}
         # weight_quant would scale them to small floats (e.g. ±0.39), breaking quantize_to_i2_s
-        if not getattr(self, '_has_offline_quant', False) and \
+        if name.removesuffix(".weight") not in getattr(self, '_offline_quantized_names', set()) and \
            name.endswith(("q_proj.weight", "k_proj.weight", "v_proj.weight",
                           "down_proj.weight", "up_proj.weight", "gate_proj.weight",
                           "o_proj.weight")):
@@ -1082,7 +1082,7 @@ class BitnetModel(Model):
                 name = name.replace(".weight_scale", "")
                 scale_map[name] = data_torch
 
-        self._has_offline_quant = len(scale_map) > 0
+        self._offline_quantized_names = set(scale_map)
 
         for name, data_torch in self.get_tensors():
             # skip weight_scale tensors
