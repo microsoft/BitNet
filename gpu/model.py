@@ -19,20 +19,30 @@ import ctypes
 bitnet_lib = ctypes.CDLL('bitnet_kernels/libbitnet.so')
 
 def bitnet_int8xint2_linear(input0, input1, s, ws):
+    tensors = (input0, input1, s, ws)
+    if input0.dtype != torch.int8 or input1.dtype != torch.int8:
+        raise TypeError("Native W2A8 inputs and packed weights must be int8")
+    if s.dtype != torch.bfloat16 or ws.dtype != torch.bfloat16:
+        raise TypeError("Native W2A8 activation and weight scales must be bfloat16")
+    if any(not tensor.is_cuda or tensor.device != input0.device for tensor in tensors):
+        raise ValueError("Native W2A8 tensors must be on the same CUDA device")
+    if any(not tensor.is_contiguous() for tensor in tensors):
+        raise ValueError("Native W2A8 tensors must be contiguous")
     out_shape = list(input0.shape)
     out_shape[-1] = input1.shape[0]
 
-    stream = torch.cuda.current_stream()
+    with torch.cuda.device(input0.device):
+        stream = torch.cuda.current_stream(input0.device)
 
-    M = input0.shape[0]
-    if len(out_shape) == 3: 
-        M *= input0.shape[1]
-    N = input1.shape[0]
-    K = input1.shape[1] * 4
+        M = input0.shape[0]
+        if len(out_shape) == 3: 
+            M *= input0.shape[1]
+        N = input1.shape[0]
+        K = input1.shape[1] * 4
 
-    ret = torch.zeros(*out_shape, dtype=torch.bfloat16, device=input0.device)
+        ret = torch.zeros(*out_shape, dtype=torch.bfloat16, device=input0.device)
 
-    bitnet_lib.bitlinear_int8xint2(*[ctypes.c_void_p(input0.data_ptr()), ctypes.c_void_p(input1.data_ptr()), ctypes.c_void_p(ret.data_ptr()), ctypes.c_void_p(s.data_ptr()), ctypes.c_void_p(ws.data_ptr()), ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K), ctypes.c_void_p(stream.cuda_stream)])
+        bitnet_lib.bitlinear_int8xint2(*[ctypes.c_void_p(input0.data_ptr()), ctypes.c_void_p(input1.data_ptr()), ctypes.c_void_p(ret.data_ptr()), ctypes.c_void_p(s.data_ptr()), ctypes.c_void_p(ws.data_ptr()), ctypes.c_int(M), ctypes.c_int(N), ctypes.c_int(K), ctypes.c_void_p(stream.cuda_stream)])
 
     return ret
 
