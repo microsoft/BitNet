@@ -218,11 +218,15 @@ class FastGen:
         self, prompts: list[list[int]], use_cuda_graphs: bool, use_sampling: bool
     ) -> Tuple[Stats, list[list[int]]]:
         bs = len(prompts)
+        if bs != self.gen_args.gen_bsz:
+            raise ValueError("Prompt batch size must match the captured generation batch size")
+        if any(not p or len(p) > self.gen_args.prompt_length for p in prompts):
+            raise ValueError("Prompts must be nonempty and fit the captured prompt length")
         prompt_lens = [len(p) for p in prompts]
         padded_prompt_lens = [self.gen_args.prompt_length] * bs
         max_prompt_length = max(prompt_lens)
         gen_length = self.gen_args.gen_length
-        max_seq_length = max_prompt_length + gen_length
+        max_seq_length = self.max_seq_length
         print(max_prompt_length, gen_length)
 
         bias = AttnBias.from_seqlens(
@@ -244,9 +248,14 @@ class FastGen:
         stats.phase("prefill" if use_cuda_graphs else "total")
         # stats.phase("total")
 
+        # Prefill processes the full captured query length, including right padding.
+        # Keep its captured KV lengths equal to that query length so rope_padded
+        # never writes padding queries to negative cache positions. Decode uses
+        # the actual prompt lengths and overwrites the right padding.
         output = self._prefill_compile_model(tokens, None)
 
-        logits = output[kv_seqlen - 1, :]
+        prompt_offsets = torch.arange(bs, device=output.device) * self.gen_args.prompt_length
+        logits = output[prompt_offsets + kv_seqlen - 1, :]
         logits = logits.view(bs, self.model_args.vocab_size)
 
         if use_sampling:
