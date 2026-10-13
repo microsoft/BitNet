@@ -95,9 +95,15 @@ class FastGen:
         self._generate_cuda_graph, self._generate_compile_model, self._generate_inputs, self._generate_logits = None, None, None, None
         self._cache = None
         start_time = time.time()
-        self._prefill_compile_model = self.compile_prefill()
-        self._generate_compile_model = self.compile_generate()
-        print(f"compiled model in {time.time() - start_time:.2f} seconds")
+        if "NO_CUDA_GRAPHS" in os.environ:
+            self._cache = fast.make_cache(
+                args=self.model_args,
+                length=self.gen_args.gen_bsz * self.max_seq_length,
+            )
+        else:
+            self._prefill_compile_model = self.compile_prefill()
+            self._generate_compile_model = self.compile_generate()
+        print(f"initialized generation in {time.time() - start_time:.2f} seconds")
 
     def compile_prefill(self):
 
@@ -223,19 +229,21 @@ class FastGen:
         max_prompt_length = max(prompt_lens)
         gen_length = self.gen_args.gen_length
         max_seq_length = max_prompt_length + gen_length
+        cache_padding = self.max_seq_length if not use_cuda_graphs else max_seq_length
         print(max_prompt_length, gen_length)
 
         bias = AttnBias.from_seqlens(
-            q_seqlen=padded_prompt_lens,
+            q_seqlen=padded_prompt_lens if use_cuda_graphs else prompt_lens,
             kv_seqlen=prompt_lens,
-            kv_padding=max_seq_length,
+            kv_padding=cache_padding,
         )
         bias.q_seqinfo.to("cuda")
         bias.k_seqinfo.to("cuda")
 
         # Input tensors to the cuda graph
         kv_seqlen = bias.k_seqinfo.seqlen
-        prompts = [prompt + [1] * (self.gen_args.prompt_length - len(prompt)) for prompt in prompts]
+        if use_cuda_graphs:
+            prompts = [prompt + [1] * (self.gen_args.prompt_length - len(prompt)) for prompt in prompts]
         tokens = torch.IntTensor(sum(prompts, [])).cuda()
         out_tokens = torch.zeros((max_seq_length, bs), dtype=torch.int)
 
@@ -244,9 +252,16 @@ class FastGen:
         stats.phase("prefill" if use_cuda_graphs else "total")
         # stats.phase("total")
 
-        output = self._prefill_compile_model(tokens, None)
+        if use_cuda_graphs:
+            output = self._prefill_compile_model(tokens, None)
+            last_prompt_rows = kv_seqlen - 1
+        else:
+            output = self.prefill_model.forward_with_attn_bias(
+                token_values=tokens, attn_bias=bias, cache=self._cache,
+            )
+            last_prompt_rows = kv_seqlen.cumsum(0) - 1
 
-        logits = output[kv_seqlen - 1, :]
+        logits = output[last_prompt_rows, :]
         logits = logits.view(bs, self.model_args.vocab_size)
 
         if use_sampling:
@@ -264,9 +279,22 @@ class FastGen:
         stats.phase("decode" if use_cuda_graphs else "total")
 
         eos_id = self.tokenizer.eot_id
+        if not use_cuda_graphs:
+            bias = AttnBias.from_seqlens(
+                q_seqlen=[1] * bs, kv_seqlen=prompt_lens,
+                kv_padding=cache_padding,
+            )
+            bias.q_seqinfo.to("cuda")
+            bias.k_seqinfo.to("cuda")
+            kv_seqlen = bias.k_seqinfo.seqlen
         for niter in range(1, gen_length):
             kv_seqlen.add_(kv_seqlen < max_seq_length)
-            output = self._generate_compile_model(next_token, kv_seqlen)
+            if use_cuda_graphs:
+                output = self._generate_compile_model(next_token, kv_seqlen)
+            else:
+                output = self.decode_model.forward_with_attn_bias(
+                    token_values=next_token, attn_bias=bias, cache=self._cache,
+                )
 
             logits = output.view(bs, self.model_args.vocab_size)
 
