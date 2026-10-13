@@ -161,6 +161,10 @@ def setup_gguf():
 
 def gen_code():
     _, arch = system_info()
+    # I2_S does not use the generated LUT kernels; model metadata, rather
+    # than the checkpoint directory name, is resolved by the converter.
+    if args.quant_type == "i2_s":
+        return
     
     llama3_f3_models = set([model['model_name'] for model in SUPPORTED_HF_MODELS.values() if model['model_name'].startswith("Falcon") or model['model_name'].startswith("Llama")])
 
