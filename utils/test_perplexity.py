@@ -206,38 +206,26 @@ class PerplexityTester:
     
     def parse_perplexity(self, output):
         """Parse perplexity value (mean±std format) from llama-perplexity output."""
-        # First try to match "PPL = mean +/- std" format
-        pattern_with_std = r'PPL\s*=\s*(\d+\.?\d*)\s*\+/-\s*(\d+\.?\d*)'
-        match = re.search(pattern_with_std, output, re.IGNORECASE | re.MULTILINE)
-        if match:
-            try:
-                mean = float(match.group(1))
-                std = float(match.group(2))
-                return f"{mean:.4f}±{std:.4f}"
-            except ValueError:
-                pass
-        
-        # Fallback to patterns without std
+        # Progress lines can contain partial estimates. Prefer an explicit final
+        # estimate, then the last PPL result, rather than the first progress value.
+        number = r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
+        value = rf"({number})(?:\s*(?:\+/-|±)\s*({number}))?(?![\w.])"
         patterns = [
-            r'Final estimate:\s*PPL\s*=\s*(\d+\.?\d*)',
-            r'Final perplexity:\s*(\d+\.?\d*)',
-            r'PPL\s*=\s*(\d+\.?\d*)',
-            r'PPL:\s*(\d+\.?\d*)',
-            r'perplexity:\s*(\d+\.?\d*)',
-            r'ppl\s*=\s*(\d+\.?\d*)',
-            r'Perplexity:\s*(\d+\.?\d*)',
+            rf"Final estimate:\s*PPL\s*=\s*{value}",
+            rf"Final perplexity:\s*{value}",
+            rf"\bPPL\s*[=:]\s*{value}",
+            rf"\bperplexity:\s*{value}",
         ]
-        
         for pattern in patterns:
-            match = re.search(pattern, output, re.IGNORECASE | re.MULTILINE)
-            if match:
-                try:
-                    return f"{float(match.group(1)):.4f}"
-                except ValueError:
-                    continue
-        
+            matches = list(re.finditer(pattern, output, re.IGNORECASE))
+            if matches:
+                match = matches[-1]
+                mean = float(match.group(1))
+                if match.group(2) is not None:
+                    return f"{mean:.4f}±{float(match.group(2)):.4f}"
+                return f"{mean:.4f}"
         return None
-    
+
     def quantize_embedding(self, embedding_type, output_suffix):
         """
         Quantize model with specific embedding type.
