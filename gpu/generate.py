@@ -33,6 +33,12 @@ class GenArgs:
     temperature: float = 0.8
     top_p: float = 0.9
 
+    def __post_init__(self):
+        for name in ("gen_length", "gen_bsz", "prompt_length"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+
 
 class FastGen:
     GRAPH_WARMUPS: int = 1
