@@ -58,12 +58,17 @@ def main():
         print(f"Error: Input safetensors file not found at '{input_file}'")
         sys.exit(1)
 
+    # A previous interrupted conversion may have left the only original here.
+    # Never overwrite it or clean up the input unless this run moved it first.
+    if input_backup_file.exists():
+        print(f"Error: Backup already exists: '{input_backup_file}'. Restore or move it before retrying.")
+        return 1
+
+    backup_created = False
     try:
         print(f"Backing up '{input_file}' to '{input_backup_file}'")
-        if input_backup_file.exists():
-             print(f"Warning: Removing existing backup file '{input_backup_file}'")
-             input_backup_file.unlink()
         shutil.move(input_file, input_backup_file)
+        backup_created = True
 
         print("Preprocessing huggingface checkpoint...")
         cmd_preprocess = [
@@ -100,9 +105,10 @@ def main():
 
     except Exception as e:
         print(f"An error occurred: {e}")
+        return 1
     finally:
         print("Cleaning up intermediate files...")
-        if preprocessed_output_file.exists() and preprocessed_output_file != input_backup_file:
+        if backup_created and preprocessed_output_file.exists():
             print(f"Removing preprocessed file: {preprocessed_output_file}")
             try:
                 preprocessed_output_file.unlink()
@@ -116,19 +122,12 @@ def main():
         #     except OSError as e:
         #         print(f"Warning: Could not remove {gguf_f32_output}: {e}")
         
-        if input_backup_file.exists():
-            if not input_file.exists():
-                print(f"Restoring original '{input_file}' from '{input_backup_file}'")
-                try:
-                    shutil.move(input_backup_file, input_file)
-                except Exception as e:
-                    print(f"Warning: Could not restore {input_file} from backup: {e}")
-            else:
-                print(f"Removing backup '{input_backup_file}' as original '{input_file}' should be present.")
-                try:
-                    input_backup_file.unlink()
-                except OSError as e:
-                    print(f"Warning: Could not remove backup {input_backup_file}: {e}")
+        if backup_created:
+            # Do not discard the backup if cleanup failed and the transformed
+            # checkpoint still occupies the original path.
+            if input_file.exists():
+                raise RuntimeError(f"Cannot restore checkpoint; original retained at {input_backup_file}")
+            shutil.move(input_backup_file, input_file)
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)
