@@ -386,9 +386,10 @@ def set_gguf_parameters(gguf_writer: gguf.GGUFWriter, hparams: dict, dir_model: 
                         pooling_type = gguf.PoolingType.LAST
                 break
     if pooling_type is None:
-        # Default to MEAN pooling for embedding models
-        logger.info("  No pooling config found, defaulting to MEAN pooling")
-        pooling_type = gguf.PoolingType.MEAN
+        # The supported BitNet embedding models use last-token pooling
+        # (see docs/bitnet-embeddings-i2s-guide.md).
+        logger.info("  No pooling config found, defaulting to LAST pooling")
+        pooling_type = gguf.PoolingType.LAST
     gguf_writer.add_pooling_type(pooling_type)
 
     logger.info(f"  n_layers={n_layers}, n_embd={n_embd}, n_head={n_head}, n_head_kv={n_head_kv}, n_ff={n_ff}, head_dim={head_dim}")
