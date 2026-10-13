@@ -829,7 +829,7 @@ class BitnetModel(Model):
         num_attention_heads = hp_config["num_attention_heads"]
 
         # generate dummy tensors
-        tensor = torch.randn((32002, hidden_size), dtype=torch.float32)
+        tensor = torch.randn((self.hparams["vocab_size"], hidden_size), dtype=torch.float32)
         yield ("model.embed_tokens.weight", tensor)
         for i in range(num_hidden_layers):
             yield f"model.layers.{i}.input_layernorm.weight", torch.randn((hidden_size,), dtype=torch.float32)
