@@ -6,6 +6,7 @@ with different token embedding types.
 """
 
 import subprocess
+import tempfile
 import os
 import argparse
 import re
@@ -64,11 +65,17 @@ class EmbeddingQuantizer:
             print(f"   Skipping quantization, will use existing file for benchmark")
             return True
         
+        # Write beside the destination so only a complete successful model
+        # becomes visible to the existing-file reuse path on subsequent runs.
+        fd, temporary_name = tempfile.mkstemp(prefix=output_file.name + ".", suffix=".tmp.gguf", dir=output_file.parent)
+        os.close(fd)
+        temporary_output = Path(temporary_name)
+
         cmd = [
             str(self.quantize_bin),
             "--token-embedding-type", embedding_type,
             str(self.input_model),
-            str(output_file),
+            str(temporary_output),
             "I2_S",
             "1",
             "1"
@@ -96,6 +103,9 @@ class EmbeddingQuantizer:
             duration = (end_time - start_time).total_seconds()
             
             if result.returncode == 0:
+                if temporary_output.stat().st_size == 0:
+                    raise RuntimeError("Quantizer produced an empty model")
+                temporary_output.replace(output_file)
                 # Get output file size
                 file_size_mb = output_file.stat().st_size / (1024 * 1024)
                 
@@ -124,6 +134,9 @@ class EmbeddingQuantizer:
             print(f"❌ Exception: {e}")
             return False
     
+        finally:
+            temporary_output.unlink(missing_ok=True)
+
     def benchmark_model(self, output_suffix):
         """
         Benchmark model
