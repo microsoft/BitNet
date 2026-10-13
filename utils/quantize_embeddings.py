@@ -207,18 +207,24 @@ class EmbeddingQuantizer:
         # Find lines containing pp128 and t/s
         lines = output.strip().split('\n')
         
+        columns = {'threads': 5, 'test': 6, 't/s': 7}
         for line in lines:
-            # Skip header and separator lines
-            if '|' not in line or 'model' in line or '---' in line:
+            # llama-bench includes backend-dependent and optional columns.
+            parts = [p.strip() for p in line.split('|')]
+            if all(name in parts for name in ('threads', 'test', 't/s')):
+                columns = {name: parts.index(name) for name in ('threads', 'test', 't/s')}
+                continue
+            # Skip separator and non-table lines.
+            if '|' not in line or '---' in line:
                 continue
             
             # Try to extract data
             # Format similar to: | bitnet-25 2B I2_S - 2 bpw ternary | 1012.28 MiB |     2.74 B | CPU        |      12 |         pp128 |        405.73 ± 3.69 |
             parts = [p.strip() for p in line.split('|')]
             
-            if len(parts) >= 8 and 'pp128' in parts[6]:
-                threads_str = parts[5].strip()
-                throughput_str = parts[7].strip()
+            if len(parts) > max(columns.values()) and parts[columns['test']] == 'pp128':
+                threads_str = parts[columns['threads']]
+                throughput_str = parts[columns['t/s']]
                 
                 # Extract thread count
                 try:
