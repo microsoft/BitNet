@@ -55,7 +55,8 @@ class FastGen:
 
         model_args_prefill = fast.ModelArgs(use_kernel=False)
         model_args_decode = fast.ModelArgs(use_kernel=True)
-        tokenizer = Tokenizer("./tokenizer.model")
+        tokenizer_file = Path(tokenizer_path) if tokenizer_path is not None else Path(__file__).with_name("tokenizer.model")
+        tokenizer = Tokenizer(str(tokenizer_file))
 
         torch.set_default_device(device)
         torch.set_default_dtype(torch.bfloat16)
