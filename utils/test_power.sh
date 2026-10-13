@@ -73,7 +73,7 @@ extract_throughput() {
 }
 
 # Function to run single benchmark
-run_benchmark() {
+run_benchmark() (
     local workload="$1"  # "pp" or "tg"
     local threads="$2"
     local n_flag=""
@@ -93,9 +93,17 @@ run_benchmark() {
     touch "$PID_FILE"
     monitor_cpu "$TEMP_LOG" &
     local monitor_pid=$!
+    trap 'rm -f "$PID_FILE"; wait "$monitor_pid" 2>/dev/null || true; rm -f "$TEMP_LOG" "$BENCH_OUTPUT"' EXIT
     
     # Run benchmark
-    ./build/bin/llama-bench -m "$MODEL_PATH" -p 128 $n_flag -t "$threads" -ngl 0 > "$BENCH_OUTPUT" 2>&1
+    if ./build/bin/llama-bench -m "$MODEL_PATH" -p 128 $n_flag -t "$threads" -ngl 0 > "$BENCH_OUTPUT" 2>&1; then
+        :
+    else
+        local status=$?
+        cat "$BENCH_OUTPUT" >&2
+        echo "Error: benchmark failed for $workload_name, threads=$threads" >&2
+        return "$status"
+    fi
     
     # Stop monitoring
     rm -f "$PID_FILE"
@@ -120,7 +128,7 @@ run_benchmark() {
     
     # Only output CSV line to stdout (this will be captured)
     echo "$workload_name,$threads,$throughput,$power,$j_per_token"
-}
+)
 
 # Initialize CSV
 echo "Workload,Threads,Throughput(t/s),Power(W),Energy(J/t)" > "$OUTPUT_CSV"
