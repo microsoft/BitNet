@@ -5,12 +5,13 @@ from torch import nn
 from pack_weight import convert_weight_int8_to_int2
 from torch.profiler import profile, record_function, ProfilerActivity
 import ctypes
+from pathlib import Path
 import numpy as np
 # set all seed
 torch.manual_seed(42)
 np.random.seed(42)
 
-bitnet_lib = ctypes.CDLL('bitnet_kernels/libbitnet.so')
+bitnet_lib = ctypes.CDLL(str(Path(__file__).resolve().parent / "bitnet_kernels" / "libbitnet.so"))
 
 def bitnet_int8xint2_linear(input0, input1, s, ws, ret):
     out_shape = list(input0.shape)
