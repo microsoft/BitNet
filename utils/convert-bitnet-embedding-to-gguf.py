@@ -284,6 +284,9 @@ def _set_vocab_gemma3(gguf_writer: gguf.GGUFWriter, dir_model: Path,
     # Build token arrays
     reverse_vocab = {v: k for k, v in bpe_vocab.items()}
     added_tokens_decoder = tokenizer.added_tokens_decoder
+    # Added tokens can live outside tokenizer.json's base BPE vocabulary.
+    # Preserve their actual IDs/content before filling genuinely unused slots.
+    reverse_vocab.update({id_: token.content for id_, token in added_tokens_decoder.items()})
 
     tokens: list[bytes] = []
     scores: list[float] = []
