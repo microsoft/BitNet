@@ -918,7 +918,7 @@ class LlamaModel(Model):
         self.gguf_writer.add_rope_dimension_count(rope_dim)
 
         if self.hparams.get("rope_scaling") is not None and "factor" in self.hparams["rope_scaling"]:
-            if self.hparams["rope_scaling"].get("type") == "linear":
+            if self.hparams["rope_scaling"].get("rope_type", self.hparams["rope_scaling"].get("type")) == "linear":
                 self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.LINEAR)
                 self.gguf_writer.add_rope_scaling_factor(self.hparams["rope_scaling"]["factor"])
 
