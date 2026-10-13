@@ -1156,7 +1156,7 @@ class BitnetModel(Model):
                 ))
 
                 suit_i2 = True
-                if name.endswith('embed_tokens.weight') or name.endswith('norm.weight'):
+                if name.endswith(('embed_tokens.weight', 'norm.weight', 'lm_head.weight')):
                     suit_i2 = False
 
                 i2_scale = None
