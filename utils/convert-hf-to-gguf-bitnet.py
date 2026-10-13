@@ -244,9 +244,30 @@ class Model(ABC):
             raise NotImplementedError(f'Architecture {arch!r} not supported!') from None
 
     def _is_model_safetensors(self) -> bool:
+        if (self.dir_model / "model.safetensors.index.json").is_file():
+            return True
+        if (self.dir_model / "pytorch_model.bin.index.json").is_file():
+            return False
         return Model.count_model_parts(self.dir_model, ".safetensors") > 0
 
     def _get_part_names(self):
+        index_name = "model.safetensors.index.json" if self.is_safetensors else "pytorch_model.bin.index.json"
+        index_path = self.dir_model / index_name
+        if index_path.is_file():
+            with index_path.open(encoding="utf-8") as f:
+                index = json.load(f)
+            # The index is authoritative: unrelated checkpoint/optimizer files
+            # must not change the shard count or synthesize different filenames.
+            part_names = tuple(dict.fromkeys(index["weight_map"].values()))
+            if not part_names:
+                raise ValueError(f"Checkpoint index has no shards: {index_path}")
+            for name in part_names:
+                path = Path(name)
+                if path.is_absolute() or ".." in path.parts:
+                    raise ValueError(f"Checkpoint shard must be inside model directory: {name}")
+                if not (self.dir_model / path).is_file():
+                    raise FileNotFoundError(f"Checkpoint shard not found: {self.dir_model / path}")
+            return part_names
         if self.is_safetensors:
             if self.num_parts == 1:  # there's only one .safetensors file
                 return ("model.safetensors",)
