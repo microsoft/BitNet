@@ -249,7 +249,10 @@ class ChatFormat:
                 targets.extend(_targets)
         # Add the start of an assistant message for the model to complete.
         if completion:
-            tokens.extend(self.encode_header({"role": "assistant", "content": ""}))
+            header = self.encode_header({"role": "assistant", "content": ""})
+            tokens.extend(header)
+            if return_target:
+                targets.extend([-1] * len(header))
         
         if return_target:
             return tokens, targets
