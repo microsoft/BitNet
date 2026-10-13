@@ -494,7 +494,7 @@ def preprocess_weights_tl1(
     weight = np.sign(weight)
     weight_num = np.prod(weight.shape)
 
-    config.read('include/kernel_config.ini')
+    config.read(Path(__file__).resolve().parents[1] / "include" / "kernel_config.ini")
     BM = -1
     BY = -1
     bm = -1
@@ -612,7 +612,7 @@ def preprocess_weights_tl2(
     weight = np.sign(weight)
     weight_num = np.prod(weight.shape)
 
-    config.read('include/kernel_config.ini')
+    config.read(Path(__file__).resolve().parents[1] / "include" / "kernel_config.ini")
     BM = -1
     BY = -1
     bm = -1
