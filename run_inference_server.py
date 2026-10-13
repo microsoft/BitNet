@@ -14,7 +14,7 @@ def run_command(command, shell=False):
         sys.exit(1)
 
 def run_server():
-    build_dir = "build"
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build")
     if platform.system() == "Windows":
         server_path = os.path.join(build_dir, "bin", "Release", "llama-server.exe")
         if not os.path.exists(server_path):
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     
     parser = argparse.ArgumentParser(description='Run llama.cpp server')
-    parser.add_argument("-m", "--model", type=str, help="Path to model file", required=False, default="models/bitnet_b1_58-3B/ggml-model-i2_s.gguf")
+    parser.add_argument("-m", "--model", type=str, help="Path to model file", required=False, default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "bitnet_b1_58-3B", "ggml-model-i2_s.gguf"))
     parser.add_argument("-p", "--prompt", type=str, help="System prompt for the model", required=False)
     parser.add_argument("-n", "--n-predict", type=int, help="Number of tokens to predict", required=False, default=4096)
     parser.add_argument("-t", "--threads", type=int, help="Number of threads to use", required=False, default=2)
