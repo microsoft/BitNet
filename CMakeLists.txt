@@ -39,6 +39,29 @@ endif()
 find_package(Threads REQUIRED)
 
 add_subdirectory(src)
+
+# Auto-apply engine patch to 3rdparty/llama.cpp submodule if not already applied
+find_package(Git QUIET)
+if (GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/patches/0001-fix-arm64-2b-inference.patch")
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --check "${CMAKE_CURRENT_SOURCE_DIR}/patches/0001-fix-arm64-2b-inference.patch"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/llama.cpp"
+        RESULT_VARIABLE _patch_check
+        OUTPUT_QUIET ERROR_QUIET
+    )
+    if (_patch_check EQUAL 0)
+        message(STATUS "Auto-applying 0001-fix-arm64-2b-inference.patch to 3rdparty/llama.cpp submodule...")
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} apply "${CMAKE_CURRENT_SOURCE_DIR}/patches/0001-fix-arm64-2b-inference.patch"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/llama.cpp"
+            RESULT_VARIABLE _patch_apply
+        )
+        if (NOT _patch_apply EQUAL 0)
+            message(WARNING "Failed to auto-apply 0001-fix-arm64-2b-inference.patch")
+        endif()
+    endif()
+endif()
+
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
 add_subdirectory(3rdparty/llama.cpp)
 

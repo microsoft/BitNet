@@ -1,0 +1,252 @@
+diff --git a/ggml/src/ggml-blas/ggml-blas.cpp b/ggml/src/ggml-blas/ggml-blas.cpp
+index b4c7352..cfa4b31 100644
+--- a/ggml/src/ggml-blas/ggml-blas.cpp
++++ b/ggml/src/ggml-blas/ggml-blas.cpp
+@@ -415,7 +415,8 @@ static bool ggml_backend_blas_device_supports_op(ggml_backend_dev_t dev, const s
+             // TODO: find the optimal value
+             const int64_t min_batch = 32;
+ 
+-            return ggml_is_contiguous(src0) &&
++            return src0->type != GGML_TYPE_I2_S &&
++                   ggml_is_contiguous(src0) &&
+                    ggml_is_contiguous(src1) &&
+                    src1->type == GGML_TYPE_F32 &&
+                    (ne0 >= min_batch && ne1 >= min_batch && ne10 >= min_batch) &&
+@@ -423,7 +424,8 @@ static bool ggml_backend_blas_device_supports_op(ggml_backend_dev_t dev, const s
+         }
+ 
+         case GGML_OP_OUT_PROD:
+-            return op->src[0]->type == GGML_TYPE_F32 &&
++            return src0->type != GGML_TYPE_I2_S &&
++                   op->src[0]->type == GGML_TYPE_F32 &&
+                    op->src[1]->type == GGML_TYPE_F32 &&
+                    ggml_is_matrix(src0) &&
+                    ggml_is_matrix(src1) &&
+diff --git a/ggml/src/ggml-cpu/ggml-cpu-i2s.c b/ggml/src/ggml-cpu/ggml-cpu-i2s.c
+index d2ea0d7..d3b30d1 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu-i2s.c
++++ b/ggml/src/ggml-cpu/ggml-cpu-i2s.c
+@@ -15,7 +15,7 @@
+ #define QK_I2_S 128
+ #elif defined(__ARM_NEON)
+ #include <arm_neon.h>
+-#define QK_I2_S 64
++#define QK_I2_S 128
+ #else
+ #define QK_I2_S 128
+ #endif
+@@ -194,7 +194,18 @@ void ggml_gemm_i2_i8_s(int n, float * GGML_RESTRICT s, size_t bs, const void * G
+                 const int64_t col = c0 + c;
+                 float * s_col = s + col;
+                 const void * vx_col = (const uint8_t *)vx + col * n / 4;
+-                ggml_vec_dot_i2_i8_s(n, s_col + r0 * bs, bs, vx_col, n, vy_r, n, cur_r);
++                /*
++                 * vec_dot's nrc loop walks WEIGHT rows against a fixed
++                 * activation vector, and writes its results contiguously.
++                 * Here the weight row is fixed and we need one result per
++                 * activation column, so call it once per column with nrc=1
++                 * and place the result ourselves at the bs-strided slot.
++                 */
++                for (int64_t r = 0; r < cur_r; ++r) {
++                    const void * vy_cur = (const uint8_t *)vy_r + r * n;
++                    ggml_vec_dot_i2_i8_s(n, s_col + (r0 + r) * bs, 1,
++                                         vx_col, n, vy_cur, n, 1);
++                }
+             }
+         }
+     }
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index ec88ef2..a26ec0d 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1490,6 +1490,7 @@ UseGgmlGemm2:;
+ 
+     // I2_S GEMV/GEMM fast path: use optimized SIMD kernels for 2D weight matrices
+     if (src0->type == GGML_TYPE_I2_S && ggml_n_dims(src0) == 2) {
++        const bool src1_cont = ggml_is_contiguous(src1);
+         const void * src1_wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t i2s_row_size = ggml_row_size(vec_dot_type, ne10);
+         const size_t src1_col_stride = src1_cont || src1->type != vec_dot_type ? i2s_row_size : nb11;
+diff --git a/ggml/src/ggml-cpu/quants.c b/ggml/src/ggml-cpu/quants.c
+index 603f51c..81b75e0 100644
+--- a/ggml/src/ggml-cpu/quants.c
++++ b/ggml/src/ggml-cpu/quants.c
+@@ -1290,14 +1290,16 @@ void quantize_row_iq4_xs(const float * GGML_RESTRICT x, void * GGML_RESTRICT y,
+ // ====================== BitNet I2_S AVX2 SIMD vec_dot ======================
+ // ====================== BitNet I2_S quantization functions ======================
+ 
+-#if defined(__AVX2__) || defined(__AVX512F__)
+-#define QK_I2_S 128
+-#elif defined(__ARM_NEON)
+-#define QK_I2_S 64
+-#else
+-#define QK_I2_S 128
++#if defined(__ARM_NEON)
++#include <arm_neon.h>
+ #endif
+ 
++/*
++ * On-disk block size of I2_S weights: 32 packed bytes against 128
++ * activations. A file-format constant, identical on every architecture.
++ */
++#define QK_I2_S 128
++
+ #if defined(__AVX2__)
+ static inline int hsum_i32_8(const __m256i a) {
+     const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
+@@ -1486,19 +1488,120 @@ static void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * v
+         int sumi = hsum_i32_8(accu);
+         s[row] = (float)sumi;
+     }
++#elif defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++    /*
++     * NEON path, mirroring the AVX2 kernel above.
++     *
++     * Same block layout: 32 packed weight bytes against 128 activations, with
++     * field f of byte b pairing with activation f*32 + b. AVX2 works on 32
++     * bytes per pass, NEON on 16, so each 32-byte group is two half-passes.
++     *
++     * _mm256_maddubs_epi16 has no direct NEON counterpart (it is unsigned x
++     * signed into 16 bits). vdotq_s32 is used instead: it performs 4-way
++     * 8-bit dot products straight into int32 lanes, which avoids the 16-bit
++     * intermediate entirely. That is safe here because the weight codes are
++     * {0,1,2} and are reinterpreted as signed int8 without change of value.
++     */
++    const uint8_t * x = (const uint8_t *)vx;
++    const int8_t  * y = (const int8_t *)vy;
++
++    const uint8x16_t mask = vdupq_n_u8(0x03);
++    const int nblk = n / QK_I2_S;
++    const int nbyte_blk = QK_I2_S / 4;      /* 32 bytes per block */
++
++    for (int row = 0; row < nrc; row++) {
++        const size_t x_stride = (bx ? (size_t)bx : (size_t)n) / 4;
++        const uint8_t * x_row = x + (size_t)row * x_stride;
++        int32x4_t acc = vdupq_n_s32(0);
++
++        for (int blk = 0; blk < nblk; blk++) {
++            const uint8_t * px = x_row + (size_t)blk * nbyte_blk;
++            const int8_t  * py = y + (size_t)blk * QK_I2_S;
++
++            /* Two 16-byte halves make up the 32-byte weight group. */
++            for (int h = 0; h < 2; h++) {
++                const uint8x16_t xv = vld1q_u8(px + h * 16);
++
++                /* Field f occupies bits 6-2f, matching the AVX2 shifts. */
++                const int8x16_t w0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xv, 6), mask));
++                const int8x16_t w1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xv, 4), mask));
++                const int8x16_t w2 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(xv, 2), mask));
++                const int8x16_t w3 = vreinterpretq_s8_u8(vandq_u8(xv, mask));
++
++                /* Field f pairs with activations f*32 + (h*16 .. h*16+15). */
++                acc = vdotq_s32(acc, w0, vld1q_s8(py +   0 + h * 16));
++                acc = vdotq_s32(acc, w1, vld1q_s8(py +  32 + h * 16));
++                acc = vdotq_s32(acc, w2, vld1q_s8(py +  64 + h * 16));
++                acc = vdotq_s32(acc, w3, vld1q_s8(py +  96 + h * 16));
++            }
++        }
++
++        int32_t sum = vaddvq_s32(acc);
++
++        /* Tail: elements past the last whole block are packed sequentially. */
++        for (int i = nblk * QK_I2_S; i < n; i++) {
++            const int byte_idx = i / 4;
++            const int bit_pos  = 6 - 2 * (i % 4);
++            sum += (int32_t)((x_row[byte_idx] >> bit_pos) & 3) * y[i];
++        }
++
++        s[row] = (float)sum;
++    }
+ #else
+-    // Scalar fallback
++    /*
++     * Scalar fallback (everything that is not AVX2, notably ARM without dotprod).
++     *
++     * The weights are stored block-interleaved, not sequentially: the AVX2
++     * path consumes 32 bytes of weights against 128 activations, extracting
++     * one 2-bit field from every byte per pass. Field f of byte b therefore
++     * belongs to activation f*32 + b within the block.
++     *
++     * Codes are accumulated raw and unsigned ({0,1,2} for {-1,0,+1}), exactly
++     * as _mm256_maddubs_epi16 does: the resulting +1 bias per element is
++     * removed downstream using the precomputed per-row act_sums. Subtracting
++     * it again here would double-correct.
++     *
++     * Decoding sequentially (byte i/4, field i%4) pairs every weight with the
++     * wrong activation and yields a systematically permuted matmul, which
++     * looks like fluent-but-incoherent output rather than an obvious crash.
++     */
+     const uint8_t * x = (const uint8_t *)vx;
+-    const int8_t * y  = (const int8_t *)vy;
+-    static const int map2bit[4] = { -1, 0, 1, 0 };
++    const int8_t  * y = (const int8_t *)vy;
++
++    const int nblk = n / QK_I2_S;           /* whole 128-element blocks */
++    const int nbyte_blk = QK_I2_S / 4;      /* 32 bytes of weights per block */
++
+     for (int row = 0; row < nrc; row++) {
++        /*
++         * Row stride follows the AVX2 path (bx/4), but callers such as
++         * ggml_gemv_i2_i8_s pass bx=0 with nrc=1; fall back to n/4 so a
++         * single-row call still addresses its row correctly.
++         */
++        const size_t x_stride = (bx ? (size_t)bx : (size_t)n) / 4;
++        const uint8_t * x_row = x + (size_t)row * x_stride;
+         int32_t sum = 0;
+-        for (int i = 0; i < n; i++) {
+-            int byte_idx = i / 4;
+-            int bit_pos = 6 - 2 * (i % 4);
+-            int w = map2bit[(x[row * (n/4) + byte_idx] >> bit_pos) & 0x03];
+-            sum += w * y[i];
++
++        for (int blk = 0; blk < nblk; blk++) {
++            const uint8_t * px = x_row + (size_t)blk * nbyte_blk;
++            const int8_t  * py = y + (size_t)blk * QK_I2_S;
++
++            for (int b = 0; b < nbyte_blk; b++) {
++                const uint8_t v = px[b];
++                /* Field f sits at shift 6-2f and pairs with py[f*32 + b]. */
++                sum += (int32_t)((v >> 6) & 3) * py[b];
++                sum += (int32_t)((v >> 4) & 3) * py[32 + b];
++                sum += (int32_t)((v >> 2) & 3) * py[64 + b];
++                sum += (int32_t)( v       & 3) * py[96 + b];
++            }
+         }
++
++        /* Tail: elements past the last whole block are packed sequentially. */
++        for (int i = nblk * QK_I2_S; i < n; i++) {
++            const int byte_idx = i / 4;
++            const int bit_pos  = 6 - 2 * (i % 4);
++            sum += (int32_t)((x_row[byte_idx] >> bit_pos) & 3) * y[i];
++        }
++
+         s[row] = (float)sum;
+     }
+ #endif
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index fcf1f13..dc35379 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -1350,6 +1350,9 @@ size_t ggml_row_size(enum ggml_type type, int64_t ne) {
+     assert(type >= 0);
+     assert(type < GGML_TYPE_COUNT);
+     assert(ne % ggml_blck_size(type) == 0);
++    if (type == GGML_TYPE_I2_S || type == GGML_TYPE_TL1) {
++        return (size_t)ne / 4;
++    }
+     return ggml_type_size(type)*ne/ggml_blck_size(type);
+ }
+ 
+diff --git a/src/models/bitnet.cpp b/src/models/bitnet.cpp
+index 985c8d6..ec5dc3a 100644
+--- a/src/models/bitnet.cpp
++++ b/src/models/bitnet.cpp
+@@ -130,7 +130,7 @@ llama_model_bitnet::graph::graph(const llama_model & model, const llm_graph_para
+                 model.layers[il].ffn_gate, NULL, model.layers[il].ffn_gate_s,
+                 NULL,                      NULL, NULL,
+                 NULL,
+-                LLM_FFN_SILU, LLM_FFN_PAR, il);
++                LLM_FFN_RELU_SQR, LLM_FFN_PAR, il);
+         cb(cur, "ffn_sub_out", il);
+ 
+         cur = build_norm(cur,

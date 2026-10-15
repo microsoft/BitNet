@@ -292,7 +292,7 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         }
         
         int sumi = hsum_i32_8(accu);
-        s[row] = (float)sumi;
+        s[row * bs] = (float)sumi;
     }
 #elif defined(__ARM_NEON)
     const uint8_t *    x = (uint8_t *)vx;
@@ -406,7 +406,7 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
 #endif
         }
         int sumi = vaddlvq_s32(accu);
-        s[row] = (float)sumi;
+        s[row * bs] = (float)sumi;
     }
 #endif
 }
@@ -628,7 +628,7 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
         
         for(int rb = 0; rb < PARALLEL_SIZE; rb++) {
             int sumi = hsum_i32_8(accu[rb]);
-            s[row + rb] = (float)sumi;
+            s[(row + rb) * bs] = (float)sumi;
         }
     }
 #elif defined(__ARM_NEON)
@@ -782,7 +782,7 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
         // 合并结果并写回
         for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
             int sumi = vaddlvq_s32(accu[rb]);
-            s[row + rb] = (float)sumi;
+            s[(row + rb) * bs] = (float)sumi;
         }
     }
 #endif
