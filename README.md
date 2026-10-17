@@ -9,6 +9,10 @@
 [![Demo](https://img.shields.io/badge/Online-Demo-green?logo=microsoft)](https://demo-bitnet-h0h8hcfqeqhrf5gf.canadacentral-01.azurewebsites.net/)
 [![GPU Kernel](https://img.shields.io/badge/GPU-Kernel-6F42C1?logo=github)](https://github.com/microsoft/BitNet/blob/main/gpu/README.md)
 
+<p align="center">
+  <b>English</b> · <a href="https://github.com/microsoft/BitNet/blob/main/README.zh.md">简体中文</a>
+</p>
+
 </div>
 
 <div align="left">
