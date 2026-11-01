@@ -1054,3 +1054,30 @@ void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t b
         ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
     }
 }
+// LOCAL PATCH (ARM build): dequantize_row_i2_s is referenced by ggml.c
+// (ggml-base) but was defined only in ggml-cpu/quants.c, which this build
+// descriptor does not link. Duplicate the reference mapping here verbatim.
+extern "C" void dequantize_row_i2_s(const uint8_t * x, float * y, int64_t n, const float i2_scale);
+void dequantize_row_i2_s(const uint8_t * x, float * y, int64_t n, const float i2_scale) {
+    static const float map2bit[4] = { -1.0f, 0.0f, 1.0f, 0.0f };
+    int64_t done = 0;
+    while (done < n) {
+        int64_t cols0 = MIN(32, n - done - 0*32);
+        int64_t cols1 = MIN(32, n - done - 1*32);
+        int64_t cols2 = MIN(32, n - done - 2*32);
+        int64_t cols3 = MIN(32, n - done - 3*32);
+        for (int gp = 0; gp < 32; gp++) {
+            if ((done/4) + gp >= (n + 3) / 4) break;  // LOCAL PATCH
+            uint8_t byte = x[(done/4) + gp];
+            uint8_t c0 = (byte >> 6) & 0x03;
+            uint8_t c1 = (byte >> 4) & 0x03;
+            uint8_t c2 = (byte >> 2) & 0x03;
+            uint8_t c3 = (byte >> 0) & 0x03;
+            if (gp < cols0) y[done + 0*32 + gp] = i2_scale * map2bit[c0];
+            if (gp < cols1) y[done + 1*32 + gp] = i2_scale * map2bit[c1];
+            if (gp < cols2) y[done + 2*32 + gp] = i2_scale * map2bit[c2];
+            if (gp < cols3) y[done + 3*32 + gp] = i2_scale * map2bit[c3];
+        }
+        done += 128;
+    }
+}
