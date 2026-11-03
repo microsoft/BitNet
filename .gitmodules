@@ -1,4 +1,7 @@
 [submodule "3rdparty/llama.cpp"]
 	path = 3rdparty/llama.cpp
-	url = https://github.com/Eddie-Wang1120/llama.cpp.git
-	branch = merge-dev
+	# Fork propio: el pin (a5c3ec0 + los headers del porter) no existe upstream.
+	# HTTPS y repo público para que `git submodule update --init --recursive`
+	# funcione en cualquier máquina sin llaves SSH.
+	url = https://github.com/joanfgarcia/llama.cpp.git
+	branch = sovereign-i2s
