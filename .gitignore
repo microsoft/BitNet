@@ -43,5 +43,8 @@ __pycache__/
 */poetry.lock
 poetry.toml
 
+# Builds: SIEMPRE locales (arquitectura, toolkit y drivers son de cada máquina).
+# Nunca se versionan: se reconstruyen con scripts/bitnet_build.sh del kernel.
 build/
+build*/
 logs/
