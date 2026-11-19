@@ -1,0 +1,32 @@
+
+Loading model... |-\|/- 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9918-390c30775
+model      : /Users/antoniociolino/bitnet/BitNet/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+ftype      : I2_S
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Explain how a neural network works in exactly three sentences.
+
+|- A neural network is a computational model inspired by the human brain's structure and function. It consists of layers of interconnected nodes, or neurons, that process data through weighted connections. During training, the network adjusts these weights to minimize the difference between its predictions and the actual outcomes, enabling it to learn and make accurate predictions on new data.
+
+[ Prompt: 144.1 t/s | Generation: 44.5 t/s ]
+
+Exiting...

@@ -1,0 +1,62 @@
+[
+  {
+    "model": "Falcon3 1B",
+    "test": "explain-1",
+    "prompt_tps": 344.2,
+    "generation_tps": 103.0
+  },
+  {
+    "model": "Falcon3 1B",
+    "test": "explain-2",
+    "prompt_tps": 347.3,
+    "generation_tps": 97.2
+  },
+  {
+    "model": "Falcon3 1B",
+    "test": "explain-3",
+    "prompt_tps": 365.5,
+    "generation_tps": 87.4
+  },
+  {
+    "model": "BitNet 2.4B",
+    "test": "explain-1",
+    "prompt_tps": 179.8,
+    "generation_tps": 50.8
+  },
+  {
+    "model": "BitNet 2.4B",
+    "test": "explain-2",
+    "prompt_tps": 192.7,
+    "generation_tps": 34.4
+  },
+  {
+    "model": "BitNet 2.4B",
+    "test": "explain-3",
+    "prompt_tps": 144.1,
+    "generation_tps": 44.5
+  },
+  {
+    "model": "Falcon3 7B",
+    "test": "explain-1",
+    "prompt_tps": 67.8,
+    "generation_tps": 25.4
+  },
+  {
+    "model": "Falcon3 7B",
+    "test": "explain-2",
+    "prompt_tps": 64.8,
+    "generation_tps": 28.8
+  },
+  {
+    "model": "Falcon3 7B",
+    "test": "explain-3",
+    "prompt_tps": 64.8,
+    "generation_tps": 24.5
+  },
+  {
+    "model": "Falcon3 1B",
+    "test": "pi",
+    "prompt_tps": 387.7,
+    "generation_tps": 85.6
+  }
+]

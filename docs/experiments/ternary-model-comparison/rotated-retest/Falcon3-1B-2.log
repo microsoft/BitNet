@@ -1,0 +1,32 @@
+
+Loading model... |-\|/-\|/-\ 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9918-390c30775
+model      : /Users/antoniociolino/Documents/Codex/2026-11-18/inspect-my-local-bitnet-bitnet-repository/work/ternary-test/falcon3-1b-i2_s.gguf
+ftype      : I2_S
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Explain how a neural network works in exactly three sentences.
+
+| A neural network is a computational model inspired by the human brain's structure, consisting of interconnected nodes or neurons. Each neuron in the network receives input from neurons in the previous layer, applying a non-linear activation function to produce an output. The network's architecture is designed to learn from data by adjusting weights and biases, allowing it to make predictions or decisions based on input patterns.
+
+[ Prompt: 324.7 t/s | Generation: 88.1 t/s ]
+
+Exiting...
