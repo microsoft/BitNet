@@ -1,0 +1,666 @@
+{
+  "reference_shader": {
+    "complete": true,
+    "hardware": "Apple M2 Pro, 16 GB",
+    "settings": [
+      "-n",
+      "64",
+      "-t",
+      "8",
+      "-tb",
+      "4",
+      "-c",
+      "2048",
+      "--temp",
+      "0",
+      "--seed",
+      "42",
+      "--ignore-eos",
+      "--single-turn",
+      "--simple-io",
+      "--no-warmup",
+      "--fit",
+      "off"
+    ],
+    "variants": {
+      "cpu": [
+        "/Users/antoniociolino/bitnet/BitNet/build/bin/llama-cli",
+        "--device",
+        "none",
+        "-ngl",
+        "0",
+        "--no-kv-offload",
+        "--no-op-offload",
+        "--samplers",
+        "temperature"
+      ],
+      "hybrid": [
+        "/Users/antoniociolino/Documents/Codex/2026-11-18/inspect-my-local-bitnet-bitnet-repository/work/metal-deep/llama-cli-head-only",
+        "--device",
+        "MTL0",
+        "-ngl",
+        "1",
+        "--no-kv-offload",
+        "--no-op-offload",
+        "--backend-sampling",
+        "--samplers",
+        "temperature"
+      ],
+      "full_gpu": [
+        "/Users/antoniociolino/Documents/Codex/2026-11-18/inspect-my-local-bitnet-bitnet-repository/work/full-metal/llama-cli-full-metal",
+        "--device",
+        "MTL0",
+        "-ngl",
+        "all",
+        "--no-op-offload",
+        "-ot",
+        "^token_embd\\.weight$=MTL0",
+        "--backend-sampling",
+        "--samplers",
+        "temperature"
+      ]
+    },
+    "results": [
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 1,
+        "prompt_tps": 194.1,
+        "generation_tps": 68.0,
+        "wall_seconds": 1.702058541,
+        "peak_resident_bytes": 1427472384,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 1,
+        "prompt_tps": 188.5,
+        "generation_tps": 63.9,
+        "wall_seconds": 2.6817146659999995,
+        "peak_resident_bytes": 1465991168,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 1,
+        "prompt_tps": 41.9,
+        "generation_tps": 31.4,
+        "wall_seconds": 3.004012209,
+        "peak_resident_bytes": 1465991168,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 2,
+        "prompt_tps": 164.1,
+        "generation_tps": 52.0,
+        "wall_seconds": 1.7187484580000003,
+        "peak_resident_bytes": 1429520384,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 2,
+        "prompt_tps": 42.2,
+        "generation_tps": 30.9,
+        "wall_seconds": 2.9888280839999997,
+        "peak_resident_bytes": 1469186048,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 2,
+        "prompt_tps": 196.7,
+        "generation_tps": 73.7,
+        "wall_seconds": 1.3936702089999997,
+        "peak_resident_bytes": 1464729600,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 3,
+        "prompt_tps": 42.2,
+        "generation_tps": 30.9,
+        "wall_seconds": 2.9472269590000018,
+        "peak_resident_bytes": 1468661760,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 3,
+        "prompt_tps": 173.8,
+        "generation_tps": 53.0,
+        "wall_seconds": 1.6530546249999993,
+        "peak_resident_bytes": 1427783680,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 3,
+        "prompt_tps": 143.4,
+        "generation_tps": 67.6,
+        "wall_seconds": 1.5344964999999995,
+        "peak_resident_bytes": 1465860096,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 1,
+        "prompt_tps": 208.2,
+        "generation_tps": 54.1,
+        "wall_seconds": 3.820477499999999,
+        "peak_resident_bytes": 1468121088,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 1,
+        "prompt_tps": 209.4,
+        "generation_tps": 58.5,
+        "wall_seconds": 3.796319125,
+        "peak_resident_bytes": 1504051200,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 1,
+        "prompt_tps": 42.8,
+        "generation_tps": 30.5,
+        "wall_seconds": 13.677731833,
+        "peak_resident_bytes": 1467023360,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 2,
+        "prompt_tps": 210.8,
+        "generation_tps": 56.0,
+        "wall_seconds": 3.799217542000001,
+        "peak_resident_bytes": 1465237504,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 2,
+        "prompt_tps": 43.2,
+        "generation_tps": 31.0,
+        "wall_seconds": 13.491690708,
+        "peak_resident_bytes": 1468071936,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 2,
+        "prompt_tps": 209.0,
+        "generation_tps": 65.2,
+        "wall_seconds": 3.7206542089999957,
+        "peak_resident_bytes": 1504673792,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 3,
+        "prompt_tps": 43.1,
+        "generation_tps": 30.9,
+        "wall_seconds": 13.507203542,
+        "peak_resident_bytes": 1468579840,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 3,
+        "prompt_tps": 203.1,
+        "generation_tps": 47.9,
+        "wall_seconds": 4.0613114590000094,
+        "peak_resident_bytes": 1465221120,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 3,
+        "prompt_tps": 204.2,
+        "generation_tps": 58.2,
+        "wall_seconds": 3.891642958999995,
+        "peak_resident_bytes": 1505214464,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      }
+    ],
+    "summary": {
+      "short": {
+        "throughput": {
+          "cpu": {
+            "prompt_tps": 173.8,
+            "generation_tps": 53.0,
+            "wall_seconds": 1.702058541,
+            "peak_resident_bytes": 1427783680
+          },
+          "hybrid": {
+            "prompt_tps": 188.5,
+            "generation_tps": 67.6,
+            "wall_seconds": 1.5344964999999995,
+            "peak_resident_bytes": 1465860096
+          },
+          "full_gpu": {
+            "prompt_tps": 42.2,
+            "generation_tps": 30.9,
+            "wall_seconds": 2.9888280839999997,
+            "peak_resident_bytes": 1468661760
+          }
+        },
+        "response_hashes": {
+          "cpu": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ],
+          "hybrid": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ],
+          "full_gpu": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ]
+        }
+      },
+      "long": {
+        "throughput": {
+          "cpu": {
+            "prompt_tps": 208.2,
+            "generation_tps": 54.1,
+            "wall_seconds": 3.820477499999999,
+            "peak_resident_bytes": 1465237504
+          },
+          "hybrid": {
+            "prompt_tps": 209.0,
+            "generation_tps": 58.5,
+            "wall_seconds": 3.796319125,
+            "peak_resident_bytes": 1504673792
+          },
+          "full_gpu": {
+            "prompt_tps": 43.1,
+            "generation_tps": 30.9,
+            "wall_seconds": 13.507203542,
+            "peak_resident_bytes": 1468071936
+          }
+        },
+        "response_hashes": {
+          "cpu": [
+            "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+          ],
+          "hybrid": [
+            "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+          ],
+          "full_gpu": [
+            "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+          ]
+        }
+      }
+    }
+  },
+  "shared_activation_shader": {
+    "complete": true,
+    "hardware": "Apple M2 Pro, 16 GB",
+    "settings": [
+      "-n",
+      "64",
+      "-t",
+      "8",
+      "-tb",
+      "4",
+      "-c",
+      "2048",
+      "--temp",
+      "0",
+      "--seed",
+      "42",
+      "--ignore-eos",
+      "--single-turn",
+      "--simple-io",
+      "--no-warmup",
+      "--fit",
+      "off"
+    ],
+    "variants": {
+      "cpu": [
+        "/Users/antoniociolino/bitnet/BitNet/build/bin/llama-cli",
+        "--device",
+        "none",
+        "-ngl",
+        "0",
+        "--no-kv-offload",
+        "--no-op-offload",
+        "--samplers",
+        "temperature"
+      ],
+      "hybrid": [
+        "/Users/antoniociolino/Documents/Codex/2026-11-18/inspect-my-local-bitnet-bitnet-repository/work/metal-deep/llama-cli-head-only",
+        "--device",
+        "MTL0",
+        "-ngl",
+        "1",
+        "--no-kv-offload",
+        "--no-op-offload",
+        "--backend-sampling",
+        "--samplers",
+        "temperature"
+      ],
+      "full_gpu": [
+        "/Users/antoniociolino/Documents/Codex/2026-11-18/inspect-my-local-bitnet-bitnet-repository/work/full-metal/llama-cli-full-metal",
+        "--device",
+        "MTL0",
+        "-ngl",
+        "all",
+        "--no-op-offload",
+        "-ot",
+        "^token_embd\\.weight$=MTL0",
+        "--backend-sampling",
+        "--samplers",
+        "temperature"
+      ]
+    },
+    "results": [
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 1,
+        "prompt_tps": 187.0,
+        "generation_tps": 61.0,
+        "wall_seconds": 2.0652775,
+        "peak_resident_bytes": 1406795776,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 1,
+        "prompt_tps": 169.8,
+        "generation_tps": 45.8,
+        "wall_seconds": 2.095492875,
+        "peak_resident_bytes": 1466695680,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 1,
+        "prompt_tps": 33.2,
+        "generation_tps": 24.4,
+        "wall_seconds": 13.214157333,
+        "peak_resident_bytes": 1468104704,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 2,
+        "prompt_tps": 196.6,
+        "generation_tps": 62.4,
+        "wall_seconds": 1.520279582999997,
+        "peak_resident_bytes": 1427537920,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 2,
+        "prompt_tps": 34.6,
+        "generation_tps": 24.4,
+        "wall_seconds": 3.634684457999999,
+        "peak_resident_bytes": 1465384960,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 2,
+        "prompt_tps": 190.8,
+        "generation_tps": 61.5,
+        "wall_seconds": 1.6202025420000012,
+        "peak_resident_bytes": 1464811520,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "full_gpu",
+        "repeat": 3,
+        "prompt_tps": 34.7,
+        "generation_tps": 24.2,
+        "wall_seconds": 3.6178621669999984,
+        "peak_resident_bytes": 1465368576,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "cpu",
+        "repeat": 3,
+        "prompt_tps": 172.6,
+        "generation_tps": 52.8,
+        "wall_seconds": 1.6457586250000027,
+        "peak_resident_bytes": 1427619840,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "short",
+        "variant": "hybrid",
+        "repeat": 3,
+        "prompt_tps": 194.6,
+        "generation_tps": 57.1,
+        "wall_seconds": 1.664034000000001,
+        "peak_resident_bytes": 1464844288,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications. The network's ability to learn from data and",
+        "response_sha256": "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 1,
+        "prompt_tps": 206.1,
+        "generation_tps": 53.9,
+        "wall_seconds": 3.8254045419999976,
+        "peak_resident_bytes": 1464500224,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 1,
+        "prompt_tps": 210.4,
+        "generation_tps": 56.4,
+        "wall_seconds": 3.846925374999998,
+        "peak_resident_bytes": 1507147776,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 1,
+        "prompt_tps": 33.4,
+        "generation_tps": 23.5,
+        "wall_seconds": 17.394911625,
+        "peak_resident_bytes": 1468547072,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 2,
+        "prompt_tps": 209.7,
+        "generation_tps": 57.9,
+        "wall_seconds": 3.788534624999997,
+        "peak_resident_bytes": 1468350464,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 2,
+        "prompt_tps": 33.1,
+        "generation_tps": 24.0,
+        "wall_seconds": 17.508496458000003,
+        "peak_resident_bytes": 1470496768,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 2,
+        "prompt_tps": 209.2,
+        "generation_tps": 53.4,
+        "wall_seconds": 3.9329516669999975,
+        "peak_resident_bytes": 1502330880,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "full_gpu",
+        "repeat": 3,
+        "prompt_tps": 33.2,
+        "generation_tps": 24.3,
+        "wall_seconds": 17.360446292000006,
+        "peak_resident_bytes": 1472036864,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations across different layers. Each layer performs a specific transformation, enhancing the network's ability to learn complex patterns. The process of training refines these transformations to improve the network's overall performance. \n\nThe training process adjusts the parameters inside a neural network to refine",
+        "response_sha256": "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+      },
+      {
+        "case": "long",
+        "variant": "cpu",
+        "repeat": 3,
+        "prompt_tps": 209.8,
+        "generation_tps": 61.6,
+        "wall_seconds": 3.6830989999999986,
+        "peak_resident_bytes": 1465647104,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      },
+      {
+        "case": "long",
+        "variant": "hybrid",
+        "repeat": 3,
+        "prompt_tps": 206.0,
+        "generation_tps": 58.6,
+        "wall_seconds": 3.8634020410000005,
+        "peak_resident_bytes": 1504378880,
+        "response": "Training neural networks involves adjusting parameters to transform inputs into progressively more useful representations. Different layers within the network perform this transformation, enhancing the network's ability to learn complex patterns. The process of training refines the network's parameters to improve its performance on various tasks. \n\nThe training process adjusts the parameters inside a neural network to",
+        "response_sha256": "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+      }
+    ],
+    "summary": {
+      "short": {
+        "throughput": {
+          "cpu": {
+            "prompt_tps": 187.0,
+            "generation_tps": 61.0,
+            "wall_seconds": 1.6457586250000027,
+            "peak_resident_bytes": 1427537920
+          },
+          "hybrid": {
+            "prompt_tps": 190.8,
+            "generation_tps": 57.1,
+            "wall_seconds": 1.664034000000001,
+            "peak_resident_bytes": 1464844288
+          },
+          "full_gpu": {
+            "prompt_tps": 34.6,
+            "generation_tps": 24.4,
+            "wall_seconds": 3.634684457999999,
+            "peak_resident_bytes": 1465384960
+          }
+        },
+        "response_hashes": {
+          "cpu": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ],
+          "hybrid": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ],
+          "full_gpu": [
+            "c98eb0daaa483c91aba051e0cf0c93d7cd4091ba5bc71dedbcec7ecae12bc60e"
+          ]
+        }
+      },
+      "long": {
+        "throughput": {
+          "cpu": {
+            "prompt_tps": 209.7,
+            "generation_tps": 57.9,
+            "wall_seconds": 3.788534624999997,
+            "peak_resident_bytes": 1465647104
+          },
+          "hybrid": {
+            "prompt_tps": 209.2,
+            "generation_tps": 56.4,
+            "wall_seconds": 3.8634020410000005,
+            "peak_resident_bytes": 1504378880
+          },
+          "full_gpu": {
+            "prompt_tps": 33.2,
+            "generation_tps": 24.0,
+            "wall_seconds": 17.394911625,
+            "peak_resident_bytes": 1470496768
+          }
+        },
+        "response_hashes": {
+          "cpu": [
+            "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+          ],
+          "hybrid": [
+            "0677884eeeebd7965faccc22d81d947b0ddf58d3fac96b334c962b0aa08e39c0"
+          ],
+          "full_gpu": [
+            "2b25f77e4e107f744d736baf62a3cd394408553c1d42b368902d7db6cce6ba25"
+          ]
+        }
+      }
+    }
+  },
+  "scalar_checks": "PASS I2_S shader width128 rows7 tokens5 zero0 maxdiff2.38419e-07\nPASS I2_S shader width2560 rows32 tokens5 zero0 maxdiff0\nPASS I2_S shader width6912 rows17 tokens1 zero0 maxdiff0\nPASS I2_S shader width128 rows7 tokens5 zero1 maxdiff0\nPASS I2_S shader width2560 rows32 tokens5 zero1 maxdiff0\nPASS I2_S shader width6912 rows17 tokens1 zero1 maxdiff0\n",
+  "shared_scalar_checks": "PASS I2_S shader width128 rows7 tokens5 zero0 maxdiff2.38419e-07\nPASS I2_S shader width2560 rows32 tokens5 zero0 maxdiff0\nPASS I2_S shader width6912 rows17 tokens1 zero0 maxdiff0\nPASS I2_S shader width128 rows7 tokens5 zero1 maxdiff0\nPASS I2_S shader width2560 rows32 tokens5 zero1 maxdiff0\nPASS I2_S shader width6912 rows17 tokens1 zero1 maxdiff0\n",
+  "placement": "Debug trace confirms all non-view model compute nodes on MTL0, including I2_S projections and attention. Host tokenization and process control remain CPU.",
+  "best_full_gpu": "reference shader retained as separate executable; shared activation revision was slower."
+}

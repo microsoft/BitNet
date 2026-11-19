@@ -27,6 +27,7 @@ def run_server():
         '-m', args.model,
         '-c', str(args.ctx_size),
         '-t', str(args.threads),
+        '-tb', str(args.threads_batch if args.threads_batch is not None else args.threads),
         '-n', str(args.n_predict),
         '-ngl', '0',
         '--temp', str(args.temperature),
@@ -54,7 +55,8 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--model", type=str, help="Path to model file", required=False, default="models/bitnet_b1_58-3B/ggml-model-i2_s.gguf")
     parser.add_argument("-p", "--prompt", type=str, help="System prompt for the model", required=False)
     parser.add_argument("-n", "--n-predict", type=int, help="Number of tokens to predict", required=False, default=4096)
-    parser.add_argument("-t", "--threads", type=int, help="Number of threads to use", required=False, default=2)
+    parser.add_argument("-t", "--threads", type=int, help="Number of threads to use", required=False, default=(min(8, os.cpu_count() or 2) if platform.system() == "Darwin" and platform.machine() == "arm64" else 2))
+    parser.add_argument("-tb", "--threads-batch", type=int, help="Threads for prompt processing", default=(min(4, os.cpu_count() or 2) if platform.system() == "Darwin" and platform.machine() == "arm64" else None))
     parser.add_argument("-c", "--ctx-size", type=int, help="Size of the context window", required=False, default=2048)
     parser.add_argument("--temperature", type=float, help="Temperature for sampling", required=False, default=0.8)
     parser.add_argument("--host", type=str, help="IP address to listen on", required=False, default="127.0.0.1")

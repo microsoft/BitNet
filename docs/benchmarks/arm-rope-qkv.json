@@ -1,0 +1,570 @@
+{
+  "first_comparison": {
+    "results": [
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 0,
+        "prompt_tps": 184.1,
+        "generation_tps": 64.6,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "rope",
+        "repeat": 0,
+        "prompt_tps": 181.5,
+        "generation_tps": 49.2,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 0,
+        "prompt_tps": 169.3,
+        "generation_tps": 56.8,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 0,
+        "prompt_tps": 192.9,
+        "generation_tps": 54.1,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "rope",
+        "repeat": 1,
+        "prompt_tps": 180.9,
+        "generation_tps": 46.1,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 1,
+        "prompt_tps": 192.4,
+        "generation_tps": 63.4,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 1,
+        "prompt_tps": 193.0,
+        "generation_tps": 66.8,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 1,
+        "prompt_tps": 192.9,
+        "generation_tps": 49.5,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 2,
+        "prompt_tps": 182.5,
+        "generation_tps": 47.4,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 2,
+        "prompt_tps": 188.3,
+        "generation_tps": 57.6,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 2,
+        "prompt_tps": 193.4,
+        "generation_tps": 51.9,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "rope",
+        "repeat": 2,
+        "prompt_tps": 192.4,
+        "generation_tps": 48.5,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 0,
+        "prompt_tps": 211.1,
+        "generation_tps": 58.1,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "rope",
+        "repeat": 0,
+        "prompt_tps": 205.6,
+        "generation_tps": 50.3,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 0,
+        "prompt_tps": 206.1,
+        "generation_tps": 67.6,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 0,
+        "prompt_tps": 206.7,
+        "generation_tps": 49.0,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "rope",
+        "repeat": 1,
+        "prompt_tps": 205.2,
+        "generation_tps": 56.1,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 1,
+        "prompt_tps": 208.5,
+        "generation_tps": 54.6,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 1,
+        "prompt_tps": 203.5,
+        "generation_tps": 35.8,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 1,
+        "prompt_tps": 207.4,
+        "generation_tps": 45.5,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 2,
+        "prompt_tps": 210.5,
+        "generation_tps": 59.6,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 2,
+        "prompt_tps": 201.4,
+        "generation_tps": 48.3,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 2,
+        "prompt_tps": 207.9,
+        "generation_tps": 45.8,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "rope",
+        "repeat": 2,
+        "prompt_tps": 210.3,
+        "generation_tps": 55.9,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      }
+    ],
+    "summary": {
+      "short": {
+        "baseline": {
+          "prompt_tps": 192.9,
+          "generation_tps": 51.9
+        },
+        "rope": {
+          "prompt_tps": 181.5,
+          "generation_tps": 48.5
+        },
+        "qkv": {
+          "prompt_tps": 182.5,
+          "generation_tps": 56.8
+        },
+        "both": {
+          "prompt_tps": 192.9,
+          "generation_tps": 57.6
+        },
+        "identical": true
+      },
+      "long": {
+        "baseline": {
+          "prompt_tps": 207.9,
+          "generation_tps": 45.8
+        },
+        "rope": {
+          "prompt_tps": 205.6,
+          "generation_tps": 55.9
+        },
+        "qkv": {
+          "prompt_tps": 208.5,
+          "generation_tps": 59.6
+        },
+        "both": {
+          "prompt_tps": 203.5,
+          "generation_tps": 48.3
+        },
+        "identical": true
+      }
+    }
+  },
+  "confirmation": {
+    "results": [
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 0,
+        "prompt_tps": 195.4,
+        "generation_tps": 56.9,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 0,
+        "prompt_tps": 188.1,
+        "generation_tps": 55.0,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 0,
+        "prompt_tps": 163.8,
+        "generation_tps": 45.3,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 1,
+        "prompt_tps": 186.6,
+        "generation_tps": 50.9,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 1,
+        "prompt_tps": 188.6,
+        "generation_tps": 42.2,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 1,
+        "prompt_tps": 114.8,
+        "generation_tps": 57.5,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 2,
+        "prompt_tps": 197.4,
+        "generation_tps": 52.6,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 2,
+        "prompt_tps": 187.7,
+        "generation_tps": 48.7,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 2,
+        "prompt_tps": 180.7,
+        "generation_tps": 55.7,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 3,
+        "prompt_tps": 180.4,
+        "generation_tps": 43.6,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 3,
+        "prompt_tps": 193.7,
+        "generation_tps": 36.6,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 3,
+        "prompt_tps": 177.0,
+        "generation_tps": 49.1,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "baseline",
+        "repeat": 4,
+        "prompt_tps": 180.9,
+        "generation_tps": 56.4,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "qkv",
+        "repeat": 4,
+        "prompt_tps": 139.6,
+        "generation_tps": 53.9,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "short",
+        "variant": "both",
+        "repeat": 4,
+        "prompt_tps": 188.1,
+        "generation_tps": 53.8,
+        "response": "A neural network is a computational model inspired by the human brain's structure and function. It consists of interconnected nodes or \"neurons\" that process and transmit information. Through a process of learning, the network adjusts the strength of connections between neurons to make accurate predictions or classifications.",
+        "hash": "c1a1675f035c917cb6e64e01ec1c69c250d128871c77b8ac8292e5d9184af3db"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 0,
+        "prompt_tps": 207.8,
+        "generation_tps": 48.5,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 0,
+        "prompt_tps": 206.2,
+        "generation_tps": 53.7,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 0,
+        "prompt_tps": 204.7,
+        "generation_tps": 57.7,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 1,
+        "prompt_tps": 208.2,
+        "generation_tps": 62.6,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 1,
+        "prompt_tps": 207.8,
+        "generation_tps": 44.3,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 1,
+        "prompt_tps": 207.2,
+        "generation_tps": 63.9,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 2,
+        "prompt_tps": 209.2,
+        "generation_tps": 54.0,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 2,
+        "prompt_tps": 205.6,
+        "generation_tps": 53.5,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 2,
+        "prompt_tps": 203.6,
+        "generation_tps": 47.8,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 3,
+        "prompt_tps": 209.2,
+        "generation_tps": 55.7,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 3,
+        "prompt_tps": 208.5,
+        "generation_tps": 45.4,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 3,
+        "prompt_tps": 210.2,
+        "generation_tps": 60.5,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "baseline",
+        "repeat": 4,
+        "prompt_tps": 210.3,
+        "generation_tps": 59.5,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "qkv",
+        "repeat": 4,
+        "prompt_tps": 212.0,
+        "generation_tps": 61.7,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      },
+      {
+        "case": "long",
+        "variant": "both",
+        "repeat": 4,
+        "prompt_tps": 212.2,
+        "generation_tps": 62.9,
+        "response": "Neural networks consist of layers of interconnected units that are trained through examples and feedback, adjusting their weights accordingly. The training process involves updating the weights to minimize errors and improve the network's performance. Neural networks utilize layers of interconnected units to process inputs and produce outputs, with the weights being adjusted to optimize accuracy and efficiency.",
+        "hash": "fe15a8bf580313f5bd5ea652fc8b0bdef4bf0858b9272855b1c67166e21dc738"
+      }
+    ],
+    "summary": {
+      "short": {
+        "baseline": {
+          "prompt_tps": 180.9,
+          "generation_tps": 56.4
+        },
+        "qkv": {
+          "prompt_tps": 186.6,
+          "generation_tps": 53.9
+        },
+        "both": {
+          "prompt_tps": 188.1,
+          "generation_tps": 49.1
+        },
+        "identical": true
+      },
+      "long": {
+        "baseline": {
+          "prompt_tps": 207.8,
+          "generation_tps": 55.7
+        },
+        "qkv": {
+          "prompt_tps": 208.2,
+          "generation_tps": 53.7
+        },
+        "both": {
+          "prompt_tps": 209.2,
+          "generation_tps": 57.7
+        },
+        "identical": true
+      }
+    }
+  },
+  "decision": "Both optional paths default off because end-to-end results were mixed.",
+  "validation": "Grouped QKV and cached RoPE bit-identical on 9 shape/thread configurations, frequency scaling and extrapolation."
+}
