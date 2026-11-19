@@ -1,3 +1,31 @@
+## Apple Silicon optimization results
+
+This branch repairs BitNet-b1.58-2B-4T inference and records CPU, hybrid and full-Metal experiments on an M2 Pro with 16 GB RAM.
+
+**The fastest measured response configuration is output-only hybrid Metal with GPU sampling.** An earlier short-prompt comparison reached 73.4 tokens/s. The later comparison measured hybrid at 67.6 tokens/s, CPU at 53.0 and full Metal at 30.9. On the longer prompt in that comparison, hybrid measured 58.5, CPU 54.1 and full Metal 30.9 tokens/s. Earlier longer-input tests sometimes favored CPU, so the winner depends on workload. See the raw measurements for settings and variation.
+
+The normal CPU build retains the verified repairs, NEON SDOT kernels, tiled prompt processing, activation SIMD and ReLU-square fusion. RoPE sharing and grouped QKV remain opt-in after mixed full-model results. Full Metal is a separate experimental shader baseline.
+
+- [Complete history, every change, and keep/revert decisions](docs/optimization-history.md)
+- [CPU performance details and test commands](docs/arm-i2s-performance.md)
+- [Raw measurements](docs/benchmarks/)
+- [Metal findings](docs/experiments/bitnet-metal-and-cpu-findings.md)
+- [Hybrid patch, applied inside the nested llama.cpp checkout](docs/experiments/bitnet-metal-output-only.patch)
+- [Full-Metal patch, applied inside the nested llama.cpp checkout](docs/experiments/bitnet-full-metal.patch)
+- [Experimental sources and benchmark scripts](docs/experiments/reproduction/)
+- [CPU benchmark runner](utils/benchmark-arm-i2s.py)
+- [RoPE/QKV benchmark runner](utils/benchmark-bitnet-graph.py)
+- [I2_S regression tests](utils/test-i2s-kernels.c)
+- [RoPE/QKV regression tests](utils/test-bitnet-graph.cpp)
+
+Build the hybrid in a separate directory with Metal enabled after applying its patch. With the usual model and prompt arguments, the measured greedy configuration uses:
+
+```sh
+--device MTL0 -ngl 1 --no-kv-offload --no-op-offload --backend-sampling --samplers temperature --temp 0 -t 8 -tb 4 -c 2048 --single-turn
+```
+
+CPU defaults are eight generation and four prompt threads. Experimental CPU options are `BITNET_ENABLE_ROPE_CACHE=1` and `BITNET_ENABLE_GROUP_QKV=1`. The history records exactness tests and mixed performance results. Full Metal passed the tested shader comparisons but produced different text on the longer input. Generated binaries and model files are excluded from Git. Experimental scripts retain the local build-layout assumptions described in the history.
+
 <div align="center">
 
 # bitnet.cpp
