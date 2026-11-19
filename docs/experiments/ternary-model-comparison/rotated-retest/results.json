@@ -1,0 +1,65 @@
+[
+  {
+    "model": "Falcon3 1B",
+    "round": 1,
+    "prompt_tps": 350.6,
+    "generation_tps": 105.4,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 3663 \nPages purgeable: 5802 \nPages purged: 170768947 \n\nSwap I/O:\nSwapins: 166585135 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 274805 \nPages inactive: 257000 \nPages speculative: 16666 \nPages throttled: 0 \nPages wired down: 216501 \n\nCompressor Stats:\nPages used by compressor: 227189 \nPages decompressed: 2105821506 \nPages compressed: 2380106102 \n\nFile I/O:\nPageins: 882924928 \nPageouts: 13409068 \n\nSystem-wide memory free percentage: 55%\n"
+  },
+  {
+    "model": "BitNet 2.4B",
+    "round": 1,
+    "prompt_tps": 193.1,
+    "generation_tps": 69.2,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 26008 \nPages purgeable: 4283 \nPages purged: 170769004 \n\nSwap I/O:\nSwapins: 166585135 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 236238 \nPages inactive: 231973 \nPages speculative: 5104 \nPages throttled: 0 \nPages wired down: 216232 \n\nCompressor Stats:\nPages used by compressor: 280165 \nPages decompressed: 2105824995 \nPages compressed: 2380210827 \n\nFile I/O:\nPageins: 883009911 \nPageouts: 13409624 \n\nSystem-wide memory free percentage: 50%\n"
+  },
+  {
+    "model": "Falcon3 7B",
+    "round": 1,
+    "prompt_tps": 68.3,
+    "generation_tps": 33.1,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 26606 \nPages purgeable: 2256 \nPages purged: 170772944 \n\nSwap I/O:\nSwapins: 166585187 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 217871 \nPages inactive: 195324 \nPages speculative: 24528 \nPages throttled: 0 \nPages wired down: 210971 \n\nCompressor Stats:\nPages used by compressor: 320454 \nPages decompressed: 2105847296 \nPages compressed: 2380322196 \n\nFile I/O:\nPageins: 883086445 \nPageouts: 13409657 \n\nSystem-wide memory free percentage: 46%\n"
+  },
+  {
+    "model": "BitNet 2.4B",
+    "round": 2,
+    "prompt_tps": 192.1,
+    "generation_tps": 72.6,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 35211 \nPages purgeable: 542 \nPages purged: 170773479 \n\nSwap I/O:\nSwapins: 166585227 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 189306 \nPages inactive: 199892 \nPages speculative: 17091 \nPages throttled: 0 \nPages wired down: 216701 \n\nCompressor Stats:\nPages used by compressor: 337549 \nPages decompressed: 2105936919 \nPages compressed: 2380444269 \n\nFile I/O:\nPageins: 883308048 \nPageouts: 13410105 \n\nSystem-wide memory free percentage: 44%\n"
+  },
+  {
+    "model": "Falcon3 7B",
+    "round": 2,
+    "prompt_tps": 67.7,
+    "generation_tps": 29.6,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 26435 \nPages purgeable: 1298 \nPages purged: 170773881 \n\nSwap I/O:\nSwapins: 166585231 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 217980 \nPages inactive: 201319 \nPages speculative: 18698 \nPages throttled: 0 \nPages wired down: 210583 \n\nCompressor Stats:\nPages used by compressor: 320805 \nPages decompressed: 2105997278 \nPages compressed: 2380477340 \n\nFile I/O:\nPageins: 883394096 \nPageouts: 13410195 \n\nSystem-wide memory free percentage: 46%\n"
+  },
+  {
+    "model": "Falcon3 1B",
+    "round": 2,
+    "prompt_tps": 324.7,
+    "generation_tps": 88.1,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 34189 \nPages purgeable: 1242 \nPages purged: 170774245 \n\nSwap I/O:\nSwapins: 166585235 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 189610 \nPages inactive: 198488 \nPages speculative: 19254 \nPages throttled: 0 \nPages wired down: 223306 \n\nCompressor Stats:\nPages used by compressor: 331017 \nPages decompressed: 2106106144 \nPages compressed: 2380602721 \n\nFile I/O:\nPageins: 883522800 \nPageouts: 13410425 \n\nSystem-wide memory free percentage: 44%\n"
+  },
+  {
+    "model": "Falcon3 7B",
+    "round": 3,
+    "prompt_tps": 62.9,
+    "generation_tps": 35.1,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 25370 \nPages purgeable: 3360 \nPages purged: 170774269 \n\nSwap I/O:\nSwapins: 166585239 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 213365 \nPages inactive: 200345 \nPages speculative: 14237 \nPages throttled: 0 \nPages wired down: 216008 \n\nCompressor Stats:\nPages used by compressor: 326344 \nPages decompressed: 2106142941 \nPages compressed: 2380633005 \n\nFile I/O:\nPageins: 883608734 \nPageouts: 13410505 \n\nSystem-wide memory free percentage: 45%\n"
+  },
+  {
+    "model": "Falcon3 1B",
+    "round": 3,
+    "prompt_tps": 364.6,
+    "generation_tps": 84.3,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 23050 \nPages purgeable: 1528 \nPages purged: 170777010 \n\nSwap I/O:\nSwapins: 166585243 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 203666 \nPages inactive: 193427 \nPages speculative: 22605 \nPages throttled: 0 \nPages wired down: 211317 \n\nCompressor Stats:\nPages used by compressor: 341663 \nPages decompressed: 2106178781 \nPages compressed: 2380719506 \n\nFile I/O:\nPageins: 883714563 \nPageouts: 13410661 \n\nSystem-wide memory free percentage: 44%\n"
+  },
+  {
+    "model": "BitNet 2.4B",
+    "round": 3,
+    "prompt_tps": 188.2,
+    "generation_tps": 45.3,
+    "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\n\nStats: \nPages free: 26241 \nPages purgeable: 493 \nPages purged: 170777120 \n\nSwap I/O:\nSwapins: 166585247 \nSwapouts: 182432688 \n\nPage Q counts:\nPages active: 208058 \nPages inactive: 202231 \nPages speculative: 6759 \nPages throttled: 0 \nPages wired down: 216454 \n\nCompressor Stats:\nPages used by compressor: 336070 \nPages decompressed: 2106202998 \nPages compressed: 2380736250 \n\nFile I/O:\nPageins: 883754220 \nPageouts: 13410712 \n\nSystem-wide memory free percentage: 44%\n"
+  }
+]

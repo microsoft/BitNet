@@ -453,3 +453,7 @@ Import-Module "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common
 ```
 
 These steps will initialize your environment and allow you to use the correct Visual Studio tools.
+
+### Additional ternary models and planner integration
+
+See [Falcon model comparisons](docs/experiments/ternary-model-comparison/README.md) for matched CPU measurements, raw logs, pi output-quality checks, LM Studio compatibility, and the existing persistent server integration route.
