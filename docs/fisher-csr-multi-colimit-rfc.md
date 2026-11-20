@@ -38,6 +38,18 @@ $$W_l \approx \operatorname{diag}(\tau_l)\,\mathcal{U}_{\text{TL2}}^{(g)}\,\oper
 | **24-Layer Footprint (`L=24` indep. vs. `K=4` Multi-Colimit)** | `14.52 MiB` | **`5.14 MiB`** | **`2.82x` smaller (L3-resident)** |
 | **C++17 AVX2 Numerical Exactness (`test-bitnet-kinecat-fusion.cpp`)** | — | **`max_diff = 1.48e-06`** | Bit-exact `TL1` & `TL2` |
 
+### Real Pretrained Model Evaluation: Zero-Shot PTQ on `Qwen/Qwen2.5-Coder-0.5B-Instruct` ($L=24$, 168 Linear Layers)
+
+Calibrating diagonal Fisher/Hessian curvature $H_{jj} = \mathbb{E}[x_j^2]$ on a disjoint calibration split and evaluating held-out Perplexity (PPL) and Teacher KL Divergence (zero fine-tuning steps):
+
+| Quantization Configuration | Effective BPW | Perplexity ($\downarrow$) | KL Divergence vs. BF16 ($\downarrow$) | Gain vs. Pure `TL2` |
+| :--- | :---: | :---: | :---: | :---: |
+| **BF16 Teacher (`Qwen2.5-Coder-0.5B-Instruct`)** | `16.000` | `3.95` | `0.00` | Reference |
+| **Pure BitNet `TL2` (`0.0%` Fisher CSR)** | `1.667` | `214,582.94` | `785.91` | Catastrophic PTQ collapse |
+| **BitNet `TL2` + `1.35%` Fisher CSR Int8** | `1.989` | `22,307.92` | `613.49` | **`9.62x` lower PPL** |
+| **BitNet `TL2` + `2.00%` Fisher CSR Int8** | `2.149` | `2,174.26` | `447.59` | **`98.69x` lower PPL** |
+| **BitNet `TL2` + `2.80%` Fisher CSR Int8** | **`2.337`** | **`304.63`** | **`312.10`** | **`704.41x` lower PPL (`-60.3%` KL)** |
+
 ### Reproduce Locally
 
 ```bash
