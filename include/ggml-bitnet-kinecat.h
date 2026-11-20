@@ -291,6 +291,63 @@ static inline void ggml_bitnet_tl2_fisher_csr_q16_matvec(
     }
 }
 
+/*
+ * Standalone Fisher Curvature CSR Int8 Epilogue + Codomain Natural Transformation (tau_out)
+ * for direct attachment to existing ggml_bitnet_mul_mat_task_compute outputs in ggml-bitnet-lut.cpp.
+ * Updates y_inout[r] = tau_out[r] * (y_inout[r] + o_scale[r] * x_scale * <R_CSR_r, x_q8>).
+ */
+static inline void ggml_bitnet_apply_fisher_csr_epilogue(
+    const ggml_bitnet_kinecat_morph_t * morph,
+    const int8_t                      * x_q8,
+    float                               x_scale,
+    float                             * y_inout
+) {
+    if (morph == NULL) {
+        return;
+    }
+    const int32_t rows = morph->rows;
+    for (int32_t r = 0; r < rows; ++r) {
+        float val = y_inout[r];
+        if (morph->csr_row_ptr != NULL) {
+            const uint32_t csr_start = morph->csr_row_ptr[r];
+            const uint32_t csr_end   = morph->csr_row_ptr[r + 1];
+            if (csr_end > csr_start) {
+                int32_t o_acc = 0;
+                for (uint32_t idx = csr_start; idx < csr_end; ++idx) {
+                    const uint16_t col = morph->csr_col_idx[idx];
+                    o_acc += (int32_t)morph->csr_vals[idx] * (int32_t)x_q8[col];
+                }
+                const float o_scale = (float)morph->o_scales_q16[r] * (1.0f / 65536.0f);
+                val += ((float)o_acc * o_scale) * x_scale;
+            }
+        }
+        const float tau = (morph->tau_out != NULL) ? morph->tau_out[r] : 1.0f;
+        y_inout[r] = val * tau;
+    }
+}
+
+/*
+ * Dual Caputo Q16.16 Integer Fractional Depth Memory (3-tap non-Markovian residual connection):
+ *   h_l <- (w0 * h_l + w1 * h_{l-1} + w2 * h_{l-2}) >> 16
+ * Stabilizes deep 24+ layer ternary networks without extra weight matrices.
+ */
+static inline void ggml_bitnet_caputo_q16_depth_step(
+    float       * h_curr,
+    const float * h_prev1,
+    const float * h_prev2,
+    int32_t       dim,
+    int32_t       w0_q16,
+    int32_t       w1_q16,
+    int32_t       w2_q16
+) {
+    const float f0 = (float)w0_q16 * (1.0f / 65536.0f);
+    const float f1 = (float)w1_q16 * (1.0f / 65536.0f);
+    const float f2 = (float)w2_q16 * (1.0f / 65536.0f);
+    for (int32_t i = 0; i < dim; ++i) {
+        h_curr[i] = f0 * h_curr[i] + f1 * h_prev1[i] + f2 * h_prev2[i];
+    }
+}
+
 #ifdef __cplusplus
 }
 #endif

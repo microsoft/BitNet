@@ -13,6 +13,10 @@
 #include "ggml-quants.h"
 #include "ggml-cpu-impl.h"
 
+#if defined(GGML_BITNET_FISHER_CSR)
+#include "ggml-bitnet-kinecat.h"
+#endif
+
 #if defined(GGML_BITNET_ARM_TL1) || defined(GGML_BITNET_X86_TL2)
 #include "bitnet-lut-kernels.h"
 #endif
@@ -130,6 +134,18 @@ void ggml_bitnet_mul_mat(const struct ggml_compute_params * params, struct ggml_
         (void *)lut_biases,
         (void *)((char *)dst->data),
         ne10, ne00, ne11, bits);
+
+#if defined(GGML_BITNET_FISHER_CSR)
+    if (ith == 0 && extra->fisher_csr_morph != nullptr && ne11 == 1) {
+        const ggml_bitnet_kinecat_morph_t * morph =
+            (const ggml_bitnet_kinecat_morph_t *)extra->fisher_csr_morph;
+        std::vector<int8_t> x_q8((size_t)morph->cols);
+        const float x_scale = ggml_bitnet_subln_and_quantize_i8(
+            (const float *)src1->data, morph->sigma_in, morph->cols, 1e-5f, x_q8.data());
+        ggml_bitnet_apply_fisher_csr_epilogue(
+            morph, x_q8.data(), x_scale, (float *)dst->data);
+    }
+#endif
 }
 
 #endif

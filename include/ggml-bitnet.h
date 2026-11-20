@@ -22,6 +22,9 @@ struct bitnet_tensor_extra {
     int n_tile_num;
     uint8_t * qweights;
     bitnet_float_type * scales;
+#if defined(GGML_BITNET_FISHER_CSR)
+    const void * fisher_csr_morph; /* Optional ggml_bitnet_kinecat_morph_t* for Fisher CSR + Multi-Colimit */
+#endif
 };
 
 GGML_API void ggml_bitnet_init(void);
