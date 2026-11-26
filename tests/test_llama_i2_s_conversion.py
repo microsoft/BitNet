@@ -125,3 +125,34 @@ def test_i2_s_rejects_nonfinite_float_weights(value):
             torch.full((128, 128), value),
             None,
         )
+
+
+def test_i2_s_tensor_round_trips_through_gguf(tmp_path):
+    name = "model.layers.0.mlp.down_proj.weight"
+    packed = torch.full((32, 128), 0x99, dtype=torch.uint8)
+    model = object.__new__(converter.LlamaModel)
+    model.hparams = {"num_attention_heads": 2, "num_hidden_layers": 1}
+    model.block_count = 1
+    model.tensor_map = converter.gguf.get_tensor_name_map(model.model_arch, 1)
+    model.ftype = converter.gguf.GGMLQuantizationType.I2_S
+    path = tmp_path / "model.gguf"
+    model.gguf_writer = converter.gguf.GGUFWriter(path, "llama")
+    model.get_tensors = lambda: iter(
+        [
+            (name, packed),
+            (name.replace(".weight", ".weight_scale"), torch.tensor([4.0])),
+        ]
+    )
+    converter.args = SimpleNamespace(quant_embd=False)
+    model.write_tensors()
+    model.gguf_writer.write_header_to_file()
+    model.gguf_writer.write_kv_data_to_file()
+    model.gguf_writer.write_tensors_to_file()
+    model.gguf_writer.close()
+
+    tensor = converter.gguf.GGUFReader(path).tensors[0]
+    assert tensor.name == "blk.0.ffn_down.weight"
+    assert tensor.tensor_type == converter.gguf.GGMLQuantizationType.I2_S
+    assert tuple(tensor.shape) == (128, 128)
+    assert tensor.data.size == 128 * 128 // 4 + 32
+    assert np.frombuffer(tensor.data[4096:4100].tobytes(), dtype=np.float32)[0] == 0.25
