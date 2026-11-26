@@ -797,14 +797,15 @@ class LlamaModel(Model):
             if data_torch.dtype not in (torch.float16, torch.float32):
                 data_torch = data_torch.to(torch.float32)
 
-            if name.replace(".weight", "") in scale_map:
+            offline_scale = scale_map.get(name.replace(".weight", ""))
+            if offline_scale is not None:
                 data_torch = data_torch.to(torch.uint8)
                 origin_shape = data_torch.shape
                 shift = torch.tensor([0, 2, 4, 6], dtype=torch.uint8).reshape((4, *(1 for _ in range(len(origin_shape)))))
                 data_torch = data_torch.unsqueeze(0).expand((4, *origin_shape)) >> shift
                 data_torch = data_torch & 3
                 data_torch = (data_torch.float() - 1).reshape((origin_shape[0] * 4, *origin_shape[1:]))
-                data_torch = data_torch / scale_map[name.replace(".weight", "")].float()
+                data_torch = data_torch / offline_scale.float()
 
             # use the first number-like part of the tensor name as the block id
             bid = None
@@ -866,7 +867,33 @@ class LlamaModel(Model):
 
                 i2_scale = None
                 if self.ftype != gguf.GGMLQuantizationType.F32 and extra_f16 and not extra_f32:
-                    if self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
+                    if self.ftype == gguf.GGMLQuantizationType.I2_S and suit_i2:
+                        if n_dims != 2 or data.shape[-1] % 128:
+                            raise ValueError(
+                                f"Cannot encode {name!r} as I2_S: expected a 2D "
+                                "tensor with a row width divisible by 128"
+                            )
+                        if offline_scale is not None:
+                            multiplier = offline_scale.item()
+                            if not np.isfinite(multiplier) or multiplier <= 0:
+                                raise ValueError(f"Invalid weight scale for {name!r}: {multiplier}")
+                            # Falcon stores the inverse of the dequantization
+                            # scale. Undo the float conversion after any Q/K
+                            # permutation to recover the packed ternaries.
+                            ternary = np.round(data * multiplier)
+                            if np.any((ternary < -1) | (ternary > 1)):
+                                raise ValueError(f"Invalid ternary weight values in {name!r}")
+                            scale = 1.0 / multiplier
+                        else:
+                            # Match the BitNet absmean quantizer for floating
+                            # weights which have not already been packed.
+                            if not np.isfinite(data).all():
+                                raise ValueError(f"Non-finite weights in {name!r}")
+                            scale = max(float(np.abs(data).mean()), 1e-5)
+                            ternary = np.clip(np.round(data / scale), -1, 1)
+                        data = quantize_to_i2_s(ternary, override_scale=scale)
+                        data_qtype = gguf.GGMLQuantizationType.I2_S
+                    elif self.ftype == gguf.GGMLQuantizationType.TL1 and suit_i2:
                         data, i2_scale = transform_to_tl1(data)
                         assert data.dtype == np.uint8
                         assert i2_scale.dtype == np.float32
