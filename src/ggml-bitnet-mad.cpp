@@ -870,6 +870,17 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
 
 
 void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+#if defined(__ARM_NEON)
+    if (nrc == 1) {
+        ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, 1);
+    } else {
+#if defined(ACT_PARALLEL)
+        ggml_vec_dot_i2_i8_s_Nx1(n, s, bs, vx, bx, vy, by, nrc);
+#else
+        ggml_vec_dot_i2_i8_s_1xN(n, s, bs, vx, bx, vy, by, nrc);
+#endif
+    }
+#else
     if (nrc % PARALLEL_SIZE == 0)
     {
 #if defined(ACT_PARALLEL)
@@ -882,4 +893,5 @@ void ggml_vec_dot_i2_i8_s(int n, float * s, size_t bs, const void * vx, size_t b
     {
         ggml_vec_dot_i2_i8_s_1x1(n, s, bs, vx, bx, vy, by, nrc);
     }
+#endif
 }

@@ -187,7 +187,7 @@ bool test_quantize_i2_s(int & checks) {
 
 bool test_vec_dot_kernels(int & checks) {
     const int n_list[] = {128, 256, 2560, 6912};
-    const int nrc_list[] = {1, 2, 4, 8};
+    const int nrc_list[] = {1, 2, 3, 4, 6, 8};
     const float w_choices[3] = {-1.0f, 0.0f, 1.0f};
 
     std::mt19937 rng(20261127);
@@ -292,17 +292,10 @@ bool test_vec_dot_kernels(int & checks) {
                     ++checks;
                 }
 
-                // 4) Test top-level dispatcher ggml_vec_dot_i2_i8_s for exact dispatch shapes
-                if (nrc == 1) {
-                    float out = -999999.0f;
-                    ggml_vec_dot_i2_i8_s(n, &out, 1, packed_x.data(), static_cast<size_t>(n), y_mat.data(), 0, 1);
-                    const int64_t exp = ref_dot_i2_i8(packed_x.data(), y_mat.data(), n);
-                    if (!check_close(out, exp, "dispatch_1", n, nrc, 0)) {
-                        return false;
-                    }
-                    ++checks;
-                } else if (nrc % PARALLEL_SIZE == 0) {
-                    const size_t bs = 2;
+                // 4) Test top-level dispatcher ggml_vec_dot_i2_i8_s for ALL nrc values
+                //    (including non-multiples of PARALLEL_SIZE, e.g. prompt tails during GEMM prefill).
+                {
+                    const size_t bs = (nrc == 1) ? 1 : 2;
                     std::vector<float> out(static_cast<size_t>(nrc) * bs, -999999.0f);
                     ggml_vec_dot_i2_i8_s(
                         n, out.data(), bs, packed_x.data(), static_cast<size_t>(n),
@@ -310,7 +303,7 @@ bool test_vec_dot_kernels(int & checks) {
                     for (int c = 0; c < nrc; ++c) {
                         const int64_t exp = ref_dot_i2_i8(
                             packed_x.data(), y_mat.data() + static_cast<size_t>(c) * static_cast<size_t>(n), n);
-                        if (!check_close(out[static_cast<size_t>(c) * bs], exp, "dispatch_N", n, nrc, c)) {
+                        if (!check_close(out[static_cast<size_t>(c) * bs], exp, "dispatch_Nx1", n, nrc, c)) {
                             return false;
                         }
                     }
