@@ -11,7 +11,7 @@
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
 #define QK_I2_S 128
 #elif defined(__ARM_NEON)
-#define QK_I2_S 64
+#define QK_I2_S 128
 #endif
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__)
@@ -45,6 +45,65 @@ static inline int hsum_i32_8(const __m256i a) {
     sum64_2 = __lsx_vpickve2gr_w(sum64, 1);
 
     return  sum64_1 + sum64_2;
+}
+#elif defined(__ARM_NEON)
+static inline int32x4_t bitnet_neon_dot_block128_loaded(
+    int32x4_t accu,
+    int8x16_t q0_lo, int8x16_t q0_hi,
+    int8x16_t q1_lo, int8x16_t q1_hi,
+    int8x16_t q2_lo, int8x16_t q2_hi,
+    int8x16_t q3_lo, int8x16_t q3_hi,
+    int8x16_t y0_lo, int8x16_t y0_hi,
+    int8x16_t y1_lo, int8x16_t y1_hi,
+    int8x16_t y2_lo, int8x16_t y2_hi,
+    int8x16_t y3_lo, int8x16_t y3_hi) {
+#if defined(__ARM_FEATURE_DOTPROD)
+    accu = vdotq_s32(accu, q0_lo, y0_lo);
+    accu = vdotq_s32(accu, q0_hi, y0_hi);
+    accu = vdotq_s32(accu, q1_lo, y1_lo);
+    accu = vdotq_s32(accu, q1_hi, y1_hi);
+    accu = vdotq_s32(accu, q2_lo, y2_lo);
+    accu = vdotq_s32(accu, q2_hi, y2_hi);
+    accu = vdotq_s32(accu, q3_lo, y3_lo);
+    accu = vdotq_s32(accu, q3_hi, y3_hi);
+#else
+    // Accumulate a single 128-element block in int16x8_t (max |lane| <= 16 * 3 * 128 = 6144 < 32767)
+    // and widen to int32x4_t every block so large n never overflows int16_t.
+    int16x8_t sum16 = vmull_s8(vget_low_s8(q0_lo), vget_low_s8(y0_lo));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q0_lo), vget_high_s8(y0_lo));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q0_hi),  vget_low_s8(y0_hi));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q0_hi), vget_high_s8(y0_hi));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q1_lo),  vget_low_s8(y1_lo));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q1_lo), vget_high_s8(y1_lo));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q1_hi),  vget_low_s8(y1_hi));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q1_hi), vget_high_s8(y1_hi));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q2_lo),  vget_low_s8(y2_lo));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q2_lo), vget_high_s8(y2_lo));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q2_hi),  vget_low_s8(y2_hi));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q2_hi), vget_high_s8(y2_hi));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q3_lo),  vget_low_s8(y3_lo));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q3_lo), vget_high_s8(y3_lo));
+    sum16 = vmlal_s8(sum16, vget_low_s8(q3_hi),  vget_low_s8(y3_hi));
+    sum16 = vmlal_s8(sum16, vget_high_s8(q3_hi), vget_high_s8(y3_hi));
+    accu = vpadalq_s16(accu, sum16);
+#endif
+    return accu;
+}
+
+static inline int32x4_t bitnet_neon_dot_block128(
+    int32x4_t accu,
+    int8x16_t q0_lo, int8x16_t q0_hi,
+    int8x16_t q1_lo, int8x16_t q1_hi,
+    int8x16_t q2_lo, int8x16_t q2_hi,
+    int8x16_t q3_lo, int8x16_t q3_hi,
+    const int8_t * py) {
+    return bitnet_neon_dot_block128_loaded(
+        accu,
+        q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi,
+        vld1q_s8(py + 0),  vld1q_s8(py + 16),
+        vld1q_s8(py + 32), vld1q_s8(py + 48),
+        vld1q_s8(py + 64), vld1q_s8(py + 80),
+        vld1q_s8(py + 96), vld1q_s8(py + 112));
 }
 #endif
 
@@ -149,19 +208,20 @@ size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_
     return nrow * row_size / 4 + 32;
 #endif
 #elif defined(__ARM_NEON)
+    (void)quant_weights;
     size_t row_size = ggml_row_size(GGML_TYPE_I2_S, n_per_row);
 
-    int n = nrow * n_per_row;
+    int64_t n = nrow * n_per_row;
 
     // f32 -> q8
     double max = 0;
-    for (int i = 0; i < n; ++i) {
+    for (int64_t i = 0; i < n; ++i) {
         max = fmax(max, (double)fabs((double)src[i]));
     }
     double i2_scale = max;
 
-    uint8_t* q8 = (uint8_t*)malloc(n * sizeof(uint8_t));
-    for (int i=0; i<n; i++) {
+    uint8_t* q8 = (uint8_t*)malloc((size_t)n * sizeof(uint8_t));
+    for (int64_t i = 0; i < n; i++) {
         if (fabs((double)(src[i])) < 1e-6) {
             q8[i] = 1;
             continue;
@@ -169,29 +229,29 @@ size_t quantize_i2_s(const float * src, void * dst, int64_t nrow, int64_t n_per_
         q8[i] = (double)src[i] * i2_scale > 0 ? 2 : 0;
     }
 
-    memset(dst, 0, n * sizeof(uint8_t) / 4);
+    memset(dst, 0, (size_t)(n / 4));
 
     // q8 -> 0, 1, 2
     //       |  |  |
     //      -1, 0, 1
 
     uint8_t* i2_weight = (uint8_t*)dst;
-    for (int i = 0; i < n / QK_I2_S; i++) {
+    for (int64_t i = 0; i < n / QK_I2_S; i++) {
         for (int j = 0; j < QK_I2_S; j++) {
-            int group_idx = j / 16;
-            int group_pos = j % 16;
-            uint8_t temp = (q8[i * QK_I2_S + j] << (6 - 2 * group_idx));
-            i2_weight[i * 16 + group_pos] |= temp;            
+            int group_idx = j / 32;
+            int group_pos = j % 32;
+            uint8_t temp = (uint8_t)(q8[i * QK_I2_S + j] << (6 - 2 * group_idx));
+            i2_weight[i * 32 + group_pos] |= temp;
         }
     }
 
     float* scale_ptr = (float*)((char*)i2_weight + n / 4);
-    scale_ptr[0] = i2_scale;
+    scale_ptr[0] = (float)i2_scale;
 
     free(q8);
 
     // 32B for alignment
-    return nrow * row_size / 4 + 32;
+    return (size_t)nrow * row_size / 4 + 32;
 #endif
 }
 
@@ -295,118 +355,39 @@ void ggml_vec_dot_i2_i8_s_1x1(int n, float * s, size_t bs, const void * vx, size
         s[row] = (float)sumi;
     }
 #elif defined(__ARM_NEON)
-    const uint8_t *    x = (uint8_t *)vx;
-    const int8_t  *    y = (int8_t *)vy;
+    (void)bs;
+    (void)by;
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t *)vy;
 
     const int nb = n / QK_I2_S;
-    const int group32_num = nb / 32;
-    const int la_num = nb % 32;
-    const int groupla_num = nb % 32 != 0 ? 1 : 0;
-
     const uint8x16_t mask = vdupq_n_u8(3);
 
-    // 处理多列，nrc表示要处理的列数
     for (int row = 0; row < nrc; row++) {
         int32x4_t accu = vdupq_n_s32(0);
+        const uint8_t * x_row = x + (size_t)row * bx / 4;
 
-        // 计算当前行的x指针偏移
-        const uint8_t * x_row = x + row * bx / 4;
+        for (int j = 0; j < nb; j++) {
+            const uint8_t * px = x_row + (size_t)j * 32;
+            const int8_t  * py = y + (size_t)j * 128;
 
-        for (int i=0; i < group32_num; i++) {
+            const uint8x16_t x_lo = vld1q_u8(px);
+            const uint8x16_t x_hi = vld1q_u8(px + 16);
 
-#if defined(__ARM_FEATURE_DOTPROD)
+            const int8x16_t q0_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 6), mask));
+            const int8x16_t q0_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 6), mask));
+            const int8x16_t q1_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 4), mask));
+            const int8x16_t q1_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 4), mask));
+            const int8x16_t q2_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 2), mask));
+            const int8x16_t q2_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 2), mask));
+            const int8x16_t q3_lo = vreinterpretq_s8_u8(vandq_u8(x_lo, mask));
+            const int8x16_t q3_hi = vreinterpretq_s8_u8(vandq_u8(x_hi, mask));
 
-#else
-            int16x8_t accu32 = vdupq_n_s16(0);
-#endif
-            for (int j=0; j < 32; j++) {
-                uint8x16_t xq8_3 = vld1q_u8(x_row + i * 32 * 16 + j * 16);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                const int8x16_t yq8_0 = vld1q_s8(y + i * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + i * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + i * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + i * 32 * 64 + j * 64 + 48);
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                accu = vdotq_s32(accu, q8_0, yq8_0);
-                accu = vdotq_s32(accu, q8_1, yq8_1);
-                accu = vdotq_s32(accu, q8_2, yq8_2);
-                accu = vdotq_s32(accu, q8_3, yq8_3);
-#else
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                accu32 = vmlal_s8(accu32, vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                accu32 = vmlal_s8(accu32, vget_high_s8(q8_3), vget_high_s8(yq8_3));
-#endif
-            }
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accu32)));
-            accu = vaddq_s32(accu, vmovl_high_s16(accu32));
-#endif
+            accu = bitnet_neon_dot_block128(
+                accu, q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi, py);
         }
 
-        for (int i = 0; i < groupla_num; i++){
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            int16x8_t accula = vdupq_n_s16(0);
-#endif
-            for (int j = 0; j < la_num; j++) {
-                uint8x16_t xq8_3 = vld1q_u8(x_row + group32_num * 32 * 16 + j * 16);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                const int8x16_t yq8_0 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 48);
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                accu = vdotq_s32(accu, q8_0, yq8_0);
-                accu = vdotq_s32(accu, q8_1, yq8_1);
-                accu = vdotq_s32(accu, q8_2, yq8_2);
-                accu = vdotq_s32(accu, q8_3, yq8_3);
-#else
-                accula = vmlal_s8(accula, vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                accula = vmlal_s8(accula, vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                accula = vmlal_s8(accula, vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                accula = vmlal_s8(accula, vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                accula = vmlal_s8(accula, vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                accula = vmlal_s8(accula, vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                accula = vmlal_s8(accula, vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                accula = vmlal_s8(accula, vget_high_s8(q8_3), vget_high_s8(yq8_3));
-#endif
-            }
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            accu = vaddq_s32(accu, vmovl_s16(vget_low_s16(accula)));
-            accu = vaddq_s32(accu, vmovl_high_s16(accula));
-#endif
-        }
-        int sumi = vaddlvq_s32(accu);
-        s[row] = (float)sumi;
+        s[row] = (float)vaddlvq_s32(accu);
     }
 #endif
 }
@@ -505,7 +486,7 @@ void ggml_vec_dot_i2_i8_s_1x4_32W(int n, float * s, size_t bs, const void * vx, 
         }
     }
 #elif defined(__ARM_NEON)
-
+    (void)n; (void)s; (void)bs; (void)vx; (void)bx; (void)vy; (void)by; (void)nrc;
 #endif
 }
 
@@ -632,158 +613,86 @@ void ggml_vec_dot_i2_i8_s_1xN(int n, float * s, size_t bs, const void * vx, size
         }
     }
 #elif defined(__ARM_NEON)
-    const uint8_t *    x = (uint8_t *)vx;
-    const int8_t  *    y = (int8_t *)vy;
+    (void)bs;
+    (void)by;
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t *)vy;
 
     const int nb = n / QK_I2_S;
-    const int group32_num = nb / 32;
-    const int la_num = nb % 32;
-    const int groupla_num = nb % 32 != 0 ? 1 : 0;
-    
     const uint8x16_t mask = vdupq_n_u8(3);
 
-    // 处理多行，nrc表示要处理的行数
-    for (int row = 0; row < nrc; row += PARALLEL_SIZE) {
-
+    int row = 0;
+    for (; row + PARALLEL_SIZE <= nrc; row += PARALLEL_SIZE) {
         int32x4_t accu[PARALLEL_SIZE];
         const uint8_t * x_row[PARALLEL_SIZE];
-        
+
         for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
             accu[rb] = vdupq_n_s32(0);
-            x_row[rb] = x + (row + rb) * bx / 4;
+            x_row[rb] = x + (size_t)(row + rb) * bx / 4;
         }
 
-        for (int i = 0; i < group32_num; i++) {
-#if defined(__ARM_FEATURE_DOTPROD)
+        for (int j = 0; j < nb; j++) {
+            const int8_t * py = y + (size_t)j * 128;
+            const int8x16_t y0_lo = vld1q_s8(py + 0);
+            const int8x16_t y0_hi = vld1q_s8(py + 16);
+            const int8x16_t y1_lo = vld1q_s8(py + 32);
+            const int8x16_t y1_hi = vld1q_s8(py + 48);
+            const int8x16_t y2_lo = vld1q_s8(py + 64);
+            const int8x16_t y2_hi = vld1q_s8(py + 80);
+            const int8x16_t y3_lo = vld1q_s8(py + 96);
+            const int8x16_t y3_hi = vld1q_s8(py + 112);
 
-#else
-            int16x8_t accu32[PARALLEL_SIZE];
             for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                accu32[rb] = vdupq_n_s16(0);
+                const uint8_t * px = x_row[rb] + (size_t)j * 32;
+                const uint8x16_t x_lo = vld1q_u8(px);
+                const uint8x16_t x_hi = vld1q_u8(px + 16);
+
+                const int8x16_t q0_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 6), mask));
+                const int8x16_t q0_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 6), mask));
+                const int8x16_t q1_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 4), mask));
+                const int8x16_t q1_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 4), mask));
+                const int8x16_t q2_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 2), mask));
+                const int8x16_t q2_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 2), mask));
+                const int8x16_t q3_lo = vreinterpretq_s8_u8(vandq_u8(x_lo, mask));
+                const int8x16_t q3_hi = vreinterpretq_s8_u8(vandq_u8(x_hi, mask));
+
+                accu[rb] = bitnet_neon_dot_block128_loaded(
+                    accu[rb],
+                    q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi,
+                    y0_lo, y0_hi, y1_lo, y1_hi, y2_lo, y2_hi, y3_lo, y3_hi);
             }
-#endif
-            const uint8_t * px[PARALLEL_SIZE];
-            for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                px[rb] = x_row[rb] + i * 32 * 16;
-            }
-
-            for (int j = 0; j < 32; j++) {
-                // 加载 y 数据（对所有行共享）
-                const int8x16_t yq8_0 = vld1q_s8(y + i * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + i * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + i * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + i * 32 * 64 + j * 64 + 48);
-
-                // 处理每一行
-                for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                    uint8x16_t xq8_3 = vld1q_u8(px[rb] + 0);
-                    uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                    uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                    uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                    int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-                    int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                    int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                    int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                    accu[rb] = vdotq_s32(accu[rb], q8_0, yq8_0);
-                    accu[rb] = vdotq_s32(accu[rb], q8_1, yq8_1);
-                    accu[rb] = vdotq_s32(accu[rb], q8_2, yq8_2);
-                    accu[rb] = vdotq_s32(accu[rb], q8_3, yq8_3);
-#else
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_high_s8(q8_3), vget_high_s8(yq8_3));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                    accu32[rb] = vmlal_s8(accu32[rb], vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                    
-#endif
-                    px[rb] += 16;
-                }
-            }
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                accu[rb] = vaddq_s32(accu[rb], vmovl_s16(vget_low_s16(accu32[rb])));
-                accu[rb] = vaddq_s32(accu[rb], vmovl_high_s16(accu32[rb]));
-            }
-#endif
         }
 
-        for (int i = 0; i < groupla_num; i++) {
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            int16x8_t accula[PARALLEL_SIZE];
-            for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                accula[rb] = vdupq_n_s16(0);
-            }
-#endif
-            const uint8_t * px[PARALLEL_SIZE];
-            for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                px[rb] = x_row[rb] + group32_num * 32 * 16;
-            }
-
-            for (int j = 0; j < la_num; j++) {
-                // 加载 y 数据（对所有行共享）
-                const int8x16_t yq8_0 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 0);
-                const int8x16_t yq8_1 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 16);
-                const int8x16_t yq8_2 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 32);
-                const int8x16_t yq8_3 = vld1q_s8(y + group32_num * 32 * 64 + j * 64 + 48);
-
-                // 处理每一行
-                for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                    uint8x16_t xq8_3 = vld1q_u8(px[rb] + 0);
-                    uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                    uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                    uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                    int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-                    int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                    int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                    int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                    
-#if defined(__ARM_FEATURE_DOTPROD)
-                    accu[rb] = vdotq_s32(accu[rb], q8_0, yq8_0);
-                    accu[rb] = vdotq_s32(accu[rb], q8_1, yq8_1);
-                    accu[rb] = vdotq_s32(accu[rb], q8_2, yq8_2);
-                    accu[rb] = vdotq_s32(accu[rb], q8_3, yq8_3);
-#else
-                    accula[rb] = vmlal_s8(accula[rb], vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                    accula[rb] = vmlal_s8(accula[rb], vget_high_s8(q8_3), vget_high_s8(yq8_3));
-                    accula[rb] = vmlal_s8(accula[rb], vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                    accula[rb] = vmlal_s8(accula[rb], vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                    accula[rb] = vmlal_s8(accula[rb], vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                    accula[rb] = vmlal_s8(accula[rb], vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                    accula[rb] = vmlal_s8(accula[rb], vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                    accula[rb] = vmlal_s8(accula[rb], vget_high_s8(q8_0), vget_high_s8(yq8_0));
-
-#endif
-                    px[rb] += 16;
-                }
-            }
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-                accu[rb] = vaddq_s32(accu[rb], vmovl_s16(vget_low_s16(accula[rb])));
-                accu[rb] = vaddq_s32(accu[rb], vmovl_high_s16(accula[rb]));
-            }
-#endif
-        }
-
-        // 合并结果并写回
         for (int rb = 0; rb < PARALLEL_SIZE; rb++) {
-            int sumi = vaddlvq_s32(accu[rb]);
-            s[row + rb] = (float)sumi;
+            s[row + rb] = (float)vaddlvq_s32(accu[rb]);
         }
+    }
+
+    for (; row < nrc; row++) {
+        int32x4_t accu = vdupq_n_s32(0);
+        const uint8_t * x_row = x + (size_t)row * bx / 4;
+
+        for (int j = 0; j < nb; j++) {
+            const uint8_t * px = x_row + (size_t)j * 32;
+            const int8_t  * py = y + (size_t)j * 128;
+
+            const uint8x16_t x_lo = vld1q_u8(px);
+            const uint8x16_t x_hi = vld1q_u8(px + 16);
+
+            const int8x16_t q0_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 6), mask));
+            const int8x16_t q0_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 6), mask));
+            const int8x16_t q1_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 4), mask));
+            const int8x16_t q1_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 4), mask));
+            const int8x16_t q2_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 2), mask));
+            const int8x16_t q2_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 2), mask));
+            const int8x16_t q3_lo = vreinterpretq_s8_u8(vandq_u8(x_lo, mask));
+            const int8x16_t q3_hi = vreinterpretq_s8_u8(vandq_u8(x_hi, mask));
+
+            accu = bitnet_neon_dot_block128(
+                accu, q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi, py);
+        }
+
+        s[row] = (float)vaddlvq_s32(accu);
     }
 #endif
 }
@@ -886,155 +795,75 @@ void ggml_vec_dot_i2_i8_s_Nx1(int n, float * s, size_t bs, const void * vx, size
         }
     }
 #elif defined(__ARM_NEON)
-    const uint8_t *    x = (uint8_t *)vx;
-    const int8_t  *    y = (int8_t *)vy;
+    (void)bx;
+    const uint8_t * x = (const uint8_t *)vx;
+    const int8_t  * y = (const int8_t *)vy;
 
     const int nb = n / QK_I2_S;
-    const int group32_num = nb / 32;
-    const int la_num = nb % 32;
-    const int groupla_num = nb % 32 != 0 ? 1 : 0;
-
     const uint8x16_t mask = vdupq_n_u8(3);
 
-    for (int col = 0; col < nrc; col += PARALLEL_SIZE) {
+    int col = 0;
+    for (; col + PARALLEL_SIZE <= nrc; col += PARALLEL_SIZE) {
         int32x4_t accu[PARALLEL_SIZE];
-
         for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
             accu[iy] = vdupq_n_s32(0);
         }
 
-        const int8_t * y_col = y + col * by;
-        
-        for (int i = 0; i < group32_num; i++) {
-            const uint8_t *px = x + i * 512;     // i * 32 * 16
-            const int8_t  *py = y_col + i * 2048; // i * 32 * 64
+        const int8_t * y_col = y + (size_t)col * by;
 
-#if defined(__ARM_FEATURE_DOTPROD)
+        for (int j = 0; j < nb; j++) {
+            const uint8_t * px = x + (size_t)j * 32;
+            const int8_t  * py = y_col + (size_t)j * 128;
 
-#else
-            int16x8_t accu32[PARALLEL_SIZE];
+            const uint8x16_t x_lo = vld1q_u8(px);
+            const uint8x16_t x_hi = vld1q_u8(px + 16);
+
+            const int8x16_t q0_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 6), mask));
+            const int8x16_t q0_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 6), mask));
+            const int8x16_t q1_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 4), mask));
+            const int8x16_t q1_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 4), mask));
+            const int8x16_t q2_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 2), mask));
+            const int8x16_t q2_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 2), mask));
+            const int8x16_t q3_lo = vreinterpretq_s8_u8(vandq_u8(x_lo, mask));
+            const int8x16_t q3_hi = vreinterpretq_s8_u8(vandq_u8(x_hi, mask));
 
             for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                accu32[iy] = vdupq_n_s16(0);
+                accu[iy] = bitnet_neon_dot_block128(
+                    accu[iy], q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi,
+                    py + (size_t)iy * by);
             }
-#endif
-            for (int j = 0; j < 32; j++) {
-                // 加载并解包 x 数据（对所有列共享）
-                uint8x16_t xq8_3 = vld1q_u8(px + 0);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                // 处理每一列
-                for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                    const int8x16_t yq8_0 = vld1q_s8(py + 0 * 16 + iy * by);
-                    const int8x16_t yq8_1 = vld1q_s8(py + 1 * 16 + iy * by);
-                    const int8x16_t yq8_2 = vld1q_s8(py + 2 * 16 + iy * by);
-                    const int8x16_t yq8_3 = vld1q_s8(py + 3 * 16 + iy * by);
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                    accu[iy] = vdotq_s32(accu[iy], q8_0, yq8_0);
-                    accu[iy] = vdotq_s32(accu[iy], q8_1, yq8_1);
-                    accu[iy] = vdotq_s32(accu[iy], q8_2, yq8_2);
-                    accu[iy] = vdotq_s32(accu[iy], q8_3, yq8_3);
-#else
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                    accu32[iy] = vmlal_s8(accu32[iy], vget_high_s8(q8_3), vget_high_s8(yq8_3));
-#endif
-                }
-
-                px += 16;
-                py += 64;
-            }
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                accu[iy] = vaddq_s32(accu[iy], vaddq_s32(vmovl_high_s16(accu32[iy]), vmovl_s16(vget_low_s16(accu32[iy]))));
-            }
-#endif
         }
 
-        for (int i = 0; i < groupla_num; i++) {
-            const uint8_t *px = x + group32_num * 512;
-            const int8_t  *py = y_col + group32_num * 2048;
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            int16x8_t accula[PARALLEL_SIZE];
-
-            for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                accula[iy] = vdupq_n_s16(0);
-            }
-#endif
-            
-            for (int j = 0; j < la_num; j++) {
-                // 加载并解包 x 数据（对所有列共享）
-                uint8x16_t xq8_3 = vld1q_u8(px + 0);
-                uint8x16_t xq8_2 = vshrq_n_u8(xq8_3, 2);
-                uint8x16_t xq8_1 = vshrq_n_u8(xq8_3, 4);
-                uint8x16_t xq8_0 = vshrq_n_u8(xq8_3, 6);
-
-                int8x16_t q8_0 = vreinterpretq_s8_u8(vandq_u8(xq8_0, mask));
-                int8x16_t q8_1 = vreinterpretq_s8_u8(vandq_u8(xq8_1, mask));
-                int8x16_t q8_2 = vreinterpretq_s8_u8(vandq_u8(xq8_2, mask));
-                int8x16_t q8_3 = vreinterpretq_s8_u8(vandq_u8(xq8_3, mask));
-
-                // 处理每一列
-                for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                    const int8x16_t yq8_0 = vld1q_s8(py + 0 * 16 + iy * by);
-                    const int8x16_t yq8_1 = vld1q_s8(py + 1 * 16 + iy * by);
-                    const int8x16_t yq8_2 = vld1q_s8(py + 2 * 16 + iy * by);
-                    const int8x16_t yq8_3 = vld1q_s8(py + 3 * 16 + iy * by);
-
-#if defined(__ARM_FEATURE_DOTPROD)
-                    accu[iy] = vdotq_s32(accu[iy], q8_0, yq8_0);
-                    accu[iy] = vdotq_s32(accu[iy], q8_1, yq8_1);
-                    accu[iy] = vdotq_s32(accu[iy], q8_2, yq8_2);
-                    accu[iy] = vdotq_s32(accu[iy], q8_3, yq8_3);
-#else
-                    accula[iy] = vmlal_s8(accula[iy], vget_low_s8(q8_0), vget_low_s8(yq8_0));
-                    accula[iy] = vmlal_s8(accula[iy], vget_high_s8(q8_0), vget_high_s8(yq8_0));
-                    accula[iy] = vmlal_s8(accula[iy], vget_low_s8(q8_1), vget_low_s8(yq8_1));
-                    accula[iy] = vmlal_s8(accula[iy], vget_high_s8(q8_1), vget_high_s8(yq8_1));
-                    accula[iy] = vmlal_s8(accula[iy], vget_low_s8(q8_2), vget_low_s8(yq8_2));
-                    accula[iy] = vmlal_s8(accula[iy], vget_high_s8(q8_2), vget_high_s8(yq8_2));
-                    accula[iy] = vmlal_s8(accula[iy], vget_low_s8(q8_3), vget_low_s8(yq8_3));
-                    accula[iy] = vmlal_s8(accula[iy], vget_high_s8(q8_3), vget_high_s8(yq8_3));
-#endif
-                }
-
-                px += 16;
-                py += 64;
-            }
-
-#if defined(__ARM_FEATURE_DOTPROD)
-
-#else
-            for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-                accu[iy] = vaddq_s32(accu[iy], vaddq_s32(vmovl_high_s16(accula[iy]), vmovl_s16(vget_low_s16(accula[iy]))));
-            }
-#endif
-        }
-
-        // 合并结果并写回
         for (int iy = 0; iy < PARALLEL_SIZE; iy++) {
-            int sumi = vaddlvq_s32(accu[iy]);
-            s[(col + iy) * bs] = (float)sumi;
+            s[(size_t)(col + iy) * bs] = (float)vaddlvq_s32(accu[iy]);
         }
+    }
+
+    for (; col < nrc; col++) {
+        int32x4_t accu = vdupq_n_s32(0);
+        const int8_t * y_col = y + (size_t)col * by;
+
+        for (int j = 0; j < nb; j++) {
+            const uint8_t * px = x + (size_t)j * 32;
+            const int8_t  * py = y_col + (size_t)j * 128;
+
+            const uint8x16_t x_lo = vld1q_u8(px);
+            const uint8x16_t x_hi = vld1q_u8(px + 16);
+
+            const int8x16_t q0_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 6), mask));
+            const int8x16_t q0_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 6), mask));
+            const int8x16_t q1_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 4), mask));
+            const int8x16_t q1_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 4), mask));
+            const int8x16_t q2_lo = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_lo, 2), mask));
+            const int8x16_t q2_hi = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(x_hi, 2), mask));
+            const int8x16_t q3_lo = vreinterpretq_s8_u8(vandq_u8(x_lo, mask));
+            const int8x16_t q3_hi = vreinterpretq_s8_u8(vandq_u8(x_hi, mask));
+
+            accu = bitnet_neon_dot_block128(
+                accu, q0_lo, q0_hi, q1_lo, q1_hi, q2_lo, q2_hi, q3_lo, q3_hi, py);
+        }
+
+        s[(size_t)col * bs] = (float)vaddlvq_s32(accu);
     }
 #endif
 }
