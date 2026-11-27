@@ -75,7 +75,8 @@ COMPILER_EXTRA_ARGS = {
 }
 
 OS_EXTRA_ARGS = {
-    "Windows":["-T", "ClangCL"],
+    "Windows": ["-T", "ClangCL"],
+    "Darwin": ["-DBUILD_SHARED_LIBS=OFF", "-DGGML_BLAS=OFF"],
 }
 
 ARCH_ALIAS = {
